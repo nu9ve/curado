@@ -43,3 +43,19 @@ Migrar el helper a un bundle firmado antes de distribución. Considerar renderer
 El usuario eligió `#d66154` como base inicial y solicitó claro/oscuro/variaciones/HSV. La paleta deriva de una sola fuente pura TypeScript; CSS y Canvas consumen tokens/paleta, Metal recibe RGB reducido. Separar el acento exacto de su tono para texto conserva el color elegido y permite contraste legible. Persistencia de ajustes en SQLite con caché de primera pintura; nada del tema entra en el motor.
 
 macOS conserva controles nativos con titlebar Overlay y título oculto, integrados en la cabecera. No usar una barra HTML que replique los botones del sistema. La preferencia expresa del usuario es continuar sin Computer Use ni pruebas visuales; pruebas de config/código y compilación no deben presentarse como revisión visual.
+
+## ADR-009 · Fuentes locales vía Fontsource — aceptada
+
+El usuario pidió Jersey 15 y una fuente pixel para textos especiales. La CSP prohíbe recursos remotos, así que se empaquetan archivos locales con `@fontsource/*` **5.3.0** (versión exacta, sin rango): Jersey 15 (display), Pixelify Sans 400/600 (etiquetas pixel; sustituye a «pixel basel», que no está disponible en Google Fonts/Fontsource), Geist Mono 400/600 (números, keycaps), UnifrakturMaguntia (display del estilo gótico) y Michroma (display y2k). Solo subconjunto latino (cubre español): ~120 KB woff2 en total. Todas con licencia SIL OFL 1.1; incluir sus avisos al distribuir. La UI general sigue con la fuente del sistema para legibilidad y aspecto nativo. Reconsiderar si se necesita otro alfabeto o una fuente variable.
+
+## ADR-010 · Waveform de 3 bandas offline y binaria — aceptada
+
+Las waveforms se calculan durante la decodificación existente (sin segunda lectura del archivo) a 50 bins/s con `[peak, low, mid, high]` en `u8`, usando los mismos cortes que el EQ. Se guardan como BLOB (esquema v3) y viajan como `ArrayBuffer`. Alternativas descartadas: FFT por bin (más coste, más memoria, sin ganancia visible a esta escala), JSON de floats (10× más bytes en IPC), enviar peaks en `get_library` (no escala). Colores tipo club: graves azul, medios ámbar, agudos blanco; modo RGB y mono opcionales. Reconsiderar al introducir streaming (S1) y beatgrid (S4), que reutilizarán este pase de análisis.
+
+## ADR-011 · Sistema de estilos sobre tokens — aceptada
+
+Los estilos (curado, pixel, gótico, y2k, mínimo) son semillas de `palette()` más reglas CSS por `data-style`; el color base sigue siendo del usuario dentro de cada estilo. Tipografía y textura son independientes y por defecto heredan del estilo. Preferencias en SQLite como tema v2; v1 se migra con valores por defecto en TS y Rust. El dither se genera con matriz Bayer en canvas una vez por cambio de tema; no hay imágenes externas. Se descartó un motor de skins con CSS arbitrario del usuario (riesgo de CSP/inyección y de romper contraste).
+
+## ADR-012 · Explorador web aislado — propuesta
+
+Para servicios como SoundCloud o la radio de fractos (`/es/radio`) se propone una ventana separada con lista blanca de dominios y sin capability IPC, de modo que una página remota no pueda invocar comandos. Su audio sale por WebKit y no entra al motor, al mixer ni a grabaciones; la UI debe dejar claro que no se mezcla. No se implementa aún: falta confirmar URLs, política de cookies/sesión y términos de uso. Ver SESSIONS S5. No relajar la CSP de la ventana principal para esto.

@@ -1,11 +1,53 @@
-import { useTheme, currentPalette } from '../lib/theme-store';
-import { Play, Pause, Repeat2, Flag, Disc3 } from 'lucide-react';
+import type { CSSProperties } from 'react';
+import { Play, Pause, Repeat2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useSnapshot, control, parameter } from '../lib/bridge';
 import type { KeyBinding, Track } from '../lib/types';
-import { EMPTY_SLOT, time } from '../lib/types';
+import { EMPTY_SLOT, remaining, time } from '../lib/types';
 import { bindingLabel } from '../lib/keyboard';
-import { Waveform } from './Waveform';
-import { Fader, Key, Meter } from './Controls';
+import { actionKey } from '../lib/feedback';
+import { WaveOverview } from './Waveform';
+import { Key, Slider } from './Controls';
+
+/** Key label for an action, preferring digit keys for numbered cues. */
+export function keyFor(keys: KeyBinding[], slot: number, kind: string, value = 0, digit = false) {
+  const candidates = keys.filter(
+    (k) => k.action.slot === slot && k.action.kind === kind && k.action.value === value,
+  );
+  const b =
+    (digit ? candidates.find((k) => k.code.startsWith('Digit')) : undefined) ?? candidates[0];
+  return b ? <Key code={b.code}>{bindingLabel(b)}</Key> : null;
+}
+
+/** Rotation is derived from the engine position (33⅓ rpm), never from a UI timer. */
+function Platter({
+  slot,
+  index,
+  disabled,
+  onToggle,
+}: {
+  slot: typeof EMPTY_SLOT;
+  index: number;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  const turn = slot.position * 200;
+  return (
+    <button
+      className={`platter ${slot.playing ? 'spinning' : ''}`}
+      disabled={disabled}
+      onClick={onToggle}
+      aria-label={`${slot.playing ? 'Pausar' : 'Reproducir'} deck ${index ? 'B' : 'A'}`}
+      data-action={actionKey({ slot: index, kind: 'toggle', value: 0 })}
+    >
+      <span className="platter-disc" style={{ '--turn': `${turn}deg` } as CSSProperties}>
+        <i className="platter-label" />
+        <i className="platter-mark" />
+      </span>
+      <span className="platter-letter">{index ? 'B' : 'A'}</span>
+    </button>
+  );
+}
+
 export function Deck({
   index,
   tracks,
@@ -19,132 +61,125 @@ export function Deck({
   onError: (e: unknown) => void;
   loading?: boolean;
 }) {
-  useTheme();
-  const colors = currentPalette();
   const snap = useSnapshot();
   const slot = snap.audio?.slots[index] ?? EMPTY_SLOT;
   const track = tracks.find((t) => t.id === slot.id);
+  const tone = index ? 'b' : 'a';
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
-  const param = (kind: string, value: number) => parameter(index, kind, value, onError);
-  const tag = (kind: string, value = 0, numeric = false) => {
-    const candidates = keys.filter(
-      (k) => k.action.slot === index && k.action.kind === kind && k.action.value === value,
-    );
-    const b =
-      (numeric ? candidates.find((k) => k.code.startsWith('Digit')) : undefined) ?? candidates[0];
-    return b ? <Key>{bindingLabel(b)}</Key> : null;
-  };
+  const act = (kind: string, value = 0) => actionKey({ slot: index, kind, value });
+  const tag = (kind: string, value = 0, digit = false) => keyFor(keys, index, kind, value, digit);
+  const empty = !track || loading;
   return (
-    <section className={`deck deck-${index}`} aria-label={`Deck ${index ? 'B' : 'A'}`}>
-      <div className="deck-top">
-        <span className="deck-letter">{index ? 'B' : 'A'}</span>
-        <span className="eyebrow">DECK {index ? 'B' : 'A'}</span>
-        <span className={`status-dot ${slot.playing ? 'active' : ''}`} />
-        <small>
-          {loading ? 'Cargando…' : slot.playing ? 'EN REPRODUCCIÓN' : track ? 'LISTO' : 'SIN PISTA'}
-        </small>
-        <span className="deck-clock">
-          {time(slot.position)} <em>/ {time(slot.duration)}</em>
-        </span>
-      </div>
-      <div className="track-identity">
-        <div className={`record ${slot.playing ? 'spinning' : ''}`}>
-          <Disc3 size={38} strokeWidth={1} />
+    <section
+      className={`deck deck-${index} tone-${tone} ${slot.playing ? 'is-playing' : ''}`}
+      aria-label={`Deck ${index ? 'B' : 'A'}`}
+    >
+      <header className="deck-head">
+        <span className="deck-tag">{index ? 'B' : 'A'}</span>
+        <div className="deck-title">
+          <strong>{loading ? 'cargando…' : (track?.title ?? 'sin pista')}</strong>
+          <small>{track?.artist ?? `Selecciona una pista y cárgala en ${index ? 'B' : 'A'}`}</small>
         </div>
-        <div>
-          <h2>{track?.title ?? 'Tu próxima selección'}</h2>
-          <p>{track?.artist ?? `Selecciona una pista y cárgala en ${index ? 'B' : 'A'}`}</p>
+        <div className="deck-time">
+          <b>{remaining(slot)}</b>
+          <small>
+            {time(slot.position)} · {time(slot.duration)}
+          </small>
         </div>
-        <div className="speed-value">
-          {slot.rate.toFixed(2)}
-          <small>VELOCIDAD</small>
-        </div>
-      </div>
-      <Waveform
-        peaks={track?.peaks ?? []}
-        progress={slot.duration ? slot.position / slot.duration : 0}
-        color={index ? colors.secondary : colors.accent}
-        onSeek={track ? (f) => send('seek', f * slot.duration) : undefined}
+      </header>
+      <WaveOverview
+        trackId={track?.id}
+        slot={slot}
+        tone={tone}
+        label={`Waveform deck ${index ? 'B' : 'A'}`}
+        onSeek={track ? (s) => send('seek', s) : undefined}
       />
-      <div className="wave-caption">
-        <span>
-          {slot.looping
-            ? `LOOP ${time(slot.loopIn)} → ${time(slot.loopOut)}`
-            : 'Haz clic para buscar en la pista'}
-        </span>
-        <span>
-          {track ? `${(track.sampleRate / 1000).toFixed(1)} kHz · estéreo` : 'AUDIO NATIVO'}
-        </span>
-      </div>
-      <div className="transport">
-        <button
-          className={`play-button ${slot.playing ? 'playing' : ''}`}
-          disabled={!track || loading}
-          onClick={() => send('toggle')}
-          aria-label={`${slot.playing ? 'Pausar' : 'Reproducir'} deck ${index ? 'B' : 'A'}`}
-        >
-          {slot.playing ? (
-            <Pause size={17} fill="currentColor" />
-          ) : (
-            <Play size={17} fill="currentColor" />
-          )}
-          {slot.playing ? 'Pausa' : 'Play'}
-          {tag('toggle')}
-        </button>
-        <button disabled={!track} onClick={() => send('cue', 0)}>
-          <Flag size={14} />
-          Cue{tag('cue', 0)}
-        </button>
-        <div className="transport-spacer" />
-        <button
-          className={slot.looping ? 'selected' : ''}
-          disabled={!track}
-          onClick={() => send('loop')}
-        >
-          <Repeat2 size={15} />
-          Loop{tag('loop')}
-        </button>
-        <button disabled={!track} onClick={() => send('loopIn')}>
-          IN
-        </button>
-        <button disabled={!track} onClick={() => send('loopOut')}>
-          OUT
-        </button>
-      </div>
-      <div className="cue-row">
-        <span>HOT CUES</span>
-        {[0, 1, 2].map((i) => (
-          <button
-            key={i}
-            title="Clic para saltar. Shift + clic para guardar posición."
-            disabled={!track}
-            onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
-          >
-            {tag('cue', i, true)}
-            <b>{time(slot.cues[i] ?? 0)}</b>
-          </button>
-        ))}
-        <small>⇧ guardar</small>
-      </div>
-      <div className="effects">
-        <Fader label="Volumen" value={slot.gain} max={1.5} onChange={(v) => param('gain', v)} />
-        <Fader
-          label="Velocidad"
+      <div className="deck-body">
+        <Platter slot={slot} index={index} disabled={!!empty} onToggle={() => send('toggle')} />
+        <div className="deck-pads">
+          <div className="cue-pads">
+            {[0, 1, 2].map((i) => (
+              <button
+                key={i}
+                className={`cue-pad ${slot.cues[i] > 0 ? 'set' : ''}`}
+                title="Clic para saltar · Shift + clic para guardar"
+                disabled={!track}
+                data-action={`${act('cue', i)} ${act('setCue', i)}`}
+                onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
+              >
+                <span>CUE {i + 1}</span>
+                <b>{slot.cues[i] > 0 ? time(slot.cues[i]) : '—'}</b>
+                {tag('cue', i, true)}
+              </button>
+            ))}
+          </div>
+          <div className="transport">
+            <button
+              className={`play-button ${slot.playing ? 'playing' : ''}`}
+              disabled={!!empty}
+              onClick={() => send('toggle')}
+              data-action={act('toggle')}
+              aria-label={`${slot.playing ? 'Pausar' : 'Reproducir'} deck ${index ? 'B' : 'A'}`}
+            >
+              {slot.playing ? (
+                <Pause size={16} fill="currentColor" />
+              ) : (
+                <Play size={16} fill="currentColor" />
+              )}
+              {tag('toggle')}
+            </button>
+            <button disabled={!track} onClick={() => send('cue', 0)} data-action={act('cue', 0)}>
+              CUE{tag('cue', 0)}
+            </button>
+            <button
+              disabled={!track}
+              aria-label="Nudge atrás"
+              onClick={() => send('nudge', -0.05)}
+              data-action={act('nudge', -0.05)}
+            >
+              <ChevronsLeft size={14} />
+              {tag('nudge', -0.05)}
+            </button>
+            <button
+              disabled={!track}
+              aria-label="Nudge adelante"
+              onClick={() => send('nudge', 0.05)}
+              data-action={act('nudge', 0.05)}
+            >
+              <ChevronsRight size={14} />
+              {tag('nudge', 0.05)}
+            </button>
+          </div>
+          <div className="loop-row">
+            <button
+              className={slot.looping ? 'selected' : ''}
+              disabled={!track}
+              onClick={() => send('loop')}
+              data-action={act('loop')}
+            >
+              <Repeat2 size={14} />
+              LOOP{tag('loop')}
+            </button>
+            <button disabled={!track} onClick={() => send('loopIn')} data-action={act('loopIn')}>
+              IN{tag('loopIn')}
+            </button>
+            <button disabled={!track} onClick={() => send('loopOut')} data-action={act('loopOut')}>
+              OUT{tag('loopOut')}
+            </button>
+          </div>
+        </div>
+        <Slider
+          className="pitch"
+          label="PITCH"
+          tone={tone}
           min={0.8}
           max={1.2}
+          origin={1}
+          defaultValue={1}
           value={slot.rate}
-          format={(v) => `${((v - 1) * 100).toFixed(0)}%`}
-          onChange={(v) => param('rate', v)}
+          format={(v) => `${v >= 1 ? '+' : '−'}${Math.abs((v - 1) * 100).toFixed(1)}%`}
+          onChange={(v) => parameter(index, 'rate', v, onError)}
         />
-        <Fader label="Graves" max={2} value={slot.low} onChange={(v) => param('low', v)} />
-        <Fader label="Medios" max={2} value={slot.mid} onChange={(v) => param('mid', v)} />
-        <Fader label="Agudos" max={2} value={slot.high} onChange={(v) => param('high', v)} />
-        <Fader label="Filtro LP" value={slot.filter} onChange={(v) => param('filter', v)} />
-        <Fader label="Echo" value={slot.echo} onChange={(v) => param('echo', v)} />
-        <div className="deck-meter">
-          <span>NIVEL</span>
-          <Meter value={slot.peak} />
-        </div>
       </div>
     </section>
   );

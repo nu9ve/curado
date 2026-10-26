@@ -33,6 +33,14 @@ export function Settings({
     refresh();
   }, []);
   useEffect(() => {
+    if (capture !== null) return;
+    const close = (e: KeyboardEvent) => {
+      if (e.code === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [capture, onClose]);
+  useEffect(() => {
     if (capture === null) return;
     const handler = (e: KeyboardEvent) => {
       e.preventDefault();
@@ -75,8 +83,8 @@ export function Settings({
       >
         <div className="modal-header">
           <div>
-            <span className="eyebrow">A TU MANERA</span>
-            <h2>Configuración</h2>
+            <span className="eyebrow">a tu manera</span>
+            <h2>configuración</h2>
           </div>
           <button aria-label="Cerrar configuración" onClick={onClose}>
             <X size={18} />
@@ -101,7 +109,7 @@ export function Settings({
         {tab === 'appearance' && <ThemePanel onError={onError} />}
         {tab === 'audio' && (
           <div className="settings-body">
-            <h3>El audio tiene prioridad.</h3>
+            <h3>el audio tiene prioridad.</h3>
             <p>
               El motor Rust reproduce y procesa audio fuera de la interfaz. Los visuales y la
               biblioteca trabajan por separado.
@@ -183,7 +191,7 @@ export function Settings({
         )}
         {tab === 'keyboard' && (
           <div className="settings-body">
-            <h3>Un teclado. Toda la sesión.</h3>
+            <h3>un teclado. toda la sesión.</h3>
             <p>
               Atajos físicos con la ventana enfocada. Al escribir o usar sliders no se disparan
               acciones. Shift + cue guarda la posición. Haz clic en una tecla para cambiarla.
@@ -215,7 +223,7 @@ export function Settings({
         )}
         {tab === 'midi' && (
           <div className="settings-body">
-            <h3>Conecta. Mueve. Aprende.</h3>
+            <h3>conecta. mueve. aprende.</h3>
             <p>
               Note On y CC absolutos por dispositivo, canal y número. Los mapeos se guardan
               automáticamente.

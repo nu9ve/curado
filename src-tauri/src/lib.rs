@@ -52,6 +52,8 @@ impl AppState {
         };
         let mut clip = decode(&path, id)?;
         clip.cues = self.annotations.lock().unwrap().state(id, initial);
+        // Tracks imported before schema v3 gain their band waveform on first load.
+        let _ = self.db.lock().unwrap().fill_waveform(id, &clip);
         Ok(Arc::new(clip))
     }
     fn flush_cues(&self) {
@@ -170,6 +172,7 @@ async fn save_theme(
 ) -> Result<(), String> {
     theme.validate()?;
     theme.base = theme.base.to_ascii_lowercase();
+    theme.version = 2;
     let s = state.inner().clone();
     work(move || {
         s.db.lock().unwrap().save("theme", &theme)?;
@@ -185,10 +188,18 @@ async fn status(state: tauri::State<'_, Arc<AppState>>) -> Result<AppSnapshot, S
 }
 #[tauri::command]
 fn audio_action(action: Action, state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
-    if action.kind == "panic" {
-        state.queue.lock().unwrap().enabled = false;
-    }
     state.action(action)
+}
+/// Raw bytes (`analysis::encode`) reach JS as an ArrayBuffer, avoiding a JSON number array.
+#[tauri::command]
+async fn track_waveform(
+    id: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<tauri::ipc::Response, String> {
+    let s = state.inner().clone();
+    work(move || s.db.lock().unwrap().waveform(id))
+        .await
+        .map(tauri::ipc::Response::new)
 }
 #[tauri::command]
 async fn get_library(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
@@ -234,7 +245,7 @@ async fn import_media(
 ) -> Result<ImportReport, String> {
     let s = state.inner().clone();
     let dialog = rfd::AsyncFileDialog::new()
-        .set_title("Importar música a Curado")
+        .set_title("Importar música a curado")
         .add_filter(
             "Audio",
             &[
@@ -451,10 +462,10 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
         menu::{Menu, MenuItem, PredefinedMenuItem},
         tray::TrayIconBuilder,
     };
-    let show = MenuItem::with_id(app, "show", "Abrir Curado", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Abrir curado", true, None::<&str>)?;
     let play = MenuItem::with_id(app, "play", "Play / pausa · Deck A", true, None::<&str>)?;
     let stop = MenuItem::with_id(app, "stop", "Silenciar todo", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, "quit", "Salir de Curado", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Salir de curado", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
         &[
@@ -466,7 +477,7 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
         ],
     )?;
     let mut builder = TrayIconBuilder::with_id("curado")
-        .tooltip("Curado · Música en tus manos")
+        .tooltip("curado · música en tus manos")
         .menu(&menu)
         .on_menu_event(|app, event| {
             let s = app.state::<Arc<AppState>>();
@@ -550,7 +561,7 @@ pub fn run() {
             });
             app.manage(state.clone());
             if let Err(error) = tray(app) {
-                eprintln!("Curado tray unavailable: {error}");
+                eprintln!("curado tray unavailable: {error}");
             }
             let handle = app.handle().clone();
             let telemetry = state.clone();
@@ -624,6 +635,7 @@ pub fn run() {
             status,
             audio_action,
             get_library,
+            track_waveform,
             edit_library,
             import_media,
             create_demo,
@@ -644,7 +656,7 @@ pub fn run() {
             set_mode
         ])
         .build(tauri::generate_context!())
-        .expect("No se pudo iniciar Curado")
+        .expect("No se pudo iniciar curado")
         .run(|app, event| {
             if let tauri::RunEvent::Exit = event {
                 let state = app.state::<Arc<AppState>>();

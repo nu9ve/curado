@@ -1,4 +1,4 @@
-use curado_audio::decode::Clip;
+use curado_audio::{analysis, decode::Clip};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -12,7 +12,6 @@ pub struct Track {
     pub path: String,
     pub duration: f64,
     pub sample_rate: u32,
-    pub peaks: Vec<f32>,
     pub favorite: bool,
 }
 #[derive(Serialize)]
@@ -52,9 +51,9 @@ impl Database {
         let version: u32 = connection
             .query_row("PRAGMA user_version", [], |r| r.get(0))
             .map_err(|e| e.to_string())?;
-        if version > 2 {
+        if version > 3 {
             return Err(
-                "La biblioteca pertenece a una versión más reciente de Curado. No se modificó."
+                "La biblioteca pertenece a una versión más reciente de curado. No se modificó."
                     .into(),
             );
         }
@@ -86,15 +85,25 @@ impl Database {
             }
             tx.commit().map_err(|e| e.to_string())?;
         }
+        if version == 1 || version == 2 {
+            // v3: band waveform blob. Legacy rows keep NULL until their next decode backfills it.
+            let tx = connection
+                .unchecked_transaction()
+                .map_err(|e| e.to_string())?;
+            tx.execute_batch("ALTER TABLE tracks ADD COLUMN waveform BLOB; PRAGMA user_version=3;")
+                .map_err(|e| e.to_string())?;
+            tx.commit().map_err(|e| e.to_string())?;
+        }
         connection.execute_batch("PRAGMA foreign_keys=ON; BEGIN IMMEDIATE;
-        CREATE TABLE IF NOT EXISTS tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL UNIQUE, title TEXT NOT NULL, artist TEXT NOT NULL, duration REAL NOT NULL, sample_rate INTEGER NOT NULL, peaks TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0);
+        CREATE TABLE IF NOT EXISTS tracks (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL UNIQUE, title TEXT NOT NULL, artist TEXT NOT NULL, duration REAL NOT NULL, sample_rate INTEGER NOT NULL, peaks TEXT NOT NULL, favorite INTEGER NOT NULL DEFAULT 0, waveform BLOB);
         CREATE TABLE IF NOT EXISTS playlists (id INTEGER PRIMARY KEY, name TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS playlist_tracks (playlist INTEGER REFERENCES playlists(id) ON DELETE CASCADE, track INTEGER REFERENCES tracks(id) ON DELETE CASCADE, position INTEGER NOT NULL, PRIMARY KEY(playlist, track));
-        CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=2; COMMIT;").map_err(|e| e.to_string())?;
+        CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL); PRAGMA user_version=3; COMMIT;").map_err(|e| e.to_string())?;
         Ok(Self { connection })
     }
     pub fn library(&self) -> Result<Library, String> {
-        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,peaks,favorite FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
+        // Waveforms are fetched per track on demand; the listing stays small for large libraries.
+        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,favorite FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
         let tracks = stmt
             .query_map([], |r| {
                 Ok(Track {
@@ -104,8 +113,7 @@ impl Database {
                     artist: r.get(3)?,
                     duration: r.get(4)?,
                     sample_rate: r.get(5)?,
-                    peaks: serde_json::from_str(&r.get::<_, String>(6)?).unwrap_or_default(),
-                    favorite: r.get(7)?,
+                    favorite: r.get(6)?,
                 })
             })
             .map_err(|e| e.to_string())?
@@ -144,7 +152,29 @@ impl Database {
                 .to_string_lossy()
                 .into()
         });
-        self.connection.execute("INSERT OR IGNORE INTO tracks(path,title,artist,duration,sample_rate,peaks) VALUES(?,?,?,?,?,?)", params![path.to_string_lossy(), title, clip.artist.as_deref().unwrap_or("Artista desconocido"), clip.duration(), clip.sample_rate, serde_json::to_string(&clip.peaks).map_err(|e| e.to_string())?]).map(|n| n > 0).map_err(|e| e.to_string())
+        // `peaks` is the v1/v2 overview column, kept only for schema compatibility.
+        self.connection.execute("INSERT OR IGNORE INTO tracks(path,title,artist,duration,sample_rate,peaks,waveform) VALUES(?,?,?,?,?,'[]',?)", params![path.to_string_lossy(), title, clip.artist.as_deref().unwrap_or("Artista desconocido"), clip.duration(), clip.sample_rate, analysis::encode(&clip.waveform)]).map(|n| n > 0).map_err(|e| e.to_string())
+    }
+    pub fn waveform(&self, id: u64) -> Result<Vec<u8>, String> {
+        self.connection
+            .query_row("SELECT waveform FROM tracks WHERE id=?", [id], |r| {
+                r.get::<_, Option<Vec<u8>>>(0)
+            })
+            .map(Option::unwrap_or_default)
+            .map_err(|_| "Pista no encontrada".into())
+    }
+    /// Backfills rows imported before v3. Never overwrites an existing analysis.
+    pub fn fill_waveform(&self, id: u64, clip: &Clip) -> Result<bool, String> {
+        if clip.waveform.is_empty() {
+            return Ok(false);
+        }
+        self.connection
+            .execute(
+                "UPDATE tracks SET waveform=? WHERE id=? AND waveform IS NULL",
+                params![analysis::encode(&clip.waveform), id],
+            )
+            .map(|n| n > 0)
+            .map_err(|e| e.to_string())
     }
     pub fn path(&self, id: u64) -> Result<PathBuf, String> {
         self.connection
@@ -248,6 +278,27 @@ mod tests {
             c.execute_batch("CREATE TABLE tracks(id INTEGER PRIMARY KEY,path TEXT NOT NULL UNIQUE,title TEXT NOT NULL,artist TEXT NOT NULL,duration REAL NOT NULL,sample_rate INTEGER NOT NULL,peaks TEXT NOT NULL,favorite INTEGER NOT NULL DEFAULT 0);CREATE TABLE playlists(id INTEGER PRIMARY KEY,name TEXT NOT NULL);CREATE TABLE playlist_tracks(playlist INTEGER REFERENCES playlists(id) ON DELETE CASCADE,track INTEGER REFERENCES tracks(id) ON DELETE CASCADE,position INTEGER NOT NULL,PRIMARY KEY(playlist,track));CREATE TABLE settings(key TEXT PRIMARY KEY,value TEXT NOT NULL);INSERT INTO tracks VALUES(10,'old.wav','Old','Artist',1,48000,'[]',1);INSERT INTO playlists VALUES(1,'Set');INSERT INTO playlist_tracks VALUES(1,10,0);PRAGMA user_version=1;").unwrap();
         }
         let db = Database::open(&path).unwrap();
+        let version: u32 = db
+            .connection
+            .query_row("PRAGMA user_version", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 3);
+        assert!(
+            db.waveform(10).unwrap().is_empty(),
+            "legacy rows wait for backfill"
+        );
+        let clip = Clip {
+            id: 10,
+            cues: Default::default(),
+            samples: vec![],
+            sample_rate: 48000,
+            waveform: vec![[9, 8, 7, 6]],
+            title: None,
+            artist: None,
+        };
+        assert!(db.fill_waveform(10, &clip).unwrap());
+        assert!(!db.fill_waveform(10, &clip).unwrap(), "never overwrites");
+        assert_eq!(db.waveform(10).unwrap()[4..], [9, 8, 7, 6]);
         assert_eq!(db.library().unwrap().playlists[0].tracks, vec![10]);
         assert!(db.library().unwrap().tracks[0].favorite);
         db.edit(LibraryEdit::RemoveTrack { track: 10 }).unwrap();

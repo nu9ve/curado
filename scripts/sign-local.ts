@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 /** A local ARM64 bundle still needs a consistent resource seal. Never replace a publisher identity. */
 if (process.platform === 'darwin') {
-  const bundle = resolve(process.argv[2] ?? 'target/release/bundle/macos/Curado.app');
+  const bundle = resolve(process.argv[2] ?? 'target/release/bundle/macos/curado.app');
   const base = await Bun.file('src-tauri/tauri.conf.json').json();
   const mac = await Bun.file('src-tauri/tauri.macos.conf.json').json();
   const identity =

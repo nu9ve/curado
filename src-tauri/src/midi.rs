@@ -51,7 +51,7 @@ impl Midi {
         }
     }
     pub fn ports() -> Result<Vec<String>, String> {
-        let midi = MidiInput::new("Curado").map_err(|e| e.to_string())?;
+        let midi = MidiInput::new("curado").map_err(|e| e.to_string())?;
         midi.ports()
             .iter()
             .map(|p| midi.port_name(p).map_err(|e| e.to_string()))
@@ -64,7 +64,7 @@ impl Midi {
         let Some(name) = name else {
             return Ok(());
         };
-        let mut midi = MidiInput::new("Curado").map_err(|e| e.to_string())?;
+        let mut midi = MidiInput::new("curado").map_err(|e| e.to_string())?;
         midi.ignore(Ignore::All);
         let port = midi
             .ports()
@@ -76,7 +76,7 @@ impl Midi {
         self.connection = Some(
             midi.connect(
                 &port,
-                "Curado input",
+                "curado input",
                 move |_, data, _| {
                     if data.len() >= 3
                         && matches!(data[0] & 0xf0, 0x90 | 0xb0)
@@ -146,7 +146,9 @@ impl Midi {
                     let mut action = binding.action.clone();
                     if kind == 0xb0 {
                         action.value = match action.kind.as_str() {
-                            "gain" | "low" | "mid" | "high" => raw.value as f64 / 127. * 1.5,
+                            "gain" => raw.value as f64 / 127. * 1.5,
+                            // EQ range is 0..2 with unity at the centre detent (CC 64).
+                            "low" | "mid" | "high" => raw.value as f64 / 64.,
                             "rate" => 0.8 + raw.value as f64 / 127. * 0.4,
                             "master" | "crossfader" | "filter" | "echo" => raw.value as f64 / 127.,
                             _ => {

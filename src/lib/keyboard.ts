@@ -80,6 +80,10 @@ export function actionLabel(kind: string) {
     )[kind] ?? kind
   );
 }
+/** Player mode keeps only deck A transport (mirrors `session.rs`, slightly stricter). */
+export function allowedInMode(action: KeyBinding['action'], mode: 'player' | 'mix') {
+  return mode === 'mix' || (action.slot === 0 && action.kind !== 'crossfader');
+}
 export function matchKey(
   event: Pick<KeyboardEvent, 'code' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey' | 'repeat'>,
   bindings: KeyBinding[],
@@ -87,11 +91,5 @@ export function matchKey(
 ) {
   if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return undefined;
   const binding = bindings.find((b) => b.code === event.code && b.shift === event.shiftKey);
-  if (
-    binding &&
-    mode === 'player' &&
-    (binding.action.slot !== 0 || binding.action.kind === 'crossfader')
-  )
-    return undefined;
-  return binding;
+  return binding && allowedInMode(binding.action, mode) ? binding : undefined;
 }

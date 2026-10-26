@@ -10,9 +10,9 @@ bun run desktop
 bun run desktop:build
 ```
 
-Resultado: `target/release/bundle/macos/Curado.app`. El script de build firma ad hoc el contenedor local y verifica su resource seal; si existe identidad de publicación configurada, la respeta. Build local ad hoc; no está notarizado para otros equipos. Para distribuir: Developer ID, hardened runtime, helper firmado dentro del bundle, entitlements mínimos y notarización. No añadir permisos de micrófono: la app solo reproduce. No pedir Accessibility/Input Monitoring para los hotkeys enfocados actuales.
+Resultado: `target/release/bundle/macos/curado.app` (el nombre visible del producto es «curado», en minúsculas; el identificador `studio.curado.player` no cambió, así que datos y preferencias se conservan). El script de build firma ad hoc el contenedor local y verifica su resource seal; si existe identidad de publicación configurada, la respeta. Build local ad hoc; no está notarizado para otros equipos. Para distribuir: Developer ID, hardened runtime, helper firmado dentro del bundle, entitlements mínimos y notarización. No añadir permisos de micrófono: la app solo reproduce. No pedir Accessibility/Input Monitoring para los hotkeys enfocados actuales.
 
-Datos: `~/Library/Application Support/studio.curado.player/curado.sqlite` y carpeta `demo/`. Caché del helper: `~/Library/Caches/studio.curado.player/Curado Visuals.app`. SQLite puede tener archivos `-wal`/`-shm`: usar backup consistente con SQLite o cerrar la app antes de copiar.
+Datos: `~/Library/Application Support/studio.curado.player/curado.sqlite` y carpeta `demo/`. Caché del helper: `~/Library/Caches/studio.curado.player/curado visuals.app` (versiones anteriores dejaban `Curado Visuals.app`; puede borrarse a mano, la app no borra cachés antiguas). SQLite puede tener archivos `-wal`/`-shm`: usar backup consistente con SQLite o cerrar la app antes de copiar.
 
 ## Windows
 
@@ -33,10 +33,18 @@ bun run desktop
 
 Este build usa ALSA; la integración con PipeWire/Pulse depende de la configuración del sistema. No se habilitan JACK/PipeWire nativo en CPAL 0.16. midir usa ALSA MIDI. El tray depende del escritorio/extensiones (especialmente GNOME). Wayland puede restringir global shortcuts; aquí los atajos son enfocados. Si no hay tray usable, mostrar una opción explícita para salir/cerrar es prioridad de validación, porque cerrar ventana está configurado para ocultarla si se creó tray.
 
-El visual integrado funciona como UI compartida. El botón Metal devuelve un mensaje de plataforma no compatible; falta ocultarlo o reemplazarlo por renderer nativo multiplataforma según capacidades.
+El visual integrado funciona como UI compartida. El botón Metal solo se muestra en macOS; falta un renderer nativo multiplataforma (wgpu).
 
 ## Validación cruzada
 
 CI está preparada para macOS, Windows y Ubuntu. Crear el workflow no demuestra que haya corrido. Una compilación de CI tampoco valida drivers, hardware, hotplug ni tray. Registrar ejecuciones y matriz de hardware en STATUS/QUALITY.
 
 Referencia de requisitos generales: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). La aplicación no instala drivers ni servicios al sistema.
+
+## Iconos
+
+`scripts/icon.py` genera el icono de 1024 px y `docs/assets/logo.svg` desde la misma geometría que `src/components/Logo.tsx` (anillo pixel en «c» con eje, dither coral → ámbar sobre squircle oscuro). Después `bun tauri icon <png>` regenera `src-tauri/icons` para macOS, Windows, Linux, iOS y Android. Sin dependencias externas.
+
+## Fuentes
+
+Las fuentes viajan dentro del bundle (`@fontsource/*` 5.3.0, latín, OFL 1.1). No se cargan fuentes de red. Al distribuir, incluir los avisos de licencia de cada familia.

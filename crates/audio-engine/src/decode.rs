@@ -1,4 +1,4 @@
-use crate::annotations::CueState;
+use crate::{analysis::WaveformBuilder, annotations::CueState};
 use std::{fs::File, path::Path, sync::Arc};
 use symphonia::core::{
     audio::SampleBuffer, codecs::DecoderOptions, errors::Error, formats::FormatOptions,
@@ -13,7 +13,8 @@ pub struct Clip {
     pub cues: Arc<CueState>,
     pub samples: Vec<[f32; 2]>,
     pub sample_rate: u32,
-    pub peaks: Vec<f32>,
+    /// `[peak, low, mid, high]` per bin at `analysis::WAVEFORM_RATE`.
+    pub waveform: Vec<[u8; 4]>,
     pub title: Option<String>,
     pub artist: Option<String>,
 }
@@ -66,6 +67,7 @@ pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
         .map_err(|e| format!("Códec no compatible: {e}"))?;
     let mut samples = Vec::new();
     let mut sample_rate = params.sample_rate.unwrap_or(44100);
+    let mut analysis: Option<WaveformBuilder> = None;
     loop {
         let packet = match format.next_packet() {
             Ok(p) => p,
@@ -79,6 +81,7 @@ pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
             .decode(&packet)
             .map_err(|e| format!("Error al decodificar: {e}"))?;
         sample_rate = decoded.spec().rate;
+        let analysis = analysis.get_or_insert_with(|| WaveformBuilder::new(sample_rate));
         let channels = decoded.spec().channels.count();
         if channels == 0 || channels > 2 {
             return Err("Esta versión admite archivos mono o estéreo".into());
@@ -97,27 +100,21 @@ pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
                     0.0
                 }
             };
-            samples.push([clean(frame[0]), clean(frame[channels - 1])]);
+            let frame = [clean(frame[0]), clean(frame[channels - 1])];
+            analysis.push(frame);
+            samples.push(frame);
         }
     }
     if samples.is_empty() {
         return Err("El archivo no contiene muestras decodificables".into());
     }
-    let size = samples.len().div_ceil(640);
-    let peaks = samples
-        .chunks(size)
-        .map(|chunk| {
-            chunk
-                .iter()
-                .fold(0.0_f32, |p, x| p.max(x[0].abs()).max(x[1].abs()))
-        })
-        .collect();
+    let waveform = analysis.map(WaveformBuilder::finish).unwrap_or_default();
     Ok(Clip {
         id,
         cues: Arc::new(CueState::default()),
         samples,
         sample_rate,
-        peaks,
+        waveform,
         title,
         artist,
     })
@@ -151,7 +148,7 @@ mod tests {
             assert!((clip.duration() - 0.1).abs() < 0.00001);
             assert!((clip.samples[10][0] - 0.25).abs() < 0.001);
             assert_eq!(clip.samples[10][0], clip.samples[10][1]);
-            assert!(!clip.peaks.is_empty());
+            assert_eq!(clip.waveform.len(), 5);
             std::fs::remove_file(path).unwrap();
         }
         let path = std::env::temp_dir().join(format!("curado-invalid-{}.wav", std::process::id()));

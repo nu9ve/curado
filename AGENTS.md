@@ -1,18 +1,20 @@
-# Curado: guía para continuar
+# curado: guía para continuar
 
-Aplicación de audio de escritorio. Antes de modificar código, leer `docs/README.md`, `docs/STATUS.md` y las secciones relacionadas de `docs/ARCHITECTURE.md`. El estado comprobado prevalece sobre la visión de producto. Comunicación con el usuario en español; código y nombres técnicos en inglés.
+Aplicación de audio de escritorio. El nombre se escribe siempre en minúsculas: **curado**. Antes de modificar código, leer `docs/README.md`, `docs/STATUS.md`, `docs/SESSIONS.md` y las secciones relacionadas de `docs/ARCHITECTURE.md`. El estado comprobado prevalece sobre la visión de producto. Comunicación con el usuario en español; código y nombres técnicos en inglés.
 
 ## Mapa
 
 - `crates/audio-engine/`: núcleo Rust independiente de Tauri, decodificación, DSP y CPAL.
 - `src-tauri/src/`: biblioteca SQLite, comandos, ciclo de vida, MIDI y cola de reproducción.
 - `src-tauri/native/CuradoVisuals.swift`: ventana AppKit + MetalKit, compilada únicamente en macOS.
-- `src/`: React, interfaz, puente de comandos, distribución de teclado y telemetría.
+- `src/`: React, interfaz, puente de comandos, distribución de teclado, telemetría, temas/estilos (`lib/theme.ts`), waveforms (`lib/waveform.ts`) y feedback de teclado (`lib/feedback.ts`).
+- `crates/audio-engine/src/analysis.rs`: análisis offline de waveform de 3 bandas (decodificación, nunca callback).
 - `docs/`: decisiones, contratos, prioridades, pruebas y registro de cambios.
 
 ## Preferencias del usuario
 
-- El color inicial/principal es `#d66154`, con temas claro/oscuro/sistema y personalización HSV.
+- El color inicial/principal es `#d66154`, con temas claro/oscuro/sistema y personalización HSV. Estilos curado/pixel/gótico/y2k/mínimo; el color sigue siendo del usuario dentro de cada estilo.
+- Dirección visual: plano, sin cards ni bordes por defecto; chrome continuo (sidebar+topbar+footer) con grano dither y contenido en una hoja elevada lisa; detalles pixel + gradientes suaves; controles visuales (perillas, faders verticales, platos) con feedback animado también por teclado.
 - No usar Computer Use ni pruebas visuales de la app, salvo una nueva instrucción explícita. Verificar mediante compilación, pruebas automatizadas y contratos de código.
 - macOS usa cabecera integrada con controles nativos; no volver a la franja de título separada.
 

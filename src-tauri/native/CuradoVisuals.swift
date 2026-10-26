@@ -40,7 +40,7 @@ final class Visualizer: NSObject, NSApplicationDelegate, MTKViewDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let device = MTLCreateSystemDefaultDevice() else { NSApp.terminate(nil); return }
         window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
-        window.title = "Curado · Paisaje sonoro / Metal"
+        window.title = "curado · paisaje sonoro"
         view = MTKView(frame: window.contentView!.bounds, device: device)
         view.clearColor = MTLClearColorMake(0.025, 0.04, 0.04, 1)
         view.preferredFramesPerSecond = 30

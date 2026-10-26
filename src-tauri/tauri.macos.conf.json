@@ -3,12 +3,12 @@
     "windows": [
       {
         "label": "main",
-        "title": "Curado",
+        "title": "curado",
         "width": 1440,
         "height": 940,
         "minWidth": 1000,
         "minHeight": 700,
-        "backgroundColor": "#191515",
+        "backgroundColor": "#120e0e",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
         "trafficLightPosition": {

@@ -1,6 +1,7 @@
 import { memo, useMemo, useState } from 'react';
 import { Search, ArrowUpRight, Star, Play, X, Music2, FolderOpen, Disc3 } from 'lucide-react';
 import type { Library as LibraryData, LibraryEdit, Track } from '../lib/types';
+import { TrackArt } from './Player';
 import { time } from '../lib/types';
 export const Library = memo(function Library({
   data,
@@ -49,9 +50,9 @@ export const Library = memo(function Library({
     <section className="library">
       <div className="library-heading">
         <div>
-          <div className="eyebrow">TU ESPACIO SONORO</div>
+          <div className="eyebrow">tu espacio sonoro</div>
           <h2>
-            {active?.name ?? (view === 'favorites' ? 'Favoritos' : 'Biblioteca')}
+            {active?.name ?? (view === 'favorites' ? 'favoritos' : 'biblioteca')}
             <span>{filtered.length}</span>
           </h2>
           <p>{subtitle}</p>
@@ -173,9 +174,9 @@ export const Library = memo(function Library({
           <thead>
             <tr>
               <th className="number">#</th>
-              <th>PISTA / ARTISTA</th>
-              <th>FORMATO</th>
-              <th>DURACIÓN</th>
+              <th>pista / artista</th>
+              <th>formato</th>
+              <th>duración</th>
               <th aria-label="Favoritos" />
               <th aria-label="Cargar pista" />
             </tr>
@@ -272,9 +273,7 @@ function TrackRow({
       <td className="number">{String(index + 1).padStart(2, '0')}</td>
       <td>
         <div className="table-title">
-          <div className={`mini-art tone-${index % 4}`}>
-            <Music2 size={15} />
-          </div>
+          <TrackArt id={track.id} size="sm" />
           <div>
             <strong>{track.title}</strong>
             <small>{track.artist}</small>

@@ -54,7 +54,7 @@ export async function connect() {
 }
 export async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!native)
-    throw new Error('Esta función requiere Curado de escritorio. Ejecuta bun run desktop.');
+    throw new Error('Esta función requiere curado de escritorio. Ejecuta bun run desktop.');
   return invoke<T>(command, args);
 }
 export const control = (slot: number, kind: string, value = 0) =>

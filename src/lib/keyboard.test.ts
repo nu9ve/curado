@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DEFAULT_KEYS, matchKey } from './keyboard';
+import { DEFAULT_KEYS, allowedInMode, matchKey } from './keyboard';
 const event = (code: string, shiftKey = false) => ({
   code,
   shiftKey,
@@ -18,5 +18,11 @@ describe('keyboard performance contract', () => {
     expect(matchKey({ ...event('KeyQ'), repeat: true }, DEFAULT_KEYS, 'mix')).toBeUndefined();
     expect(matchKey(event('KeyP'), DEFAULT_KEYS, 'player')).toBeUndefined();
     expect(matchKey(event('Escape'), DEFAULT_KEYS, 'player')?.action.kind).toBe('panic');
+  });
+  test('player mode keeps deck A transport and panic only', () => {
+    expect(allowedInMode({ slot: 0, kind: 'toggle', value: 0 }, 'player')).toBe(true);
+    expect(allowedInMode({ slot: 0, kind: 'panic', value: 0 }, 'player')).toBe(true);
+    expect(allowedInMode({ slot: 0, kind: 'crossfader', value: 1 }, 'player')).toBe(false);
+    expect(allowedInMode({ slot: 3, kind: 'trigger', value: 0 }, 'mix')).toBe(true);
   });
 });

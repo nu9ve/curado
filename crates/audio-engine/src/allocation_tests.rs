@@ -35,7 +35,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
             id: 1,
             sample_rate: 48000,
             samples: vec![[0.2, 0.2]; 4800],
-            peaks: vec![],
+            waveform: vec![],
             title: None,
             artist: None,
             cues: Arc::new(crate::annotations::CueState::default()),

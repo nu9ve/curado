@@ -19,10 +19,15 @@
     "theme:sync": "bun scripts/sync-theme.ts"
   },
   "dependencies": {
+    "@fontsource/geist-mono": "5.3.0",
+    "@fontsource/jersey-15": "5.3.0",
+    "@fontsource/michroma": "5.3.0",
+    "@fontsource/pixelify-sans": "5.3.0",
+    "@fontsource/unifrakturmaguntia": "5.3.0",
     "@tauri-apps/api": "^2.10.0",
+    "lucide-react": "^0.468.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "lucide-react": "^0.468.0"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.10.0",

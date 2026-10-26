@@ -1,12 +1,16 @@
 import { useSyncExternalStore } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { call, native } from './bridge';
-import { DEFAULT_THEME, palette, validateTheme, nativeWindowTheme } from './theme';
+import { DEFAULT_THEME, palette, resolved, validateTheme, nativeWindowTheme } from './theme';
 import type { ThemeSettings } from './theme';
-const CACHE = 'curado.theme.v1';
+import { ditherUrl } from './dither';
+const CACHE = 'curado.theme.v2';
+const LEGACY_CACHE = 'curado.theme.v1';
 let theme = (() => {
   try {
-    return validateTheme(JSON.parse(localStorage.getItem(CACHE) ?? 'null'));
+    return validateTheme(
+      JSON.parse(localStorage.getItem(CACHE) ?? localStorage.getItem(LEGACY_CACHE) ?? 'null'),
+    );
   } catch {
     return { ...DEFAULT_THEME };
   }
@@ -30,13 +34,30 @@ export function useTheme() {
 export function currentPalette() {
   return palette(theme, media.matches);
 }
+let textureKey = '';
+function applyTextures(p: ReturnType<typeof currentPalette>) {
+  const key = `${p.accent}|${p.secondary}|${p.text}`;
+  if (key === textureKey) return;
+  textureKey = key;
+  const root = document.documentElement.style;
+  root.setProperty('--tex-accent-x', ditherUrl(p.accent, 'x'));
+  root.setProperty('--tex-accent-y', ditherUrl(p.accent, 'y'));
+  root.setProperty('--tex-b-x', ditherUrl(p.secondary, 'x'));
+  root.setProperty('--tex-grain', ditherUrl(p.text, 'grain'));
+  root.setProperty('--tex-half', ditherUrl(p.accent, 'half'));
+}
 export function applyTheme() {
   const p = currentPalette();
-  for (const [key, value] of Object.entries(p.tokens))
-    document.documentElement.style.setProperty(key, value);
-  document.documentElement.dataset.theme = p.dark ? 'dark' : 'light';
-  document.documentElement.dataset.variant = theme.variant;
-  document.documentElement.style.colorScheme = p.dark ? 'dark' : 'light';
+  const root = document.documentElement;
+  for (const [key, value] of Object.entries(p.tokens)) root.style.setProperty(key, value);
+  const structure = resolved(theme);
+  root.dataset.theme = p.dark ? 'dark' : 'light';
+  root.dataset.variant = theme.variant;
+  root.dataset.style = theme.style;
+  root.dataset.typography = structure.typography;
+  root.dataset.texture = structure.texture;
+  applyTextures(p);
+  root.style.colorScheme = p.dark ? 'dark' : 'light';
   const meta = document.querySelector('meta[name="theme-color"]');
   meta?.setAttribute('content', p.bg);
   if (native) {

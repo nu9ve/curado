@@ -1,20 +1,20 @@
 # Calidad y criterios de publicación
 
-La versión 0.1 es una base funcional de prueba local. Para usar la etiqueta production ready deben existir evidencias de las siguientes puertas; ninguna casilla se presume cumplida.
+La versión 0.1 de curado es una base funcional de prueba local. Para usar la etiqueta production ready deben existir evidencias de las siguientes puertas; ninguna casilla se presume cumplida.
 
 ## Puertas
 
-| Puerta       | Criterio                                                                                                           |
-| ------------ | ------------------------------------------------------------------------------------------------------------------ |
-| Compilación  | Release reproducible desde lockfiles en los tres OS, fmt, lint, types y tests verdes                               |
-| Tiempo real  | Callback sin alloc/dealloc/locks; pruebas de carga, jitter y medición física keyboard/MIDI → DAC                   |
-| Estabilidad  | Sesiones de 2 h, 6 fuentes + FX, importación concurrente y visuales, sin glitches, crash ni crecimiento de memoria |
-| Dispositivos | Hotplug, ausencia de salida, cambio de default, buffers rechazados, sleep/wake y recuperación                      |
-| Archivos     | Corpus mono/estéreo 44.1/48/96 kHz MP3/FLAC/WAV/AAC/ALAC/AIFF/Vorbis, corruptos, grandes, unicode y rutas movidas  |
-| Persistencia | Reinicio, migraciones, backup/restore, DB corrupta, disco lleno, referencias desaparecidas                         |
-| Entrada      | Layout ES/US, foco/text inputs, conflicto/repeat, MIDI real en tres OS y eventos densos                            |
-| Distribución | Firma/notarización macOS y helper, firma Windows, paquetes Linux y licencias/notices                               |
-| UX           | Tab/foco, Escape en modales, lector de pantalla, contraste, escalado y etiquetas actualizadas tras remap           |
+| Puerta       | Criterio                                                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Compilación  | Release reproducible desde lockfiles en los tres OS, fmt, lint, types y tests verdes                                        |
+| Tiempo real  | Callback sin alloc/dealloc/locks; pruebas de carga, jitter y medición física keyboard/MIDI → DAC                            |
+| Estabilidad  | Sesiones de 2 h, 6 fuentes + FX, importación concurrente y visuales, sin glitches, crash ni crecimiento de memoria          |
+| Dispositivos | Hotplug, ausencia de salida, cambio de default, buffers rechazados, sleep/wake y recuperación                               |
+| Archivos     | Corpus mono/estéreo 44.1/48/96 kHz MP3/FLAC/WAV/AAC/ALAC/AIFF/Vorbis, corruptos, grandes, unicode y rutas movidas           |
+| Persistencia | Reinicio, migraciones, backup/restore, DB corrupta, disco lleno, referencias desaparecidas                                  |
+| Entrada      | Layout ES/US, foco/text inputs, conflicto/repeat, MIDI real en tres OS y eventos densos                                     |
+| Distribución | Firma/notarización macOS y helper, firma Windows, paquetes Linux y licencias/notices                                        |
+| UX           | Tab/foco, Escape en modales, lector de pantalla, contraste, escalado, etiquetas tras remap y revisión visual de cada estilo |
 
 ## Comprobaciones automatizadas
 
@@ -27,7 +27,7 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Los tests del motor validan transporte, seek/EOF, loops, pánico, crossfader, límites, sample-rate conversion y cola saturada, transición de modos y cues compartidos. La auditoría de allocator verifica cero alloc/dealloc en el render cubierto, incluyendo load/reemplazo/seek/filtro/cue. Hay pruebas de decodificación WAV mono/estéreo y rechazo de basura. SQLite verifica relaciones, deduplicación en playlists, cascada y settings. El teclado verifica combinaciones únicas, Shift-cues, modificadores y filtros de modo. Ver el resultado real más reciente en STATUS.
+Los tests del motor validan transporte, seek/EOF, loops, pánico, crossfader, límites, sample-rate conversion y cola saturada, transición de modos y cues compartidos. La auditoría de allocator verifica cero alloc/dealloc en el render cubierto, incluyendo load/reemplazo/seek/filtro/cue. Hay pruebas de decodificación WAV mono/estéreo y rechazo de basura, y de análisis de waveform (50 bins/s, separación de bandas 60 Hz vs 9 kHz). SQLite verifica relaciones, deduplicación en playlists, cascada, settings y migración v1→v3 con backfill de waveform sin sobrescritura. La cola verifica avance, repetición y prefetch (momento, IDs obsoletos y liberación al detenerse). TypeScript verifica la paleta en 5 estilos, migración de tema v1→v2, contrato binario de waveform, matriz Bayer, geometría del logo, permisos de ventana y política de modo del teclado. El teclado verifica combinaciones únicas, Shift-cues, modificadores y filtros de modo. Ver el resultado real más reciente en STATUS.
 
 ## Prueba manual local
 
@@ -51,4 +51,4 @@ Las pruebas offline no validan DAC, jitter de hardware ni audio percibido. No af
 
 Interpolación lineal puede introducir aliasing al cambiar rate; límites de loop no tienen crossfade; DSP es básico, no ecualización ni limitación de calidad profesional. Las discontinuidades manuales se atenúan con 128 frames y los parámetros principales con smoothing, pero necesitan pruebas auditivas. Scope de 64 muestras y RMS son una visualización, no un analizador espectral. Un archivo corrupto puede agotar tiempo de decodificación antes de alcanzar el límite de PCM; falta cancelación/timeouts y fuzzeo. Modo y mapeos MIDI comparten política nativa; falta validar la ergonomía con controladores físicos.
 
-Las pruebas de apariencia cubren matemática y contratos de color/configuración, no screenshots. El usuario pidió explícitamente no continuar con revisión visual ni Computer Use. La cabecera Overlay y nuevos temas se compilan y se prueban por configuración, sin inspección visual de esta entrega.
+Las pruebas de apariencia cubren matemática y contratos de color/configuración, no screenshots. El rediseño (estilos, consola, waveforms, vista mini) no tiene revisión visual. El usuario pidió explícitamente no continuar con revisión visual ni Computer Use. La cabecera Overlay y nuevos temas se compilan y se prueban por configuración, sin inspección visual de esta entrega.

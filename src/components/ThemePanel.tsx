@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Moon, Sun, Monitor, RotateCcw, Check } from 'lucide-react';
 import { useTheme, updateTheme } from '../lib/theme-store';
-import { COLOR_PRESETS, DEFAULT_THEME, hexToHsv, hsvToHex, normalizeHex } from '../lib/theme';
-import type { ThemeMode, ThemeVariant, HSV } from '../lib/theme';
+import {
+  COLOR_PRESETS,
+  DEFAULT_THEME,
+  STYLES,
+  STYLE_IDS,
+  hexToHsv,
+  hsvToHex,
+  normalizeHex,
+  palette,
+  resolved,
+} from '../lib/theme';
+import type { ThemeMode, ThemeVariant, HSV, Typography, Texture, WaveStyle } from '../lib/theme';
 import { Fader } from './Controls';
 export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
   const theme = useTheme();
@@ -30,11 +40,40 @@ export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
   };
   return (
     <div className="settings-body theme-panel">
-      <h3>Tu color. Tu ambiente.</h3>
+      <h3>tu color. tu ambiente.</h3>
       <p>
-        El color inicial es <strong>#d66154</strong>. Los fondos, controles, waveforms y contrastes
-        se adaptan al esquema que elijas.
+        Elige un estilo y después ajusta su color: cada estilo define materiales, tipografía y
+        texturas; el color base (inicial <strong>#d66154</strong>) sigue siendo tuyo.
       </p>
+      <span className="eyebrow">ESTILO</span>
+      <div className="style-grid">
+        {STYLE_IDS.map((id) => {
+          const preview = palette({ ...theme, style: id }, theme.mode !== 'light');
+          return (
+            <button
+              key={id}
+              className={`style-card ${theme.style === id ? 'active' : ''}`}
+              aria-pressed={theme.style === id}
+              data-style-preview={id}
+              onClick={() => patch({ style: id })}
+              style={{ background: preview.chrome, color: preview.text }}
+            >
+              <i
+                style={{
+                  background: `linear-gradient(135deg, ${preview.accent}, ${preview.gradient})`,
+                }}
+              />
+              <strong>{STYLES[id].name}</strong>
+              <small>{STYLES[id].description}</small>
+            </button>
+          );
+        })}
+      </div>
+      {theme.base !== STYLES[theme.style].suggested && (
+        <button className="subtle" onClick={() => patch({ base: STYLES[theme.style].suggested })}>
+          Usar el color sugerido de {STYLES[theme.style].name} · {STYLES[theme.style].suggested}
+        </button>
+      )}
       <span className="eyebrow">APARIENCIA</span>
       <div className="theme-modes">
         {(
@@ -66,6 +105,48 @@ export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
           <option value="contrast">Contraste alto · bordes y texto reforzados</option>
         </select>
       </label>
+      <div className="theme-selects">
+        <label>
+          Tipografía
+          <select
+            value={theme.typography}
+            onChange={(e) => patch({ typography: e.target.value as Typography })}
+          >
+            <option value="auto">
+              Del estilo · {resolved({ ...theme, typography: 'auto' }).typography}
+            </option>
+            <option value="display">Display · Jersey 15 + sistema</option>
+            <option value="pixel">Pixel · Pixelify Sans</option>
+            <option value="mono">Mono · Geist Mono</option>
+            <option value="system">Sistema · nativa del OS</option>
+          </select>
+        </label>
+        <label>
+          Textura
+          <select
+            value={theme.texture}
+            onChange={(e) => patch({ texture: e.target.value as Texture })}
+          >
+            <option value="auto">
+              Del estilo · {resolved({ ...theme, texture: 'auto' }).texture}
+            </option>
+            <option value="dither">Dither · pixeles ordenados</option>
+            <option value="smooth">Gradientes suaves</option>
+            <option value="flat">Plano</option>
+          </select>
+        </label>
+        <label>
+          Waveform
+          <select
+            value={theme.waveform}
+            onChange={(e) => patch({ waveform: e.target.value as WaveStyle })}
+          >
+            <option value="bands">3 bandas · graves, medios, agudos</option>
+            <option value="rgb">RGB · color por frecuencia</option>
+            <option value="mono">Mono · color principal</option>
+          </select>
+        </label>
+      </div>
       <div className="theme-color-heading">
         <span className="eyebrow">COLOR PRINCIPAL</span>
         <span className="theme-current-code">{theme.base}</span>
@@ -131,8 +212,8 @@ export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
         <Fader label="Brillo V" value={hsv.v} onChange={(v) => setHsv({ v })} />
       </div>
       <div className="theme-preview" aria-label="Muestra del tema actual">
-        <span className="eyebrow">CURADO</span>
-        <strong>El sonido se siente distinto.</strong>
+        <span className="eyebrow">curado</span>
+        <strong>el sonido se siente distinto.</strong>
         <span>Tu biblioteca, tus controles, tu espacio.</span>
         <div>
           <button className="primary">Color principal</button>
@@ -142,7 +223,7 @@ export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
       </div>
       <button onClick={() => updateTheme({ ...DEFAULT_THEME }, onError)}>
         <RotateCcw size={13} />
-        Restaurar coral y tema inicial
+        Restaurar estilo curado y coral inicial
       </button>
       <p className="small-print">
         Los cambios se guardan automáticamente. El color elegido se conserva; los tonos de texto se

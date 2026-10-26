@@ -1,3 +1,4 @@
+pub mod analysis;
 pub mod annotations;
 pub mod decode;
 mod dsp;
@@ -605,7 +606,7 @@ mod tests {
             id,
             samples: vec![[0.25, 0.25]; 48000],
             sample_rate: 48000,
-            peaks: vec![0.25],
+            waveform: vec![],
             title: None,
             artist: None,
             cues: Arc::new(crate::annotations::CueState::default()),

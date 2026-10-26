@@ -1,46 +1,44 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import {
-  AudioLines,
   Library as LibraryIcon,
   Star,
   ListMusic,
   Plus,
   Settings2,
-  Keyboard,
   Headphones,
   SlidersHorizontal,
-  Radio,
-  ArrowUpRight,
   X,
   LoaderCircle,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  ChevronRight,
+  Sparkles,
+  PictureInPicture2,
 } from 'lucide-react';
 import { connectTheme } from './lib/theme-store';
 import {
   call,
   connect,
-  control,
   getSnapshot,
   native,
-  parameter,
   useSnapshot,
   useMode,
   setSessionMode,
 } from './lib/bridge';
 import type { ImportReport, KeyBinding, Library as LibraryData, LibraryEdit } from './lib/types';
-import { EMPTY_SLOT, time } from './lib/types';
-import { DEFAULT_KEYS, matchKey } from './lib/keyboard';
+import { EMPTY_SLOT } from './lib/types';
+import { DEFAULT_KEYS, allowedInMode, matchKey } from './lib/keyboard';
+import { feedback } from './lib/feedback';
+import { refreshWaveform } from './lib/waveform';
+import { setMiniWindow } from './lib/window';
 import { Deck } from './components/Deck';
-import { Mixer } from './components/Mixer';
+import { Mixer, SampleBank } from './components/Mixer';
 import { Library } from './components/Library';
 import { Visual } from './components/Visual';
 import { Settings } from './components/Settings';
-import { Fader, Key, Meter } from './components/Controls';
-import { Waveform } from './components/Waveform';
+import { ZoomWave } from './components/Waveform';
+import { KeyboardMap, KeyHud } from './components/KeyboardMap';
+import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
+import { Logo, Wordmark } from './components/Logo';
+
 export default function App() {
   const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
   const [view, setView] = useState('all');
@@ -48,6 +46,7 @@ export default function App() {
   const [keys, setKeys] = useState(DEFAULT_KEYS);
   const [selected, setSelected] = useState<number | null>(null);
   const [settings, setSettings] = useState(false);
+  const [mini, setMini] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
@@ -96,26 +95,36 @@ export default function App() {
     await call('save_keyboard', { bindings });
     setKeys(bindings);
   }, []);
+  /** Keyboard, keycap clicks and the HUD share one dispatch path to the native queue. */
+  const trigger = useCallback(
+    (binding: KeyBinding) => {
+      const allowed = allowedInMode(binding.action, mode);
+      feedback(binding, allowed);
+      if (allowed) call('audio_action', { action: binding.action }).catch(onError);
+    },
+    [mode, onError],
+  );
   useEffect(() => {
     if (settings || newPlaylist) return;
     const handle = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('input,textarea,select,[contenteditable="true"],[role="slider"]')) return;
       if (target.closest('button') && ['Space', 'Enter'].includes(e.code)) return;
-      const binding = matchKey(e, keys, mode);
-      if (binding) {
-        e.preventDefault();
-        call('audio_action', { action: binding.action }).catch(onError);
-      }
+      // Match ignoring mode first so blocked keys still explain themselves in the HUD.
+      const binding = matchKey(e, keys, 'mix');
+      if (!binding) return;
+      e.preventDefault();
+      trigger(binding);
     };
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
-  }, [keys, mode, settings, newPlaylist, onError]);
+  }, [keys, settings, newPlaylist, trigger]);
   const load = useCallback(
     async (slot: number, id: number) => {
       setLoading((prev) => [...prev, slot]);
       try {
         await call('load_track', { slot, id });
+        void refreshWaveform(id);
         notify(`Pista lista en ${slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`}.`);
       } catch (e) {
         onError(e);
@@ -141,7 +150,7 @@ export default function App() {
   );
   const importMedia = useCallback(
     async (folder: boolean) => {
-      setBusy('Importando música…');
+      setBusy('Importando y analizando música…');
       try {
         const report = await call<ImportReport>('import_media', { folder });
         setLibrary(await call<LibraryData>('get_library'));
@@ -183,135 +192,157 @@ export default function App() {
       onError(e);
     }
   };
+  const toggleMini = async (on: boolean) => {
+    try {
+      await setMiniWindow(on);
+      setMini(on);
+    } catch (e) {
+      onError(e);
+    }
+  };
+  const next = (direction: number) => {
+    const current = getSnapshot().audio?.slots[0].id;
+    const i = library.tracks.findIndex((t) => t.id === current);
+    const track = library.tracks[(i + direction + library.tracks.length) % library.tracks.length];
+    if (track) load(0, track.id);
+  };
+  const favorites = library.tracks.filter((t) => t.favorite).length;
+
+  if (mini)
+    return (
+      <div className="app-shell is-mini">
+        <MiniPlayer
+          tracks={library.tracks}
+          onError={onError}
+          onExit={() => toggleMini(false)}
+          onNext={next}
+        />
+        <KeyHud />
+        {notice && <Toast notice={notice} onClose={() => setNotice(null)} />}
+      </div>
+    );
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell view-${mode}`}>
       <div className="window-drag-region" data-tauri-drag-region aria-hidden="true" />
       <aside className="sidebar">
-        <a className="brand" href="#" onClick={(e) => e.preventDefault()}>
-          <span className="brand-icon">
-            <AudioLines size={23} />
-          </span>
-          curado<span className="brand-period">.</span>
-        </a>
-        <span className="sidebar-label">HECHO PARA ESCUCHAR</span>
-        <div className="side-nav">
-          <span className="eyebrow">COLECCIÓN</span>
-          <button className={view === 'all' ? 'active' : ''} onClick={() => setView('all')}>
-            <LibraryIcon size={17} />
-            Toda la música<span>{library.tracks.length}</span>
-          </button>
-          <button
-            className={view === 'favorites' ? 'active' : ''}
-            onClick={() => setView('favorites')}
-          >
-            <Star size={17} />
-            Favoritos<span>{library.tracks.filter((t) => t.favorite).length}</span>
-          </button>
+        <div className="brand" data-tauri-drag-region>
+          <Logo size={26} />
+          <Wordmark />
         </div>
-        <div className="side-nav playlists">
+        <nav className="side-nav" aria-label="Colección">
+          <span className="eyebrow">colección</span>
+          <NavItem
+            active={view === 'all'}
+            onClick={() => setView('all')}
+            icon={<LibraryIcon size={16} />}
+            label="toda la música"
+            count={library.tracks.length}
+          />
+          <NavItem
+            active={view === 'favorites'}
+            onClick={() => setView('favorites')}
+            icon={<Star size={16} />}
+            label="favoritos"
+            count={favorites}
+          />
+        </nav>
+        <nav className="side-nav playlists" aria-label="Playlists">
           <div className="section-line">
-            <span className="eyebrow">PLAYLISTS</span>
+            <span className="eyebrow">playlists</span>
             <button
               className="icon-button"
               aria-label="Crear playlist"
               onClick={() => setNewPlaylist(true)}
             >
-              <Plus size={15} />
+              <Plus size={14} />
             </button>
           </div>
           {library.playlists.map((p) => (
-            <button
+            <NavItem
               key={p.id}
-              className={view === `playlist:${p.id}` ? 'active' : ''}
+              active={view === `playlist:${p.id}`}
               onClick={() => setView(`playlist:${p.id}`)}
-              title="Doble clic para renombrar"
               onDoubleClick={() => {
                 setEditingPlaylist(p.id);
                 setPlaylistName(p.name);
                 setNewPlaylist(true);
               }}
-            >
-              <ListMusic size={16} />
-              <span className="playlist-name">{p.name}</span>
-              <span>{p.tracks.length}</span>
-            </button>
+              title="Doble clic para renombrar"
+              icon={<ListMusic size={15} />}
+              label={p.name}
+              count={p.tracks.length}
+            />
           ))}
           {!library.playlists.length && (
-            <p className="sidebar-hint">
-              Un lugar para cada mood.
-              <br />
-              Crea tu primera playlist.
-            </p>
-          )}
-          <button className="add-playlist" onClick={() => setNewPlaylist(true)}>
-            <Plus size={14} />
-            Nueva playlist
-          </button>
-        </div>
-        <div className="sidebar-bottom">
-          <div className="demo-card">
-            <span className="tiny-disc">
-              <AudioLines size={18} />
-            </span>
-            <h3>Explora el sonido.</h3>
-            <p>Dos tracks originales y cuatro samples para probar tu setup.</p>
-            <button disabled={!!busy} onClick={demo}>
-              Cargar sesión de prueba
-              <ArrowUpRight size={14} />
+            <button className="sidebar-hint" onClick={() => setNewPlaylist(true)}>
+              <Plus size={13} /> un lugar para cada mood
             </button>
-          </div>
-          <button onClick={() => setSettings(true)}>
-            <Settings2 size={16} />
-            Configuración<span>⌘</span>
+          )}
+        </nav>
+        <div className="sidebar-bottom">
+          <button className="demo-button" disabled={!!busy} onClick={demo}>
+            <Sparkles size={15} />
+            <span>
+              sesión de prueba
+              <small>2 tracks + 4 samples locales</small>
+            </span>
           </button>
-          <span className="build-label">CURADO 0.1 · LOCAL FIRST</span>
+          <button className="settings-button" onClick={() => setSettings(true)}>
+            <Settings2 size={15} />
+            configuración
+          </button>
+          <span className="build-label">curado 0.1 · local first</span>
         </div>
       </aside>
-      <main>
-        <header className="topbar" data-tauri-drag-region>
-          <div className="breadcrumb" data-tauri-drag-region>
-            Tu espacio
-            <ChevronRight size={12} />
-            <b>{mode === 'player' ? 'Reproductor' : 'Estudio de mezcla'}</b>
-          </div>
-          <div className="mode-switch" role="group" aria-label="Modo de uso">
-            <button
-              className={mode === 'player' ? 'active' : ''}
-              onClick={() => changeMode('player')}
-            >
-              <Headphones size={14} />
-              Reproductor
-            </button>
-            <button className={mode === 'mix' ? 'active' : ''} onClick={() => changeMode('mix')}>
-              <SlidersHorizontal size={14} />
-              Mezcla
-            </button>
-          </div>
-          <div className="header-right">
-            <ConnectionStatus />
-            <button
-              className="icon-button"
-              aria-label="Abrir configuración de teclado y MIDI"
-              onClick={() => setSettings(true)}
-            >
-              <Keyboard size={17} />
-            </button>
-          </div>
-        </header>
-        <div className="main-content">
+      <header className="topbar" data-tauri-drag-region>
+        <div className="breadcrumb" data-tauri-drag-region>
+          <span>tu espacio</span>
+          <i>/</i>
+          <b>{mode === 'player' ? 'reproductor' : 'mezcla'}</b>
+        </div>
+        <div className={`mode-switch is-${mode}`} role="group" aria-label="Modo de uso">
+          <i className="mode-indicator" aria-hidden="true" />
+          <button
+            className={mode === 'player' ? 'active' : ''}
+            aria-pressed={mode === 'player'}
+            onClick={() => changeMode('player')}
+          >
+            <Headphones size={14} />
+            reproductor
+          </button>
+          <button
+            className={mode === 'mix' ? 'active' : ''}
+            aria-pressed={mode === 'mix'}
+            onClick={() => changeMode('mix')}
+          >
+            <SlidersHorizontal size={14} />
+            mezcla
+          </button>
+        </div>
+        <div className="header-right">
+          <ConnectionStatus />
+          <button
+            className="icon-button"
+            aria-label="Vista mini siempre visible"
+            title="Vista mini · siempre encima"
+            onClick={() => toggleMini(true)}
+          >
+            <PictureInPicture2 size={16} />
+          </button>
+          <button
+            className="icon-button"
+            aria-label="Abrir configuración"
+            title="Configuración"
+            onClick={() => setSettings(true)}
+          >
+            <Settings2 size={16} />
+          </button>
+        </div>
+      </header>
+      <main className="sheet">
+        <div className="sheet-scroll">
           <PersistenceNotice />
-          <div className="page-intro">
-            <div>
-              <span className="eyebrow">MENOS RUIDO. MÁS MÚSICA.</span>
-              <h1>
-                {mode === 'player' ? 'Encuentra tu frecuencia.' : 'Todo el control. Tu mezcla.'}
-              </h1>
-            </div>
-            <span className="session-label">
-              <span className="status-dot active" />
-              SESIÓN LOCAL
-            </span>
-          </div>
           {!native && (
             <div className="notice">
               Vista previa de la interfaz · el audio y las integraciones requieren la app de
@@ -319,34 +350,18 @@ export default function App() {
             </div>
           )}
           {mode === 'mix' ? (
-            <>
-              <div className="decks">
-                <Deck
-                  index={0}
-                  tracks={library.tracks}
-                  keys={keys}
-                  onError={onError}
-                  loading={loading.includes(0)}
-                />
-                <Deck
-                  index={1}
-                  tracks={library.tracks}
-                  keys={keys}
-                  onError={onError}
-                  loading={loading.includes(1)}
-                />
-              </div>
-              <Mixer
-                tracks={library.tracks}
-                keys={keys}
-                onError={onError}
-                onLoad={load}
-                selected={selected}
-              />
-            </>
+            <MixView
+              library={library}
+              keys={keys}
+              onError={onError}
+              loading={loading}
+              onLoad={load}
+              selected={selected}
+              onTrigger={trigger}
+            />
           ) : (
             <div className="listen-stage">
-              <Player tracks={library.tracks} onError={onError} />
+              <NowPlaying tracks={library.tracks} keys={keys} onError={onError} />
               <Visual onError={onError} />
             </div>
           )}
@@ -372,48 +387,17 @@ export default function App() {
             busy={busy}
             mode={mode}
           />
-          <div className="workspace-foot">
-            <span>
-              <Keyboard size={12} />
-              {mode === 'mix'
-                ? 'Teclas de cada control en pantalla · Shift + cue para guardar'
-                : 'Usa los atajos guardados · Shift + cue para guardar'}
-            </span>
-            <button onClick={() => setSettings(true)}>
-              Ver controles
-              <ArrowUpRight size={11} />
-            </button>
-          </div>
         </div>
+        <KeyHud />
       </main>
-      <BottomBar
-        tracks={library.tracks}
-        onError={onError}
-        onNext={(direction) => {
-          const current = getSnapshot().audio?.slots[0].id;
-          const i = library.tracks.findIndex((t) => t.id === current);
-          const next =
-            library.tracks[(i + direction + library.tracks.length) % library.tracks.length];
-          if (next) load(0, next.id);
-        }}
-      />
+      <BottomBar tracks={library.tracks} onError={onError} onNext={next} />
       {busy && (
         <div className="busy-indicator" role="status">
           <LoaderCircle size={15} className="spinning" />
           {busy}
         </div>
       )}
-      {notice && (
-        <div
-          className={`toast ${notice.error ? 'error' : ''}`}
-          role={notice.error ? 'alert' : 'status'}
-        >
-          <span>{notice.text}</span>
-          <button aria-label="Cerrar aviso" onClick={() => setNotice(null)}>
-            <X size={15} />
-          </button>
-        </div>
-      )}
+      {notice && <Toast notice={notice} onClose={() => setNotice(null)} />}
       {settings && (
         <Settings
           keys={keys}
@@ -440,9 +424,16 @@ export default function App() {
                 setEditingPlaylist(null);
               }
             }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setNewPlaylist(false);
+                setEditingPlaylist(null);
+                setPlaylistName('');
+              }
+            }}
           >
             <div className="modal-header">
-              <h2>{editingPlaylist !== null ? 'Renombrar playlist' : 'Nueva playlist'}</h2>
+              <h2>{editingPlaylist !== null ? 'renombrar playlist' : 'nueva playlist'}</h2>
               <button
                 type="button"
                 aria-label="Cancelar"
@@ -476,6 +467,126 @@ export default function App() {
     </div>
   );
 }
+
+function NavItem({
+  active,
+  icon,
+  label,
+  count,
+  ...rest
+}: {
+  active: boolean;
+  icon: ReactNode;
+  label: string;
+  count: number;
+  onClick: () => void;
+  onDoubleClick?: () => void;
+  title?: string;
+}) {
+  return (
+    <button
+      className={`nav-item ${active ? 'active' : ''}`}
+      aria-current={active ? 'page' : undefined}
+      {...rest}
+    >
+      {icon}
+      <span className="nav-label">{label}</span>
+      <span className="nav-count">{count}</span>
+    </button>
+  );
+}
+
+function MixView({
+  library,
+  keys,
+  onError,
+  loading,
+  onLoad,
+  selected,
+  onTrigger,
+}: {
+  library: LibraryData;
+  keys: KeyBinding[];
+  onError: (e: unknown) => void;
+  loading: number[];
+  onLoad: (slot: number, id: number) => void;
+  selected: number | null;
+  onTrigger: (binding: KeyBinding) => void;
+}) {
+  const { audio } = useSnapshot();
+  const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
+  return (
+    <div className="mix-view">
+      <div className="zoom-stack">
+        {slots.map((slot, i) => (
+          <ZoomWave
+            key={i}
+            name={i ? 'B' : 'A'}
+            tone={i ? 'b' : 'a'}
+            trackId={library.tracks.some((t) => t.id === slot.id) ? slot.id : undefined}
+            slot={slot}
+            onSeek={
+              slot.id
+                ? (s) =>
+                    call('audio_action', { action: { slot: i, kind: 'seek', value: s } }).catch(
+                      onError,
+                    )
+                : undefined
+            }
+          />
+        ))}
+      </div>
+      <div className="console">
+        <Deck
+          index={0}
+          tracks={library.tracks}
+          keys={keys}
+          onError={onError}
+          loading={loading.includes(0)}
+        />
+        <Mixer keys={keys} onError={onError} />
+        <Deck
+          index={1}
+          tracks={library.tracks}
+          keys={keys}
+          onError={onError}
+          loading={loading.includes(1)}
+        />
+      </div>
+      <div className="console-foot">
+        <SampleBank
+          tracks={library.tracks}
+          keys={keys}
+          onError={onError}
+          onLoad={onLoad}
+          selected={selected}
+        />
+        <KeyboardMap keys={keys} mode="mix" onTrigger={onTrigger} />
+      </div>
+    </div>
+  );
+}
+
+function Toast({
+  notice,
+  onClose,
+}: {
+  notice: { text: string; error: boolean };
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className={`toast ${notice.error ? 'error' : ''}`}
+      role={notice.error ? 'alert' : 'status'}
+    >
+      <span>{notice.text}</span>
+      <button aria-label="Cerrar aviso" onClick={onClose}>
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
 function ConnectionStatus() {
   const s = useSnapshot();
   const failed = !!s.error || s.audio?.streamError;
@@ -486,133 +597,11 @@ function ConnectionStatus() {
     >
       <span className={`status-dot ${!failed && s.output ? 'active' : ''}`} />
       {failed
-        ? 'REVISAR AUDIO'
+        ? 'revisar audio'
         : s.output
           ? `${s.output.backend} · ${s.output.sampleRate / 1000} kHz`
-          : 'AUDIO NATIVO'}
+          : 'audio nativo'}
     </span>
-  );
-}
-function Player({
-  tracks,
-  onError,
-}: {
-  tracks: LibraryData['tracks'];
-  onError: (e: unknown) => void;
-}) {
-  const s = useSnapshot();
-  const slot = s.audio?.slots[0] ?? EMPTY_SLOT;
-  const track = tracks.find((t) => t.id === slot.id);
-  return (
-    <section className="player-card">
-      <div className="section-line">
-        <span className="eyebrow">AHORA SUENA</span>
-        <span className="small-badge">
-          {s.queue.active ? `COLA ${s.queue.index + 1}/${s.queue.count}` : 'DECK A'}
-        </span>
-      </div>
-      <div className={`album-art ${slot.playing ? 'playing' : ''}`}>
-        <div className="orbit orbit-1" />
-        <div className="orbit orbit-2" />
-        <div className="orbit orbit-3" />
-        <div className="album-core">
-          <AudioLines size={29} strokeWidth={1.3} />
-        </div>
-        <span>CURADO SELECTS</span>
-      </div>
-      {s.queue.error && <p className="error-text">Cola detenida: {s.queue.error}</p>}
-      <div className="player-info">
-        <h2>{track?.title ?? 'Dale espacio a tu música.'}</h2>
-        <p>{track?.artist ?? 'Importa una pista o prueba la sesión de ejemplo.'}</p>
-      </div>
-      <Waveform
-        compact
-        peaks={track?.peaks ?? []}
-        progress={slot.duration ? slot.position / slot.duration : 0}
-        onSeek={track ? (f) => control(0, 'seek', f * slot.duration).catch(onError) : undefined}
-      />
-      <div className="player-times">
-        <span>{time(slot.position)}</span>
-        <span>{time(slot.duration)}</span>
-      </div>
-      <div className="player-transport">
-        <span className="eyebrow">{slot.playing ? 'REPRODUCIENDO' : 'LISTO PARA ESCUCHAR'}</span>
-        <button
-          className="round-play"
-          disabled={!track}
-          aria-label={slot.playing ? 'Pausar' : 'Reproducir'}
-          onClick={() => control(0, 'toggle').catch(onError)}
-        >
-          {slot.playing ? (
-            <Pause size={21} fill="currentColor" />
-          ) : (
-            <Play size={21} fill="currentColor" />
-          )}
-        </button>
-        <Key>ESPACIO</Key>
-      </div>
-    </section>
-  );
-}
-function BottomBar({
-  tracks,
-  onError,
-  onNext,
-}: {
-  tracks: LibraryData['tracks'];
-  onError: (e: unknown) => void;
-  onNext: (direction: number) => void;
-}) {
-  const s = useSnapshot();
-  const a = s.audio?.slots[0] ?? EMPTY_SLOT;
-  const track = tracks.find((t) => t.id === a.id);
-  return (
-    <footer className="bottom-bar">
-      <div className="bottom-track">
-        <div className="mini-art">
-          <AudioLines size={19} />
-        </div>
-        <span>
-          <strong>{track?.title ?? 'Tu música, a tu ritmo.'}</strong>
-          <small>{track?.artist ?? 'Selecciona una pista para comenzar'}</small>
-        </span>
-      </div>
-      <div className="bottom-transport">
-        <button aria-label="Pista anterior" disabled={!tracks.length} onClick={() => onNext(-1)}>
-          <SkipBack size={15} />
-        </button>
-        <button
-          className="mini-play"
-          disabled={!track}
-          aria-label="Play o pausa deck A"
-          onClick={() => control(0, 'toggle').catch(onError)}
-        >
-          {a.playing ? (
-            <Pause size={16} fill="currentColor" />
-          ) : (
-            <Play size={16} fill="currentColor" />
-          )}
-        </button>
-        <button aria-label="Pista siguiente" disabled={!tracks.length} onClick={() => onNext(1)}>
-          <SkipForward size={15} />
-        </button>
-        <span>{time(a.position)}</span>
-        <div className="bottom-progress">
-          <i style={{ width: `${a.duration ? (a.position / a.duration) * 100 : 0}%` }} />
-        </div>
-        <span>{time(a.duration)}</span>
-      </div>
-      <div className="bottom-master">
-        <Meter value={s.audio?.peak ?? 0} />
-        <Fader
-          label="Master"
-          value={s.audio?.master ?? 0.75}
-          onChange={(v) => parameter(0, 'master', v, onError)}
-        />
-        <Radio size={15} />
-        <span>LOCAL</span>
-      </div>
-    </footer>
   );
 }
 

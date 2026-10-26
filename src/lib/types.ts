@@ -5,7 +5,6 @@ export interface Track {
   artist: string;
   duration: number;
   sampleRate: number;
-  peaks: number[];
   favorite: boolean;
 }
 export interface Playlist {
@@ -130,3 +129,7 @@ export const time = (seconds: number) =>
     .padStart(2, '0')}:${Math.floor(seconds % 60)
     .toString()
     .padStart(2, '0')}`;
+/** Seconds remaining, shown as −mm:ss like a club deck. */
+export const remaining = (slot: Pick<Slot, 'position' | 'duration'>) =>
+  `−${time(Math.max(0, slot.duration - slot.position))}`;
+export const deckName = (slot: number) => (slot < 2 ? (slot ? 'B' : 'A') : `S${slot - 1}`);

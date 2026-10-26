@@ -69,13 +69,13 @@ export function Visual({ onError }: { onError: (e: unknown) => void }) {
     <section className="visual">
       <canvas ref={ref} />
       <div className="visual-overlay">
-        <span className="eyebrow">PAISAJE SONORO</span>
+        <span className="eyebrow">paisaje sonoro</span>
         <h2>
-          Deja que la música
+          deja que la música
           <br />
-          dibuje el espacio.
+          dibuje el espacio
         </h2>
-        <p>Movimiento procedural · reactivo al master</p>
+        <p>procedural · reactivo al master</p>
       </div>
       <div className="visual-controls">
         <button
@@ -84,11 +84,13 @@ export function Visual({ onError }: { onError: (e: unknown) => void }) {
         >
           {enabled ? <Eye size={14} /> : <EyeOff size={14} />}
         </button>
-        <button onClick={() => call('open_visuals').catch(onError)}>
-          <Maximize2 size={13} />
-          Abrir Metal · macOS
-        </button>
-        <span>30 FPS MÁX.</span>
+        {document.documentElement.dataset.platform === 'macos' && (
+          <button onClick={() => call('open_visuals').catch(onError)}>
+            <Maximize2 size={13} />
+            Metal
+          </button>
+        )}
+        <span>30 fps</span>
       </div>
     </section>
   );

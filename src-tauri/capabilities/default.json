@@ -1,11 +1,16 @@
 {
   "identifier": "main",
-  "description": "Local application window. File selection and database access remain in Rust.",
-  "windows": ["main"],
+  "description": "Local application window. File selection and database access remain in Rust. Window size/always-on-top only serve the mini player.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
     "core:window:allow-set-theme",
-    "core:window:allow-set-background-color"
+    "core:window:allow-set-background-color",
+    "core:window:allow-set-size",
+    "core:window:allow-set-min-size",
+    "core:window:allow-set-always-on-top"
   ]
 }

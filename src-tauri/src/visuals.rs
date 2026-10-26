@@ -19,11 +19,11 @@ impl Visuals {
         {
             use std::os::unix::fs::PermissionsExt;
             let bytes = include_bytes!(concat!(env!("OUT_DIR"), "/curado-visuals"));
-            let bundle = cache.join("Curado Visuals.app");
+            let bundle = cache.join("curado visuals.app");
             let contents = bundle.join("Contents");
             let executable_dir = contents.join("MacOS");
             std::fs::create_dir_all(&executable_dir).map_err(|e| e.to_string())?;
-            std::fs::write(contents.join("Info.plist"), r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>curado-visuals</string><key>CFBundleIdentifier</key><string>studio.curado.visuals</string><key>CFBundleName</key><string>Curado Visuals</string><key>CFBundlePackageType</key><string>APPL</string><key>NSPrincipalClass</key><string>NSApplication</string><key>LSMinimumSystemVersion</key><string>12.0</string></dict></plist>"#).map_err(|e| e.to_string())?;
+            std::fs::write(contents.join("Info.plist"), r#"<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>curado-visuals</string><key>CFBundleIdentifier</key><string>studio.curado.visuals</string><key>CFBundleName</key><string>curado visuals</string><key>CFBundlePackageType</key><string>APPL</string><key>NSPrincipalClass</key><string>NSApplication</string><key>LSMinimumSystemVersion</key><string>12.0</string></dict></plist>"#).map_err(|e| e.to_string())?;
             let path = executable_dir.join("curado-visuals");
             std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
             std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700))

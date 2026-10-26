@@ -12,7 +12,7 @@ fn main() {
                 [x, x]
             })
             .collect(),
-        peaks: vec![],
+        waveform: vec![],
         title: None,
         artist: None,
         cues: Arc::new(curado_audio::annotations::CueState::default()),
