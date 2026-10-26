@@ -2,7 +2,8 @@
 use serde::Deserialize;
 use std::sync::Mutex;
 use tauri::{
-    webview::NewWindowResponse, AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder,
+    webview::{NewWindowResponse, WebviewBuilder},
+    AppHandle, LogicalPosition, LogicalSize, Manager, Rect, Url, WebviewUrl,
 };
 
 static WINDOW_GATE: Mutex<()> = Mutex::new(());
@@ -24,12 +25,6 @@ impl Service {
         match self {
             Self::Fractos => "https://www.fractos.app/es/radio",
             Self::Soundcloud => "https://soundcloud.com/discover",
-        }
-    }
-    fn title(self) -> &'static str {
-        match self {
-            Self::Fractos => "curado · fractos radio · audio web independiente",
-            Self::Soundcloud => "curado · SoundCloud · audio web independiente",
         }
     }
     pub fn allows(self, url: &Url) -> bool {
@@ -80,37 +75,88 @@ pub fn hide_on_close(label: &str, has_tray: bool) -> bool {
     label == "main" && has_tray
 }
 
+#[derive(Clone, Copy, Debug, Deserialize)]
+pub struct Bounds {
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+    visible: bool,
+}
+impl Bounds {
+    fn validate(self) -> Result<Self, String> {
+        if [self.x, self.y, self.width, self.height]
+            .iter()
+            .any(|v| !v.is_finite())
+            || self.x < 0.
+            || self.y < 0.
+            || self.width < 1.
+            || self.height < 1.
+            || self.x + self.width > 32768.
+            || self.y + self.height > 32768.
+        {
+            return Err("Área del navegador inválida".into());
+        }
+        Ok(self)
+    }
+    fn rect(self) -> Rect {
+        Rect {
+            position: LogicalPosition::new(self.x, self.y).into(),
+            size: LogicalSize::new(self.width, self.height).into(),
+        }
+    }
+}
+
 #[tauri::command]
-pub async fn open_web_service(service: Service, app: AppHandle) -> Result<(), String> {
+pub async fn open_web_service(
+    service: Service,
+    bounds: Bounds,
+    app: AppHandle,
+) -> Result<(), String> {
+    let bounds = bounds.validate()?;
     crate::work(move || {
         let _guard = WINDOW_GATE
             .lock()
-            .map_err(|_| "No se pudo coordinar la ventana web")?;
-        if let Some(window) = app.get_webview_window(service.label()) {
-            window.show().map_err(|e| e.to_string())?;
-            return window.set_focus().map_err(|e| e.to_string());
+            .map_err(|_| "No se pudo coordinar el navegador")?;
+        for other in [Service::Fractos, Service::Soundcloud] {
+            if other != service {
+                if let Some(view) = app.get_webview(other.label()) {
+                    view.close().map_err(|e| e.to_string())?;
+                }
+            }
         }
-        WebviewWindowBuilder::new(
-            &app,
+        if let Some(view) = app.get_webview(service.label()) {
+            view.set_bounds(bounds.rect()).map_err(|e| e.to_string())?;
+            return if bounds.visible {
+                view.show()
+            } else {
+                view.hide()
+            }
+            .map_err(|e| e.to_string());
+        }
+        if !bounds.visible {
+            return Ok(());
+        }
+        let window = app
+            .get_window("main")
+            .ok_or("Ventana principal no disponible")?;
+        let view = WebviewBuilder::new(
             service.label(),
-            WebviewUrl::External(
-                service
-                    .url()
-                    .parse()
-                    .map_err(|_| "URL de servicio inválida")?,
-            ),
+            WebviewUrl::External(service.url().parse().map_err(|_| "URL inválida")?),
         )
-        .title(service.title())
-        .inner_size(1120., 800.)
-        .min_inner_size(700., 500.)
         .incognito(true)
         .devtools(false)
         .disable_drag_drop_handler()
         .on_navigation(move |url| service.allows(url))
         .on_new_window(|_, _| NewWindowResponse::Deny)
-        .on_download(|_, _| false)
-        .build()
-        .map_err(|e| e.to_string())?;
+        .on_download(|_, _| false);
+        window
+            .add_child(
+                view,
+                LogicalPosition::new(bounds.x, bounds.y),
+                LogicalSize::new(bounds.width, bounds.height),
+            )
+            .map_err(|e| e.to_string())?;
         Ok(())
     })
     .await
@@ -124,9 +170,9 @@ pub async fn close_web_services(app: AppHandle) -> Result<usize, String> {
             .map_err(|_| "No se pudo coordinar la ventana web")?;
         let mut closed = 0;
         for service in [Service::Fractos, Service::Soundcloud] {
-            if let Some(window) = app.get_webview_window(service.label()) {
-                // Explicit user action: destroy the webview instead of hiding playing audio.
-                window.destroy().map_err(|e| e.to_string())?;
+            if let Some(window) = app.get_webview(service.label()) {
+                // Removing the child webview stops its independent playback.
+                window.close().map_err(|e| e.to_string())?;
                 closed += 1;
             }
         }
@@ -176,6 +222,35 @@ mod tests {
             ] {
                 assert!(!service.allows(&url.parse().unwrap()), "{url}");
             }
+        }
+    }
+    #[test]
+    fn embedded_bounds_reject_nonfinite_negative_empty_and_oversized_rects() {
+        let valid = Bounds {
+            x: 200.,
+            y: 140.,
+            width: 800.,
+            height: 500.,
+            visible: true,
+        };
+        assert!(valid.validate().is_ok());
+        for invalid in [
+            Bounds { x: -1., ..valid },
+            Bounds { width: 0., ..valid },
+            Bounds {
+                height: f64::NAN,
+                ..valid
+            },
+            Bounds {
+                y: f64::INFINITY,
+                ..valid
+            },
+            Bounds {
+                width: 40000.,
+                ..valid
+            },
+        ] {
+            assert!(invalid.validate().is_err());
         }
     }
     #[test]

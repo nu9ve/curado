@@ -543,7 +543,7 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
             let s = app.state::<Arc<AppState>>();
             match event.id.as_ref() {
                 "show" => {
-                    if let Some(w) = app.get_webview_window("main") {
+                    if let Some(w) = app.get_window("main") {
                         let _ = w.show();
                         let _ = w.set_focus();
                     }
@@ -575,7 +575,7 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(w) = app.get_webview_window("main") {
+            if let Some(w) = app.get_window("main") {
                 let _ = w.show();
                 let _ = w.set_focus();
             }

@@ -178,18 +178,18 @@ export function deckStatus(audio: Audio | null, index: number): string {
 const sections: Record<string, [string, string]> = {
   'web-explorer': [
     'Abre el panel de radio y servicios web.',
-    'Las ventanas de servicio tienen audio independiente. Cambiar a esta vista conserva el transporte local y su cola.',
+    'El navegador integrado tiene audio independiente. Salir de esta vista detiene el audio web y conserva los decks locales.',
   ],
   'web-fractos': [
-    'Abre fractos radio en una ventana aislada.',
-    'Usa la URL HTTPS confirmada. Sus iframes de YouTube y SoundCloud suenan fuera del mixer; controla el audio desde esa web o cierra su ventana.',
+    'Abre fractos radio en el navegador integrado.',
+    'Usa la URL HTTPS confirmada. Sus iframes de YouTube y SoundCloud suenan fuera del mixer; controla el audio desde esa web o usa detener audio web.',
   ],
   'web-soundcloud': [
-    'Abre SoundCloud en una ventana aislada.',
+    'Abre SoundCloud en el navegador integrado.',
     'Su player web no entra a los decks. La sesión de navegación es temporal; enlaces externos, popups y descargas están restringidos.',
   ],
   'web-close': [
-    'Cierra las ventanas de servicio y su reproducción web.',
+    'Cierra el navegador integrado y detiene su reproducción web.',
     'Afecta solo a fractos/SoundCloud; no pausa los decks locales. El botón de silencio de curado controla únicamente el motor nativo.',
   ],
   player: [

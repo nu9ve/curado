@@ -1,5 +1,11 @@
 # Registro de evolución
 
+## 2026-10-26 · Radio dentro de la ventana principal
+
+Por petición del usuario se sustituyen las ventanas externas por un WebView hijo integrado en radio/web. React reserva su área y actualiza bounds con layout/scroll/resize; Rust valida rectángulos. Al salir, entrar en mini o cambiar servicio se cierra y se detiene audio web. Configuración/diálogo de playlists lo ocultan temporalmente sin detener audio. Operaciones serializadas para evitar recreación después de desmontar o carreras al cambiar servicio.
+
+Tauri 2.12.5 mantiene versión y habilita feature unstable para add_child; límites en ADR-012. La capability ahora selecciona solo el webview main, sin seleccionar toda su ventana. Tray/instancia única consultan Window para seguir funcionando con hijos. Se conserva aislamiento, política de navegación y audio fuera del motor; no se usa iframe HTML ni se cambia CSP. Tests de bounds y contratos de permisos/child/recuperación main. Evidencia en STATUS; sin revisión visual ni reproducción remota real.
+
 ## 2026-10-26 · fractos radio y explorador web aislado
 
 El propietario confirmó que fractos usa iframes de YouTube/SoundCloud. Nueva entrada radio/web con ventanas separadas para fractos (URL HTTPS canónica verificada) y SoundCloud, reutilización al abrir y cierre explícito para detener su audio. La UI y ayuda explican que este audio queda fuera de decks, master, FX, sync y pánico. No se integran fuentes ni se modifica fractos.

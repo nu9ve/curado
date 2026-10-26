@@ -34,10 +34,10 @@ Formato: **contexto** (por qué ahora), **alcance** (qué entra y qué no), **he
 
 ## S5 · Explorador web (SoundCloud, radio de fractos) (P2)
 
-**Base implementada el 2026-10-26**: lanzador, ventanas aisladas, cierre para detener audio, ACL explícita y pruebas de política. URL de fractos confirmada y HTTP 200 por HTTPS. Pendiente comprobar los players en el WebView real; no hay mezcla nativa.
+**Base implementada el 2026-10-26**: navegador nativo integrado en main (sustituye las ventanas externas), cierre al salir/cambiar servicio, ACL por webview y pruebas de política/bounds. URL de fractos confirmada y HTTP 200 por HTTPS. Pendiente comprobar los players en el WebView real; no hay mezcla nativa.
 
 - **Contexto**: explorar servicios externos desde la app sin abrir el navegador.
-- **Alcance**: ventana/webview separada con lista blanca de dominios, **sin** capacidades IPC (la capability `main` no aplica a esa ventana), sin acceso a archivos ni comandos. El audio de esos servicios sale por WebKit, **no** por el motor ni el mixer; no se mezcla ni se graba. Ver ADR-012.
+- **Alcance**: WebView hijo aislado con lista blanca de dominios, **sin** capacidades IPC (la capability selecciona solo el webview `main`, no la ventana completa), sin acceso a archivos ni comandos. El audio de esos servicios sale por WebKit, **no** por el motor ni el mixer; no se mezcla ni se graba. Ver ADR-012.
 - **Hecho cuando**: test de contrato que verifica que la ventana remota no tiene permisos, CSP de la ventana principal intacta, navegación bloqueada fuera de la lista blanca.
 - **Siguiente alcance**: validar cookies/reproducción de embeds y compatibilidad de login bajo incognito sin popups; ahora suena y control de volumen/transporte requieren un protocolo con fractos (el usuario lo administra y usa iframes). No hay acceso al PCM a través de sus widgets.
 - **Riesgos**: términos de uso de cada servicio; cookies de terceros; confundir al usuario sobre qué suena por el motor.

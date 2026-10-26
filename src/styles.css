@@ -3036,10 +3036,12 @@ input[type='color'] {
   font-size: 10px;
 }
 
-/* Service viewers open in isolated native windows; this sheet is only their launcher. */
+/* The native child webview follows this reserved area; chrome stays in React. */
 .web-explorer {
-  padding: 24px 0;
-  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 .web-explorer-heading {
   display: flex;
@@ -3049,7 +3051,7 @@ input[type='color'] {
   justify-content: space-between;
 }
 .web-explorer-heading h2 {
-  margin: 4px 0 12px;
+  margin: 0;
 }
 .web-explorer p {
   max-width: 76ch;
@@ -3060,7 +3062,7 @@ input[type='color'] {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin: 22px 0;
+  margin: 12px 0;
 }
 .web-audio-badge {
   color: var(--text-secondary);
@@ -3079,4 +3081,21 @@ input[type='color'] {
 .web-mixing-info summary {
   cursor: pointer;
   padding: 8px 0;
+}
+
+.sheet-scroll.is-web {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 12px;
+}
+.web-explorer-frame {
+  flex: 1;
+  min-height: 1px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+.web-explorer-actions button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--text);
 }

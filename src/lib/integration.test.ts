@@ -68,7 +68,8 @@ test('every application command is ACL-listed and only main receives its permiss
   expect(commands).toEqual(registered);
   expect(new Set(commands).size).toBe(commands.length);
   expect(build).toContain('AppManifest::new().commands(app_commands::COMMANDS)');
-  expect(capabilities.windows).toEqual(['main']);
+  expect(capabilities.webviews).toEqual(['main']);
+  expect('windows' in capabilities).toBe(false);
   expect('remote' in capabilities).toBe(false);
   const allowed = capabilities.permissions.filter((p) => p.startsWith('allow-')).sort();
   expect(allowed).toEqual(commands.map((c) => `allow-${c.replaceAll('_', '-')}`).sort());
@@ -86,4 +87,8 @@ test('the service viewer cannot create permissive windows or inject remote contr
   expect(source).not.toContain('.initialization_script(');
   expect(source).not.toContain('.eval(');
   expect(source).not.toContain('audio_action');
+  expect(source).toMatch(/window\s*\.add_child\(/);
+  expect(source).not.toContain('WebviewWindowBuilder');
+  const app = await Bun.file(new URL('../../src-tauri/src/lib.rs', import.meta.url)).text();
+  expect(app).not.toContain('get_webview_window(');
 });

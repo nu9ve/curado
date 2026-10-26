@@ -358,7 +358,7 @@ export default function App() {
         </div>
       </header>
       <main className="sheet">
-        <div className="sheet-scroll">
+        <div className={`sheet-scroll ${view === 'web' ? 'is-web' : ''}`}>
           <PersistenceNotice />
           {!native && (
             <div className="notice">
@@ -367,7 +367,7 @@ export default function App() {
             </div>
           )}
           {view === 'web' ? (
-            <WebExplorer onError={onError} onNotice={notify} />
+            <WebExplorer onError={onError} suspended={settings || newPlaylist} />
           ) : mode === 'mix' ? (
             <MixView
               library={library}

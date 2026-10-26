@@ -116,7 +116,7 @@ bun run probe
 
 ## Hacia dónde va
 
-Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, validación de análisis/sync y transposición sobre un corpus real, más vistas (compacta, escenario) y validación de reproducción/cookies del explorador web. La entrada **radio / web** abre fractos radio y SoundCloud en ventanas separadas: su audio se controla en sus players y queda fuera del mixer, FX, sync y Escape nativos; **detener audio web y cerrar** destruye esas ventanas. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
+Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, validación de análisis/sync y transposición sobre un corpus real, más vistas (compacta, escenario) y validación de reproducción/cookies del explorador web. La entrada **radio / web** muestra fractos radio y SoundCloud dentro de la ventana principal: su audio se controla en sus players y queda fuera del mixer, FX, sync y Escape nativos; **detener audio web**, cambiar servicio o salir de esa vista cierra el navegador integrado. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
 
 ## Contribuir
 

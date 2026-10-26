@@ -1,98 +1,132 @@
-import { useState } from 'react';
-import { ExternalLink, Radio, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Radio, X } from 'lucide-react';
 import { call, native } from '../lib/bridge';
 
+// Serialize mount, layout, tab switches and teardown, including React StrictMode remounts.
+let operations: Promise<unknown> = Promise.resolve();
+function enqueue<T>(operation: () => Promise<T>): Promise<T> {
+  const next = operations.then(operation, operation);
+  operations = next.catch(() => {});
+  return next;
+}
+type Service = 'fractos' | 'soundcloud';
 export function WebExplorer({
   onError,
-  onNotice,
+  suspended,
 }: {
   onError: (e: unknown) => void;
-  onNotice: (text: string) => void;
+  suspended: boolean;
 }) {
-  const [busy, setBusy] = useState(false);
-  const open = async (service: 'fractos' | 'soundcloud') => {
-    setBusy(true);
-    try {
-      await call('open_web_service', { service });
-      onNotice(
-        `Ventana de ${service === 'fractos' ? 'fractos radio' : 'SoundCloud'} abierta. Su audio se controla desde esa web.`,
-      );
-    } catch (error) {
-      onError(error);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const close = async () => {
-    setBusy(true);
-    try {
-      const closed = await call<number>('close_web_services');
-      onNotice(
-        closed
-          ? `Cierre solicitado para ${closed} ventana${closed === 1 ? '' : 's'} web.`
-          : 'No hay ventanas web abiertas.',
-      );
-    } catch (error) {
-      onError(error);
-    } finally {
-      setBusy(false);
-    }
-  };
+  const [service, setService] = useState<Service | null>('fractos');
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const host = useRef<HTMLDivElement>(null);
+  const isSuspended = useRef(suspended);
+  isSuspended.current = suspended;
+  const refresh = useRef<() => void>(() => {});
+  useEffect(() => {
+    if (!native || !service || !host.current) return;
+    let disposed = false;
+    let frame = 0;
+    let last = '';
+    const element = host.current;
+    setFailed(false);
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const rect = element.getBoundingClientRect();
+        const bounds = {
+          x: Math.max(0, rect.x),
+          y: Math.max(0, rect.y),
+          width: Math.max(1, rect.width),
+          height: Math.max(1, rect.height),
+          visible: !isSuspended.current && rect.width > 0 && rect.height > 0,
+        };
+        const key = JSON.stringify(bounds);
+        if (key === last) return;
+        last = key;
+        void enqueue(async () => {
+          if (!disposed) await call('open_web_service', { service, bounds });
+        }).catch((error) => {
+          if (!disposed) {
+            setFailed(true);
+            onError(error);
+          }
+        });
+      });
+    };
+    refresh.current = update;
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    // Footer expansion, viewport resizing and scrolling all affect native child bounds.
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    update();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+      refresh.current = () => {};
+      void enqueue(() => call('close_web_services')).catch(onError);
+    };
+  }, [service, retry, onError]);
+  useEffect(() => {
+    refresh.current();
+  }, [suspended]);
+
   return (
     <section className="web-explorer" aria-label="Servicios web y radio">
       <div className="web-explorer-heading">
-        <div>
-          <span className="eyebrow">explorar</span>
-          <h2>radio y servicios web</h2>
-        </div>
+        <h2>radio / web</h2>
         <span className="web-audio-badge">audio web independiente</span>
       </div>
-      <p>
-        Abre fractos radio o SoundCloud en sus propias ventanas y escucha mientras organizas tu
-        biblioteca.
-      </p>
-      <div className="web-explorer-actions">
+      <div className="web-explorer-actions" role="group" aria-label="Servicio web">
         <button
-          disabled={!native || busy}
-          onClick={() => void open('fractos')}
+          disabled={!native}
+          aria-pressed={service === 'fractos'}
+          onClick={() => setService('fractos')}
           data-help="web-fractos"
         >
-          <Radio size={15} />
-          fractos radio
-          <ExternalLink size={12} />
+          <Radio size={15} /> fractos radio
         </button>
         <button
-          disabled={!native || busy}
-          onClick={() => void open('soundcloud')}
+          disabled={!native}
+          aria-pressed={service === 'soundcloud'}
+          onClick={() => setService('soundcloud')}
           data-help="web-soundcloud"
         >
-          <ExternalLink size={15} />
           SoundCloud
         </button>
         <button
-          disabled={!native || busy}
+          disabled={!native || !service}
           className="subtle"
-          onClick={() => void close()}
+          onClick={() => setService(null)}
           data-help="web-close"
         >
-          <X size={14} />
-          detener audio web y cerrar
+          <X size={14} /> detener audio web
         </button>
+        {failed && <button onClick={() => setRetry((value) => value + 1)}>Reintentar</button>}
       </div>
       <p className="web-audio-note">
-        El master, crossfader, efectos, sync y Escape de curado controlan los decks locales. Para
-        detener el audio web, pausa su player o cierra estas ventanas.
+        El audio web se controla en su player. Master, FX, sync y Escape actúan sobre los decks
+        locales. Cambiar de servicio o salir de esta vista detiene la reproducción web.
       </p>
-      {!native && <small>La apertura de servicios requiere curado de escritorio.</small>}
-      <details className="web-mixing-info">
-        <summary>Sobre mezclar estos servicios</summary>
-        <p>
-          fractos reproduce con iframes de YouTube y SoundCloud. Sus players pueden ofrecer
-          controles de reproducción y volumen, pero esta vista no los conecta al motor de audio. La
-          mezcla web por volúmenes y la entrada de audio a los decks son integraciones distintas,
-          todavía pendientes.
-        </p>
-      </details>
+      <div ref={host} className="web-explorer-frame" aria-label="Área del navegador integrado">
+        {!native ? (
+          <p>El navegador integrado requiere curado de escritorio.</p>
+        ) : !service ? (
+          <p>Audio web detenido. Elige un servicio para volver a escuchar.</p>
+        ) : failed ? (
+          <p role="alert">No se pudo abrir el navegador. Puedes reintentar.</p>
+        ) : (
+          <span className="sr-only">
+            Contenido de {service === 'fractos' ? 'fractos radio' : 'SoundCloud'} en un navegador
+            integrado.
+          </span>
+        )}
+      </div>
     </section>
   );
 }

@@ -9,7 +9,15 @@ Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con BPM/key
 3. Nombre siempre en minúsculas: **curado**. Color inicial exacto **#d66154**, estilo **curado**.
 4. Siguiente prioridad estructural: S1 streaming con presupuesto de memoria. Siguiente prioridad de experiencia: S2 reloj de posición (playhead/platos a 60 FPS sin violar el invariante 2).
 
-## Sesión radio/web · 2026-10-26
+## Sesión navegador integrado · 2026-10-26
+
+La vista **radio / web** ahora contiene un WebView nativo hijo de la ventana principal, con fractos radio seleccionado inicialmente. Sustituye las ventanas externas descritas en la sesión previa. Conserva sidebar/topbar/footer; sigue el rectángulo reservado por React con ResizeObserver y resize/scroll. Configuración y el diálogo de playlists ocultan el navegador para no quedar debajo; el audio continúa mientras esos diálogos están abiertos. Salir de la vista, entrar a mini, detener audio o cambiar de servicio cierra el WebView y detiene su reproducción; se abre una nueva sesión al volver.
+
+La capability se limita por **webviews: [main]**, sin selección por ventana: un permiso aplicado a la ventana main incluiría a sus hijos. Sigue la validación de label por comando, las URLs fijas/hosts exactos, incognito y el bloqueo de popups/descargas. Tray e instancia única usan Window en lugar de WebviewWindow, que deja de representar main mientras hay hijos. No hay permisos genéricos para crear WebViews desde JS ni cambios de CSP.
+
+Tauri 2.12.5 ya resuelto requiere la feature `unstable` para `Window::add_child`; se habilita sin actualizar dependencias/lockfiles. ADR-012 registra el motivo y el límite de estabilidad. Audio web fuera del mixer nativo, sin inyección de scripts. Implementación y pruebas por código; sin abrir la app ni validar aspecto, foco real, cookies/login o reproducción remota. Evidencia: `bun run check` **24 tests TS**, `cargo test --workspace --locked` **42 Rust** (27 motor + 15 app), clippy con -D warnings, formato y diff check correctos. Build frontend y `.app` ARM64 **13,48 MiB** correctos, firma ad hoc verificada; no notarizada. Instalación/registro correctos en `/Users/nu9ve/Applications/curado.app`, ejecutable SHA-256 `6244aa4761012a314267bce70b140fc43bae827a5aeebdecbb8538d14c685182`. No se abrió ni se validó lanzamiento/indexación Spotlight/Raycast.
+
+## Sesión radio/web previa · 2026-10-26
 
 Implementado lanzador **radio / web** con ventanas aisladas para `https://www.fractos.app/es/radio` y SoundCloud Discover. HTTP público: fractos redirige a www por HTTPS y responde 200. El propietario confirma iframes de YouTube/SoundCloud: no hay fuente PCM ni mezcla nativa. Cambiar vista conserva los decks/cola. Cerrar una ventana remota la destruye; la UI puede cerrar ambas para detener el audio web. Master, FX, sync y pánico siguen controlando solo audio local.
 

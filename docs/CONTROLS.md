@@ -79,9 +79,9 @@ Admite Note On con velocity >0 y CC absolutos 0–127; en EQ, CC 64 equivale a g
 
 ## Radio y servicios web
 
-**radio / web** en la barra lateral permite abrir fractos radio y SoundCloud en ventanas separadas. Abrir de nuevo enfoca la existente. Requieren internet; navegación limitada a dominios del servicio y sus widgets, sesión incognito, sin popups ni descargas. Algunos logins/enlaces externos pueden quedar bloqueados; su compatibilidad no se ha comprobado.
+**radio / web** en la barra lateral muestra fractos radio dentro de curado. Los botones fractos/SoundCloud cambian el servicio del navegador integrado; requieren internet y el escritorio nativo. La navegación está limitada a dominios del servicio/widgets, en sesión incognito, sin popups/descargas; algunos logins/enlaces pueden quedar bloqueados. Compatibilidad de players pendiente de comprobar.
 
-El audio web se controla desde cada player: no responde al master, crossfader, FX, sync ni Escape de los decks locales. **detener audio web y cerrar** destruye ambas ventanas. El botón de cierre de una ventana web también la cierra, aunque la principal use cerrar para ocultar. Al enfocar la web, los atajos locales no reciben sus teclas. La vista conserva el estado de los decks y la cola, que pueden seguir sonando.
+El audio web se controla desde cada player: no responde al master, crossfader, FX, sync ni Escape de los decks locales. **detener audio web**, cambiar servicio, salir de radio/web o entrar a mini cierra el navegador y detiene su reproducción. Al volver se carga una sesión nueva. Configuración y el diálogo de playlists lo ocultan temporalmente, conservando audio. Los decks y la cola locales siguen su estado; al enfocar el contenido web los atajos locales no reciben sus teclas.
 
 ## Audio y segundo plano
 
