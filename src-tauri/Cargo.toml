@@ -1,0 +1,23 @@
+[package]
+name = "curado"
+version = "0.1.0"
+edition = "2021"
+default-run = "curado"
+
+[lib]
+name = "curado_app"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+curado-audio = { path = "../crates/audio-engine" }
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.32", features = ["bundled"] }
+rfd = "0.15"
+midir = "0.10"
+crossbeam-queue = "0.3"

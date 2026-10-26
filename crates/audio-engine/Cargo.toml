@@ -1,0 +1,13 @@
+[package]
+name = "curado-audio"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cpal = "0.16"
+crossbeam-queue = "0.3"
+serde = { version = "1", features = ["derive"] }
+symphonia = { version = "0.5.5", features = ["all"] }
+
+[dev-dependencies]
+hound = "3.5"

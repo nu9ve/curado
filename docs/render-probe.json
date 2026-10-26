@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-25",
+  "kind": "offline CPU probe, not hardware latency",
+  "sampleRate": 48000,
+  "frames": 256,
+  "slots": 6,
+  "simulatedSeconds": 60,
+  "p50Us": 16.79,
+  "p95Us": 17.71,
+  "p99Us": 33.0,
+  "maxUs": 92.67,
+  "budgetUs": 5333.33,
+  "clippedSamples": 0
+}

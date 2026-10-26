@@ -1,0 +1,37 @@
+{
+  "name": "curado",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 1420 --strictPort",
+    "build": "bun run theme:sync && tsc -b && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "tauri": "tauri",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build --bundles app && bun scripts/sign-local.ts",
+    "check": "tsc -b && bun test",
+    "check:rust": "cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings",
+    "fixtures": "bun scripts/fixtures.ts",
+    "format": "prettier --write src scripts docs README.md AGENTS.md package.json && cargo fmt --all",
+    "format:check": "prettier --check src scripts docs README.md AGENTS.md package.json && cargo fmt --all -- --check",
+    "probe": "cargo run --release -p curado-audio --example render_probe",
+    "theme:sync": "bun scripts/sync-theme.ts"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.10.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.10.0",
+    "@types/bun": "^1.3.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.0",
+    "vite": "^7.1.0"
+  }
+}
