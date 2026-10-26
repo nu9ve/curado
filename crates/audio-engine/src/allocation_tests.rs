@@ -58,4 +58,22 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     ACTIVE.with(|a| a.set(false));
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
     handle.collect();
+    // Exercise linked transport and hot-cue restarts with both decks and a sample.
+    handle.load_and_play(1, clip()).unwrap();
+    handle.load(2, clip()).unwrap();
+    handle.control(2, crate::Control::Trigger).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    renderer.render(&mut output, 2);
+    ACTIVE.with(|a| a.set(false));
+    for _ in 0..50 {
+        handle.control(0, crate::Control::CueBoth(0)).unwrap();
+        handle.control(0, crate::Control::Cue(1)).unwrap();
+        handle.control(1, crate::Control::Cue(2)).unwrap();
+        handle.control(0, crate::Control::PauseBoth).unwrap();
+        handle.control(0, crate::Control::PlayBoth).unwrap();
+        ACTIVE.with(|a| a.set(true));
+        renderer.render(&mut output, 2);
+        ACTIVE.with(|a| a.set(false));
+    }
+    assert_eq!(COUNTS.with(Cell::get), (0, 0));
 }

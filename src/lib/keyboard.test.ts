@@ -24,5 +24,9 @@ describe('keyboard performance contract', () => {
     expect(allowedInMode({ slot: 0, kind: 'panic', value: 0 }, 'player')).toBe(true);
     expect(allowedInMode({ slot: 0, kind: 'crossfader', value: 1 }, 'player')).toBe(false);
     expect(allowedInMode({ slot: 3, kind: 'trigger', value: 0 }, 'mix')).toBe(true);
+    for (const kind of ['playBoth', 'pauseBoth', 'cueBoth']) {
+      expect(allowedInMode({ slot: 0, kind, value: 0 }, 'player')).toBe(false);
+      expect(allowedInMode({ slot: 0, kind, value: 0 }, 'mix')).toBe(true);
+    }
   });
 });

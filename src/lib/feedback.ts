@@ -51,7 +51,8 @@ export const useHud = () => useSyncExternalStore(subscribe, () => entries);
 function describe(a: Action) {
   const target = a.slot < 2 ? (a.slot ? 'B' : 'A') : `S${a.slot - 1}`;
   if (a.kind === 'crossfader') return `Crossfader ${['A', 'centro', 'B'][Math.round(a.value * 2)]}`;
-  if (a.kind === 'panic' || a.kind === 'master') return actionLabel(a.kind);
+  if (['panic', 'master', 'playBoth', 'pauseBoth', 'cueBoth'].includes(a.kind))
+    return `${actionLabel(a.kind)}${a.kind === 'cueBoth' ? ` ${a.value + 1}` : ''}`;
   const cue = ['cue', 'setCue'].includes(a.kind) ? ` ${a.value + 1}` : '';
   const nudge = a.kind === 'nudge' ? (a.value < 0 ? ' −' : ' +') : '';
   return `${target} · ${actionLabel(a.kind)}${cue}${nudge}`;

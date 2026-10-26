@@ -2,6 +2,20 @@
 
 Los temas grandes tienen su ficha en [SESSIONS](SESSIONS.md) (S1…S10).
 
+## Secuencia de entregas acordada · 2026-10-26
+
+La corrección de hot cues, transporte A+B y base de ayuda contextual precede estas entregas. No completa streaming, reloj fluido ni sync musical. Ninguna entrega sustituye las puertas de QUALITY.
+
+| Entrega                         | Dependencias                              | Cierre verificable pendiente                                                                                                   |
+| ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 1 · Pistas largas e importación | S1                                        | Archivo de 60 min con seek/loops y memoria global acotada; progreso, cancelación e importación que cede a cargas prioritarias. |
+| 2 · Transporte fluido y sesión  | Reloj nativo S2; almacenamiento de sesión | Playhead fluido sin deriva; confirmación de acciones; restauración pausada de decks y loops sin snapshots incoherentes.        |
+| 3 · Calidad y recuperación      | S3; ciclo de vida de dispositivos         | Medidas de aliasing/discontinuidad, limitador, coste RT; hotplug/sleep-wake y cierre determinista.                             |
+| 4 · Reproductor cotidiano       | Biblioteca y cola robustas                | Cola editable, shuffle, playlists reordenables, media keys, álbumes/artwork y reparación de rutas.                             |
+| 5 · Mezcla avanzada             | Reloj/streaming/DSP; S4 y routing         | BPM/beatgrid editable, loops por beats y sync; después key lock y preescucha hardware.                                         |
+
+CI ejecutada en los tres OS, corpus de codecs/errores, estrés de dos horas, accesibilidad y distribución firmada deben acompañar el avance. S1 continúa siendo la siguiente prioridad estructural; no aumentar el límite de PCM como sustituto del presupuesto de memoria.
+
 ## P0 · Antes de estabilidad de producción
 
 1. **Streaming y memoria por presupuesto global** (S1). Decodificación incremental, rings preasignados por deck, prefetch de cues, bounded seek, cancelación y tiempo límite por tarea. Mantener precarga para samples. Añadir corpus de tracks largos y disco lento. Afecta waveform, cola, loops, cue y caché.

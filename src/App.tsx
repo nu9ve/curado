@@ -47,6 +47,7 @@ export default function App() {
   const [selected, setSelected] = useState<number | null>(null);
   const [settings, setSettings] = useState(false);
   const [mini, setMini] = useState(false);
+  const [helpExpanded, setHelpExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
@@ -223,7 +224,7 @@ export default function App() {
     );
 
   return (
-    <div className={`app-shell view-${mode}`}>
+    <div className={`app-shell view-${mode} ${helpExpanded ? 'help-expanded' : ''}`}>
       <div className="window-drag-region" data-tauri-drag-region aria-hidden="true" />
       <aside className="sidebar">
         <div className="brand" data-tauri-drag-region>
@@ -306,6 +307,7 @@ export default function App() {
           <button
             className={mode === 'player' ? 'active' : ''}
             aria-pressed={mode === 'player'}
+            data-help="player"
             onClick={() => changeMode('player')}
           >
             <Headphones size={14} />
@@ -314,6 +316,7 @@ export default function App() {
           <button
             className={mode === 'mix' ? 'active' : ''}
             aria-pressed={mode === 'mix'}
+            data-help="mix"
             onClick={() => changeMode('mix')}
           >
             <SlidersHorizontal size={14} />
@@ -325,6 +328,7 @@ export default function App() {
           <button
             className="icon-button"
             aria-label="Vista mini siempre visible"
+            data-help="mini"
             title="Vista mini · siempre encima"
             onClick={() => toggleMini(true)}
           >
@@ -333,6 +337,7 @@ export default function App() {
           <button
             className="icon-button"
             aria-label="Abrir configuración"
+            data-help="settings"
             title="Configuración"
             onClick={() => setSettings(true)}
           >
@@ -390,7 +395,14 @@ export default function App() {
         </div>
         <KeyHud />
       </main>
-      <BottomBar tracks={library.tracks} onError={onError} onNext={next} />
+      <BottomBar
+        tracks={library.tracks}
+        keys={keys}
+        helpExpanded={helpExpanded}
+        onHelpExpand={setHelpExpanded}
+        onError={onError}
+        onNext={next}
+      />
       {busy && (
         <div className="busy-indicator" role="status">
           <LoaderCircle size={15} className="spinning" />

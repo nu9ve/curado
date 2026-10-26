@@ -20,6 +20,10 @@ La vista Mezcla se distribuye como el teclado: **deck A a la izquierda, deck B a
 - Mixer: por canal HI/MID/LOW (unidad al centro), FILTER (paso bajo, OFF a la derecha), ECHO, medidor LED en dB y fader de volumen vertical; master vertical con medidor, botón de silencio y crossfader horizontal con sus teclas ← ↓ →.
 - Mapa del teclado: muestra qué tecla controla qué zona (A coral, B complementario, samples ámbar, mixer neutro). Las teclas se iluminan al pulsarlas y se pueden clicar.
 
+El mixer incluye **A + B**: reproducir ambos, pausar ambos y disparar el primer hot cue de ambos. Cada botón envía una sola acción; ambos transportes cambian antes de la primera muestra del mismo bloque de audio. Cada pista conserva su propio cue y velocidad: esto no ajusta BPM ni alinea beats. Los samples no se ven afectados y los controles no cambian el crossfader ni restauran un master a cero.
+
+El encabezado de cada deck distingue **En pausa**, **Fin de pista**, **Reproduciendo**, **Master a cero**, **Canal a cero**, **Fuera del crossfader** y **Error de salida**, según el snapshot. «Reproduciendo» describe el transporte, no garantiza que el archivo tenga señal audible. Los medidores de canal se toman antes del crossfader/master.
+
 Perillas y faders: arrastrar vertical (Shift = fino), rueda, flechas (Shift = fino, RePág/AvPág = grueso), Inicio = valor por defecto, doble clic = restaurar. Mientras arrastras, el control muestra tu valor local y después vuelve a seguir al motor.
 
 Cada atajo de teclado ilumina el control correspondiente y muestra un **HUD** con la tecla y la acción (p. ej. «A · Hot cue 2»). Si el modo actual bloquea la acción, el HUD lo dice («no disponible») y no se envía nada al motor.
@@ -43,7 +47,13 @@ Cada atajo de teclado ilumina el control correspondiente y muestra un **HUD** co
 | Crossfader izquierda / centro / derecha | ← / ↓ / →     |
 | Detener decks y bajar master a cero     | ESC           |
 
-Shift + clic en un hot cue también guarda posición. Clic en waveform busca. Loop sin puntos crea un tramo de hasta cuatro segundos desde la posición actual; no está ajustado a beats. Nudge desplaza la posición, no emula la inercia de un jog.
+Un **hot cue salta y reproduce**, incluso desde pausa o fin de pista; repetirlo no alterna pausa. Los tres cues empiezan en 0:00 y muestran su tiempo, incluso antes de guardar uno. Shift + clic en un hot cue guarda posición sin iniciar reproducción. Clic en waveform busca conservando pausa/reproducción; las flechas también buscan al enfocar la waveform (Shift = paso fino). Un salto de cue, seek o nudge fuera del tramo de loop lo desactiva; dentro lo conserva. Loop sin puntos crea un tramo de hasta cuatro segundos desde la posición actual; no está ajustado a beats. Nudge desplaza la posición, no emula la inercia de un jog.
+
+## Ayuda contextual en el footer
+
+La franja inferior permanece fuera del scroll del contenido. Al pasar el cursor o enfocar un control con Tab muestra su nombre, función y atajos guardados. **Más info** expande detalles y consejos dentro del mismo footer; el contenido principal cede altura y los avisos se recolocan. El fondo usa el tono del deck o el tono general, respetando el tema. Escape dentro de la ayuda expandida la cierra y devuelve el foco al botón, sin enviar pánico.
+
+La ayuda conserva el último control al entrar en su propio panel para poder leerlo. Las acciones de audio se identifican mediante `data-action` (slot/tipo/valor), no por texto parecido; los controles genéricos usan su etiqueta/título y un texto de base. No hay generación automática de consejos: editar `src/lib/hints.ts` para ampliar o corregir textos y `data-help` para asociar otras secciones. La vista mini conserva su tamaño y no incluye esta franja.
 
 Los atajos se activan con la ventana enfocada, se basan en códigos físicos y no se ejecutan al escribir en inputs o mover sliders. Space/Enter sobre un botón conservan su activación accesible. Las etiquetas muestran el mapeo guardado; Configuración → Teclado permite reasignar y detecta conflictos. Player desactiva hotkeys del deck B y samples. Pánico requiere después subir master y reanudar reproducción.
 

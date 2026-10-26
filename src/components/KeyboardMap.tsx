@@ -2,6 +2,7 @@ import { memo } from 'react';
 import type { KeyBinding } from '../lib/types';
 import { actionLabel, allowedInMode, keyLabel } from '../lib/keyboard';
 import { useHud } from '../lib/feedback';
+import { actionKey } from '../lib/feedback';
 
 /** Physical ANSI/ISO rows; codes are layout independent (`KeyboardEvent.code`). */
 const ROWS: string[][] = [
@@ -84,6 +85,7 @@ export const KeyboardMap = memo(function KeyboardMap({
                 key={code}
                 className={`keycap z-${z} ${code === 'Space' ? 'wide' : ''} ${blocked && bound.length ? 'blocked' : ''}`}
                 data-key={code}
+                data-action={bound.map((b) => actionKey(b.action)).join(' ') || undefined}
                 title={title || 'Libre'}
                 disabled={!plain || (blocked && bound.length > 0)}
                 onClick={() => plain && onTrigger(plain)}

@@ -1,5 +1,17 @@
 # Registro de evolución
 
+## 2026-10-26 · Ayuda contextual y transporte fiable A/B
+
+Petición: ayuda fija y expandible en el footer, y diagnóstico del deck B silencioso al reactivar cues rápidamente. La captura mostraba B pausado. Dos regresiones reprodujeron el contrato anterior: `Cue` solo buscaba y no iniciaba reproducción tras pausa/EOF. Se cambió a salto + play atómico, sin modificar el transporte del otro deck. Seek/nudge conservan pausa; saltar fuera del loop lo desactiva.
+
+Se añadieron play/pausa/cue conjuntos A+B en una sola entrada de cola y botones en el mixer; no ajustan BPM, no afectan samples ni restauran ganancias/master. Los decks muestran diagnóstico de transporte/routing y los cues muestran su tiempo inicial 0:00. Waveforms detalladas accesibles por teclado.
+
+La cola usa carga+play atómica y repeat-one mediante un solo trigger, evitando estados parciales bajo saturación. Precargas etiquetadas por revisión para descartar resultados/errores de sesiones antiguas y limitar reintentos de archivos fallidos.
+
+`ContextHelp` delega hover y foco; `hints.ts` asocia textos al identificador exacto de cada control, muestra atajos guardados y ofrece fallback de etiqueta/título. El fondo adapta el tono al deck/tema; expandir reserva altura en el footer y recoloca los avisos. Escape cierra el panel sin pánico. Sin nuevas dependencias ni permisos.
+
+Pruebas de regresión: cues tras EOF, señales L/R de ambos decks con retriggers a 44.1/48/96 kHz, samples independientes, PCM compartido con posiciones/ganancias separadas, loops, límites de cola y allocator de callback. TypeScript comprueba asociación de cues/mapeos, diagnóstico y disclosure accesible. Evidencia final en STATUS. No se abrió la app, no se hizo Computer Use ni se comprobó audio físico. Las cinco entregas mayores siguen pendientes según ROADMAP.
+
 ## 2026-10-25 · Base 0.1
 
 Directorio inicialmente vacío. Se creó workspace Rust con motor independiente, shell Tauri 2 y UI React/Vite/Bun. Decodificación Symphonia, CPAL, seis slots, dos decks + cuatro samples, DSP básico, controles validados/colas acotadas, reclamación fuera del callback, suavizado de parámetros y transición de transportes manuales.

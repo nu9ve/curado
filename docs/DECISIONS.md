@@ -1,5 +1,15 @@
 # Decisiones técnicas
 
+## ADR-013 · Hot cues que reproducen y transporte conjunto — aceptada (2026-10-26)
+
+El usuario observó que B seguía en silencio al reactivar su cue mientras A sonaba. En código, `Cue` cambiaba posición pero conservaba `playing=false` tras pausa/EOF; dos regresiones fallaron antes de corregirlo. Se define el hot cue como salto + reproducción en un único comando. Guardar cue y buscar posición mantienen sus contratos separados. Saltar fuera de un loop lo desactiva.
+
+Los decks ya tienen estado independiente y se suman en un renderer común. Se conserva ese diseño: separar dispositivos/streams no resolvería la semántica de cue y complicaría sus relojes. Para control simultáneo explícito, `playBoth`/`pauseBoth`/`cueBoth` actúan sobre A/B dentro de una sola entrada de cola, incluso en el límite de 64 comandos por callback. No cambian routing ni volumen. Sin garantía de beat sync; la reproducción física y latencia siguen pendientes de hardware.
+
+La cola también usa una entrada para carga+play y una para repetir la pista, evitando aceptación parcial bajo saturación. Una revisión de sesión invalida precargas antiguas (éxito o error). Los fallos de prefetch se acotan a un intento anticipado y otro al avanzar, en lugar de volver a decodificar en cada tick.
+
+La ayuda contextual usa identificadores de acción y mapeos guardados, con fallback de etiqueta/título para controles genéricos. Los textos son revisables en código; la ayuda no infiere acciones a partir de cercanía visual ni envía controles al motor.
+
 ## ADR-001 · Rust + Tauri 2 + React + Bun — aceptada
 
 El audio y los servicios de OS necesitan acceso nativo; la interfaz de biblioteca y decks se desarrolla con React. Bun es gestor de paquetes y lanzador de herramientas, no runtime de audio dentro de la app. Tauri usa el WebView del sistema. La UI no es AppKit/WinUI; menús, tray, audio y helper Metal sí usan APIs nativas.

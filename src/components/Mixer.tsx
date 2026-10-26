@@ -1,4 +1,4 @@
-import { Square, Plus } from 'lucide-react';
+import { Square, Plus, Play, Pause } from 'lucide-react';
 import { control, parameter, useSnapshot } from '../lib/bridge';
 import type { KeyBinding, Track } from '../lib/types';
 import { EMPTY_SLOT } from '../lib/types';
@@ -16,12 +16,14 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
   const slot = audio?.slots[index] ?? EMPTY_SLOT;
   const tone = index ? 'b' : 'a';
   const param = (kind: string) => (v: number) => parameter(index, kind, v, onError);
+  const act = (kind: string) => actionKey({ slot: index, kind, value: 0 });
   return (
     <div className={`channel tone-${tone}`} aria-label={`Canal ${index ? 'B' : 'A'}`}>
       <span className="channel-tag">{index ? 'B' : 'A'}</span>
       <div className="channel-knobs">
         <Knob
           label="HI"
+          action={act('high')}
           tone={tone}
           max={2}
           origin={1}
@@ -32,6 +34,7 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
         />
         <Knob
           label="FILTER"
+          action={act('filter')}
           tone={tone}
           value={slot.filter}
           defaultValue={1}
@@ -41,6 +44,7 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
         />
         <Knob
           label="MID"
+          action={act('mid')}
           tone={tone}
           max={2}
           origin={1}
@@ -49,9 +53,16 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
           format={eq}
           onChange={param('mid')}
         />
-        <Knob label="ECHO" tone={tone} value={slot.echo} onChange={param('echo')} />
+        <Knob
+          label="ECHO"
+          action={act('echo')}
+          tone={tone}
+          value={slot.echo}
+          onChange={param('echo')}
+        />
         <Knob
           label="LOW"
+          action={act('low')}
           tone={tone}
           max={2}
           origin={1}
@@ -69,6 +80,7 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
         <Meter vertical value={slot.peak} label={`Nivel deck ${index ? 'B' : 'A'}`} />
         <Slider
           label="VOL"
+          action={act('gain')}
           tone={tone}
           max={1.5}
           defaultValue={0.8}
@@ -93,6 +105,7 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
         <Meter vertical value={audio?.peak ?? 0} label="Nivel master" />
         <Slider
           label="MASTER"
+          action={actionKey({ slot: 0, kind: 'master', value: 0 })}
           tone="master"
           defaultValue={0.75}
           value={audio?.master ?? 0.75}
@@ -110,9 +123,36 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
       </div>
       <Channel index={1} onError={onError} />
       <div className="xfader">
+        <div className="linked-transport" role="group" aria-label="Transporte simultáneo A y B">
+          <span>A + B</span>
+          <button
+            aria-label="Reproducir ambos decks"
+            data-action="0:playBoth:0"
+            onClick={() => control(0, 'playBoth').catch(onError)}
+            disabled={!audio?.slots[0]?.id && !audio?.slots[1]?.id}
+          >
+            <Play size={12} /> ambos
+          </button>
+          <button
+            aria-label="Pausar ambos decks"
+            data-action="0:pauseBoth:0"
+            onClick={() => control(0, 'pauseBoth').catch(onError)}
+          >
+            <Pause size={12} />
+          </button>
+          <button
+            aria-label="Hot cue 1 en ambos decks"
+            data-action="0:cueBoth:0"
+            onClick={() => control(0, 'cueBoth').catch(onError)}
+            disabled={!audio?.slots[0]?.id && !audio?.slots[1]?.id}
+          >
+            cue 1
+          </button>
+        </div>
         <Slider
           vertical={false}
           label="CROSSFADER"
+          action={actionKey({ slot: 0, kind: 'crossfader', value: 0 })}
           tone="master"
           origin={0.5}
           defaultValue={0.5}

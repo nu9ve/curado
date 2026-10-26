@@ -444,9 +444,8 @@ async fn play_queue(
         let mut q = s.queue.lock().unwrap();
         let output = s.output.lock().unwrap();
         let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
-        handle.load(0, clip)?;
-        handle.control(0, Control::Crossfader(0.))?;
-        handle.control(0, Control::Play)?;
+        // Player mode already owns crossfader=0. Loading and playing must be indivisible.
+        handle.load_and_play(0, clip)?;
         q.set(ids, repeat);
         Ok(())
     })

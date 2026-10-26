@@ -5,6 +5,7 @@ import type { KeyBinding, Track } from '../lib/types';
 import { EMPTY_SLOT, remaining, time } from '../lib/types';
 import { bindingLabel } from '../lib/keyboard';
 import { actionKey } from '../lib/feedback';
+import { deckStatus } from '../lib/hints';
 import { WaveOverview } from './Waveform';
 import { Key, Slider } from './Controls';
 
@@ -79,6 +80,9 @@ export function Deck({
         <div className="deck-title">
           <strong>{loading ? 'cargando…' : (track?.title ?? 'sin pista')}</strong>
           <small>{track?.artist ?? `Selecciona una pista y cárgala en ${index ? 'B' : 'A'}`}</small>
+          <small className="deck-status">
+            {loading ? 'Cargando…' : deckStatus(snap.audio, index)}
+          </small>
         </div>
         <div className="deck-time">
           <b>{remaining(slot)}</b>
@@ -92,7 +96,7 @@ export function Deck({
         slot={slot}
         tone={tone}
         label={`Waveform deck ${index ? 'B' : 'A'}`}
-        onSeek={track ? (s) => send('seek', s) : undefined}
+        onSeek={!empty ? (s) => send('seek', s) : undefined}
       />
       <div className="deck-body">
         <Platter slot={slot} index={index} disabled={!!empty} onToggle={() => send('toggle')} />
@@ -102,13 +106,14 @@ export function Deck({
               <button
                 key={i}
                 className={`cue-pad ${slot.cues[i] > 0 ? 'set' : ''}`}
-                title="Clic para saltar · Shift + clic para guardar"
-                disabled={!track}
+                title="Clic para saltar y reproducir · Shift + clic para guardar"
+                aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}`}
+                disabled={!!empty}
                 data-action={`${act('cue', i)} ${act('setCue', i)}`}
                 onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
               >
                 <span>CUE {i + 1}</span>
-                <b>{slot.cues[i] > 0 ? time(slot.cues[i]) : '—'}</b>
+                <b>{time(slot.cues[i] ?? 0)}</b>
                 {tag('cue', i, true)}
               </button>
             ))}
@@ -128,7 +133,7 @@ export function Deck({
               )}
               {tag('toggle')}
             </button>
-            <button disabled={!track} onClick={() => send('cue', 0)} data-action={act('cue', 0)}>
+            <button disabled={!!empty} onClick={() => send('cue', 0)} data-action={act('cue', 0)}>
               CUE{tag('cue', 0)}
             </button>
             <button
@@ -171,6 +176,7 @@ export function Deck({
         <Slider
           className="pitch"
           label="PITCH"
+          action={act('rate')}
           tone={tone}
           min={0.8}
           max={1.2}

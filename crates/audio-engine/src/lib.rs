@@ -34,6 +34,9 @@ pub enum Control {
     LoopIn,
     LoopOut,
     Trigger,
+    PlayBoth,
+    PauseBoth,
+    CueBoth(usize),
     Gain(f32),
     Rate(f32),
     Low(f32),
@@ -68,6 +71,11 @@ impl Action {
             "loopIn" => Control::LoopIn,
             "loopOut" => Control::LoopOut,
             "trigger" => Control::Trigger,
+            "playBoth" => Control::PlayBoth,
+            "pauseBoth" => Control::PauseBoth,
+            "cueBoth" if (0.0..3.0).contains(&self.value) && self.value.fract() == 0. => {
+                Control::CueBoth(self.value as usize)
+            }
             "gain" if (0.0..=1.5).contains(&v) => Control::Gain(v),
             "rate" if (0.5..=1.5).contains(&v) => Control::Rate(v),
             "low" if (0.0..=2.0).contains(&v) => Control::Low(v),
@@ -83,7 +91,7 @@ impl Action {
     }
 }
 pub enum Command {
-    Load(usize, Arc<Clip>, u64),
+    Load(usize, Arc<Clip>, u64, bool),
     Control(usize, Control),
 }
 #[derive(Default)]
@@ -162,7 +170,9 @@ impl EngineHandle {
         self.control(action.slot, c)
     }
     pub fn control(&self, slot: usize, control: Control) -> Result<(), String> {
-        if slot >= SLOTS || matches!(control, Control::Cue(i)|Control::SetCue(i) if i>=3) {
+        if slot >= SLOTS
+            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::CueBoth(i) if i>=3)
+        {
             return Err("Deck o cue inválido".into());
         }
         self.0
@@ -171,6 +181,13 @@ impl EngineHandle {
             .map_err(|_| "Cola de audio llena; vuelve a intentar".into())
     }
     pub fn load(&self, slot: usize, clip: Arc<Clip>) -> Result<u64, String> {
+        self.queue_load(slot, clip, false)
+    }
+    /// Load and start in one queue entry: no partially accepted Load + Play pair.
+    pub fn load_and_play(&self, slot: usize, clip: Arc<Clip>) -> Result<u64, String> {
+        self.queue_load(slot, clip, true)
+    }
+    fn queue_load(&self, slot: usize, clip: Arc<Clip>, play: bool) -> Result<u64, String> {
         if slot >= SLOTS {
             return Err("Deck inválido".into());
         }
@@ -196,7 +213,7 @@ impl EngineHandle {
         if self
             .0
             .commands
-            .push(Command::Load(slot, clip, ticket))
+            .push(Command::Load(slot, clip, ticket, play))
             .is_err()
         {
             self.0.pending_loads.fetch_sub(1, Relaxed);
@@ -270,6 +287,13 @@ struct Deck {
     transition: u32,
 }
 impl Deck {
+    /// Explicit jumps may leave a loop. Do not snap a cue back into the old range.
+    fn jump(&mut self, position: f64) {
+        self.position = position;
+        if position < self.loop_in || position >= self.loop_out {
+            self.looping = false;
+        }
+    }
     fn new(sr: u32) -> Self {
         Self {
             clip: None,
@@ -362,8 +386,8 @@ impl Deck {
                     self.control(Control::Play, sr);
                 }
             }
-            Control::Seek(t) => self.position = (t * rate).clamp(0., len),
-            Control::Nudge(t) => self.position = (self.position + t * rate).clamp(0., len),
+            Control::Seek(t) => self.jump((t * rate).clamp(0., len)),
+            Control::Nudge(t) => self.jump((self.position + t * rate).clamp(0., len)),
             Control::SetCue(i) => {
                 if let Some(clip) = &self.clip {
                     clip.cues.set(i, self.position / rate);
@@ -371,11 +395,15 @@ impl Deck {
             }
             Control::Cue(i) => {
                 if let Some(clip) = &self.clip {
-                    self.position = (clip.cues.get(i) * rate).clamp(0., len);
+                    let position = (clip.cues.get(i) * rate).clamp(0., len);
+                    self.jump(position);
+                    // A hot cue is a single jump-and-play command, even after EOF.
+                    // It never toggles or changes another deck's state.
+                    self.playing = self.position < len;
                 }
             }
             Control::Trigger => {
-                self.position = 0.;
+                self.jump(0.);
                 self.playing = self.clip.is_some();
             }
             Control::Loop => {
@@ -464,7 +492,7 @@ impl Renderer {
                 break;
             };
             match command {
-                Command::Load(slot, clip, ticket) => {
+                Command::Load(slot, clip, ticket, play) => {
                     self.shared.pending_loads.fetch_sub(1, Relaxed);
                     let d = &mut self.decks[slot];
                     if let Some(old) = d.clip.replace(clip) {
@@ -474,7 +502,7 @@ impl Renderer {
                     d.transition_from = d.last_output;
                     d.transition = 128;
                     d.position = 0.;
-                    d.playing = false;
+                    d.playing = play;
                     d.looping = false;
                     d.loop_in = 0.;
                     d.loop_out = 0.;
@@ -483,6 +511,22 @@ impl Renderer {
                     self.crossfader = v;
                 }
                 Command::Control(_, Control::Master(v)) => self.master_target = v,
+                Command::Control(
+                    _,
+                    c @ (Control::PlayBoth | Control::PauseBoth | Control::CueBoth(_)),
+                ) => {
+                    let control = match c {
+                        Control::PlayBoth => Control::Play,
+                        Control::PauseBoth => Control::Pause,
+                        Control::CueBoth(i) => Control::Cue(i),
+                        _ => unreachable!(),
+                    };
+                    // One queue entry: both decks change at the same audio boundary,
+                    // even if the command budget is exhausted immediately afterwards.
+                    for deck in &mut self.decks[..2] {
+                        deck.control(control, self.sample_rate);
+                    }
+                }
                 Command::Control(_, Control::SetMode(mix)) => {
                     self.crossfader = if mix { 0.5 } else { 0. };
                     if !mix {
@@ -680,6 +724,8 @@ mod tests {
         h.control(1, Control::Cue(1)).unwrap();
         render(&mut r, 1);
         assert!((h.snapshot().slots[1].position - 0.1).abs() < 0.001);
+        assert!(h.snapshot().slots[1].playing);
+        h.control(1, Control::Pause).unwrap();
         h.control(0, Control::SetMode(true)).unwrap();
         render(&mut r, 1);
         assert_eq!(h.snapshot().crossfader, 0.5);
@@ -714,6 +760,160 @@ mod tests {
         h.control(0, Control::Play).unwrap();
         render(&mut r, 4410);
         assert!((h.snapshot().slots[0].position - 0.1).abs() < 0.00001);
+    }
+    #[test]
+    fn hot_cue_restarts_an_ended_deck_without_interrupting_the_other() {
+        let (h, mut r) = engine(48000);
+        h.load(0, clip(1)).unwrap();
+        h.load(1, clip(2)).unwrap();
+        h.control(0, Control::Play).unwrap();
+        h.control(1, Control::Seek(0.99)).unwrap();
+        h.control(1, Control::Play).unwrap();
+        render(&mut r, 960);
+        assert!(!h.snapshot().slots[1].playing);
+        h.control(1, Control::Cue(0)).unwrap();
+        render(&mut r, 480);
+        let s = h.snapshot();
+        assert!(s.slots[0].playing);
+        assert!(s.slots[1].playing, "hot cue must also start an ended deck");
+        assert!((s.slots[0].position - 0.03).abs() < 0.00001);
+        assert!((s.slots[1].position - 0.01).abs() < 0.00001);
+        assert!(s.slots[1].peak > 0.01);
+    }
+    #[test]
+    fn load_and_play_is_one_entry_even_when_only_one_queue_slot_remains() {
+        let (h, mut r) = engine(48000);
+        for _ in 0..255 {
+            h.control(0, Control::Gain(0.8)).unwrap();
+        }
+        let ticket = h.load_and_play(0, clip(5)).unwrap();
+        assert!(!h.is_loaded(0, ticket));
+        assert!(
+            h.control(0, Control::Play).is_err(),
+            "no second queue entry was available"
+        );
+        for _ in 0..3 {
+            render(&mut r, 256);
+        }
+        assert!(!h.is_loaded(0, ticket));
+        let out = render(&mut r, 256);
+        assert!(h.is_loaded(0, ticket));
+        assert!(h.snapshot().slots[0].playing);
+        assert!(out.last().unwrap().abs() > 0.01);
+        assert_eq!(h.snapshot().slots[0].id, 5);
+    }
+    #[test]
+    fn shared_clip_has_independent_positions_and_gains() {
+        let (h, mut r) = engine(48000);
+        let shared = clip(1);
+        shared.cues.set(0, 0.2);
+        h.load_and_play(0, shared.clone()).unwrap();
+        h.load_and_play(1, shared).unwrap();
+        render(&mut r, 480);
+        h.control(1, Control::Cue(0)).unwrap();
+        h.control(1, Control::Gain(0.)).unwrap();
+        render(&mut r, 480);
+        let s = h.snapshot();
+        assert!((s.slots[0].position - 0.02).abs() < 0.00001);
+        assert!((s.slots[1].position - 0.21).abs() < 0.00001);
+        assert_eq!(s.slots[0].gain, 0.8);
+        assert_eq!(s.slots[1].gain, 0.);
+        assert!(s.slots[0].playing && s.slots[1].playing);
+    }
+    #[test]
+    fn linked_transport_is_atomic_at_the_command_budget_boundary() {
+        let (h, mut r) = engine(48000);
+        h.load(0, clip(1)).unwrap();
+        h.load(1, clip(2)).unwrap();
+        render(&mut r, 1);
+        for _ in 0..63 {
+            h.control(0, Control::Gain(0.8)).unwrap();
+        }
+        h.control(0, Control::CueBoth(0)).unwrap();
+        h.control(0, Control::PauseBoth).unwrap();
+        render(&mut r, 256);
+        let s = h.snapshot();
+        assert!(s.slots[0].playing && s.slots[1].playing);
+        assert_eq!(s.slots[0].position, s.slots[1].position);
+        render(&mut r, 256);
+        let s = h.snapshot();
+        assert!(!s.slots[0].playing && !s.slots[1].playing);
+        h.control(0, Control::PlayBoth).unwrap();
+        render(&mut r, 256);
+        assert!(h.snapshot().slots[..2].iter().all(|slot| slot.playing));
+        assert!(h.control(0, Control::CueBoth(3)).is_err());
+        h.control(0, Control::Panic).unwrap();
+        h.control(0, Control::CueBoth(0)).unwrap();
+        let out = render(&mut r, 4096);
+        assert!(
+            out.last().unwrap().abs() < 0.00001,
+            "linked cue must not undo panic's master mute"
+        );
+    }
+    #[test]
+    fn cue_leaves_an_unrelated_loop_but_seek_keeps_pause() {
+        let (h, mut r) = engine(48000);
+        h.load(0, clip(1)).unwrap();
+        h.control(0, Control::Seek(0.2)).unwrap();
+        h.control(0, Control::LoopIn).unwrap();
+        h.control(0, Control::Seek(0.4)).unwrap();
+        h.control(0, Control::LoopOut).unwrap();
+        h.control(0, Control::Cue(0)).unwrap();
+        render(&mut r, 256);
+        let s = h.snapshot();
+        assert!(!s.slots[0].looping);
+        assert!(s.slots[0].playing);
+        assert!(s.slots[0].position < 0.01);
+        h.control(0, Control::Pause).unwrap();
+        h.control(0, Control::Seek(0.3)).unwrap();
+        render(&mut r, 256);
+        assert!(!h.snapshot().slots[0].playing);
+        assert!((h.snapshot().slots[0].position - 0.3).abs() < 0.00001);
+        h.control(1, Control::Cue(0)).unwrap();
+        render(&mut r, 256);
+        assert!(!h.snapshot().slots[1].playing, "empty decks stay stopped");
+    }
+    #[test]
+    fn rapid_hot_cues_mix_both_decks_and_leave_samples_running() {
+        for sample_rate in [44100, 48000, 96000] {
+            let (h, mut r) = engine(sample_rate);
+            let mut a = clip(1);
+            Arc::get_mut(&mut a).unwrap().samples.fill([0.25, 0.]);
+            let mut b = clip(2);
+            Arc::get_mut(&mut b).unwrap().samples.fill([0., 0.25]);
+            h.load(0, a).unwrap();
+            h.load(1, b).unwrap();
+            render(&mut r, 1);
+            h.load(2, clip(3)).unwrap();
+            h.control(2, Control::Trigger).unwrap();
+            h.control(2, Control::Gain(0.)).unwrap();
+            render(&mut r, 1024);
+            let initial_sample_position = h.snapshot().slots[2].position;
+            for _ in 0..20 {
+                // Both events are consumed before rendering the next audio block.
+                h.control(0, Control::Cue(0)).unwrap();
+                h.control(1, Control::Cue(0)).unwrap();
+                let out = render(&mut r, 256);
+                let s = h.snapshot();
+                assert!(s.slots[0].playing && s.slots[1].playing);
+                assert_eq!(s.slots[0].position, s.slots[1].position);
+                assert!(s.slots[0].peak > 0.01 && s.slots[1].peak > 0.01);
+                assert!(out[out.len() - 2] > 0.01, "A contributes to left output");
+                assert!(out[out.len() - 1] > 0.01, "B contributes to right output");
+                assert!((out[out.len() - 2] - out[out.len() - 1]).abs() < 0.00001);
+            }
+            let s = h.snapshot();
+            assert!(s.slots[2].playing);
+            assert!(
+                (s.slots[2].position - initial_sample_position - 5120. / sample_rate as f64).abs()
+                    < 0.00001
+            );
+            h.control(1, Control::Pause).unwrap();
+            let out = render(&mut r, 4096);
+            assert!(out[out.len() - 2] > 0.01);
+            assert!(out[out.len() - 1].abs() < 0.00001);
+            assert!(h.snapshot().slots[0].playing);
+        }
     }
 }
 

@@ -84,6 +84,7 @@ export function WaveOverview({
       className={`wave-overview tone-${tone} ${compact ? 'compact' : ''}`}
       style={{ '--p': progress } as CSSProperties}
       role={onSeek ? 'slider' : 'img'}
+      data-action={onSeek ? `${tone === 'b' ? 1 : 0}:seek:0` : undefined}
       aria-label={label}
       aria-valuemin={onSeek ? 0 : undefined}
       aria-valuemax={onSeek ? Math.round(d) : undefined}
@@ -219,8 +220,20 @@ export function ZoomWave({
     <div
       ref={box}
       className={`zoom-wave tone-${tone}`}
-      role="img"
+      role={onSeek ? 'slider' : 'img'}
+      data-action={onSeek ? `${tone === 'b' ? 1 : 0}:seek:0` : undefined}
+      tabIndex={onSeek ? 0 : undefined}
+      aria-valuemin={onSeek ? 0 : undefined}
+      aria-valuemax={onSeek ? Math.round(slot.duration) : undefined}
+      aria-valuenow={onSeek ? Math.round(slot.position) : undefined}
       aria-label={`Waveform detallada deck ${name}`}
+      onKeyDown={(e) => {
+        if (!onSeek || !slot.duration || !['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = (e.shiftKey ? 1 : 5) * (e.key === 'ArrowRight' ? 1 : -1);
+        onSeek(Math.max(0, Math.min(slot.duration, slot.position + delta)));
+      }}
       onPointerDown={(e) => {
         if (!onSeek || !slot.duration) return;
         const r = e.currentTarget.getBoundingClientRect();

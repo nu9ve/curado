@@ -37,6 +37,8 @@ flowchart LR
 
 La UI no vuelve a emitir una acción al recibir telemetría; no hay bucles de realimentación de estado. No se transmite PCM por IPC. La UI de biblioteca está separada de consumidores de telemetría. Los parámetros de sliders se agrupan durante 16 ms; transporte se envía directamente. Los hotkeys enfocados pasan por DOM → IPC → cola Rust, sin esperar un render de React. No son sample accurate; MIDI evita el WebView. El feedback visual de una tecla (control iluminado, keycap y HUD) se dispara en el mismo handler mediante Web Animations sobre `data-action`/`data-key`; no lee layout ni espera respuesta del motor.
 
+`ContextHelp` delega `pointerover` y `focusin` una vez por montaje; no atiende `pointermove`. `hints.ts` resuelve la acción exacta, consulta los mapeos actuales y deriva diagnósticos de transporte/routing desde snapshots. La ayuda no controla audio, no extrapola posición y no escribe preferencias. Los controles sin descripción específica reciben etiqueta/título y texto de base. El panel permanece en la fila fija del footer; su expansión cambia la altura reservada del shell y del área de avisos.
+
 ## Waveform y render de la UI
 
 `analysis::WaveformBuilder` se alimenta frame a frame durante la decodificación (sin segunda pasada): 50 bins por segundo, cada bin `[peak, low, mid, high]` en `u8` lineal, con los mismos cortes de un polo que el EQ (220/2600 Hz) para que el color corresponda a lo que mueven las perillas. `analysis::encode` añade la cabecera `[1, 50, 0, 0]`; SQLite guarda ese BLOB (≈48 KB por pista de 4 min) y el comando `track_waveform` lo devuelve como `ArrayBuffer` crudo (`tauri::ipc::Response`), sin JSON.
@@ -52,6 +54,8 @@ Slots 0 y 1 son decks A/B; 2–5 son one shots. Cada deck usa PCM estéreo inmut
 Cadena: fuente → EQ por splits de un polo a 220/2600 Hz → filtro LP → ganancia → echo de 375 ms (feedback máximo .55) → crossfader para A/B, ganancia .5 para samples → master → clamp ±.98. El techo evita valores fuera de escala, pero puede distorsionar; **no es un limitador mastering**. Ganancias, crossfader, EQ, wet y filtro se suavizan; transportes manuales tienen transición de 128 frames. Los límites de loop aún pueden producir discontinuidades.
 
 Cada slot conserva su DSP al cargar otra pista. Un cambio de dispositivo crea otro motor y descarga todos los slots. Si crear la nueva salida falla, se conserva la anterior. Los errores de stream se publican para recuperación manual; no hay reconexión automática.
+
+`Cue(i)` es un salto + reproducción atómico por slot (sin clip no inicia). `SetCue(i)` guarda sin cambiar el transporte. Seek y nudge conservan reproducción/pausa. Un salto fuera del loop desactiva su repetición para evitar que el siguiente frame vuelva a otro tramo. `playBoth`, `pauseBoth` y `cueBoth(i)` son una sola entrada de la cola, aplicadas únicamente a A/B antes de renderizar el bloque; no modifican samples, ganancias, crossfader ni master. El modo player bloquea estas acciones en la política nativa y en teclado. Dos comandos individuales pueden caer en bloques distintos; usar la acción conjunta cuando se necesite el mismo límite de bloque. Esto no es beat sync ni programación de acciones con timestamp.
 
 ## Memoria y tiempo real
 
@@ -90,6 +94,8 @@ Cada clip comparte un `CueState` por track: tres valores y revisión atómicos. 
 Cola con prefetch: cuando la pista actual está a menos de 15 s del final, el worker decodifica la siguiente (con `decode_gate`, sin retener queue/output) y la guarda en `Queue::prefetched`; al terminar, `advance` la usa si el ID coincide. Repetir pista hace seek a 0 en lugar de redecodificar. Si la cola se desactiva, el clip se suelta en el worker. Reduce el hueco entre pistas a ~un tick (≤50 ms) más la confirmación del callback; sigue sin ser gapless. Coste: hasta un clip extra (≤96 MiB) residente.
 
 Las cargas reciben un ticket. El comando `load_track` espera confirmación del callback antes de responder listo; no basta con haber encolado el PCM. Tiene timeout de dos segundos y error recuperable si la salida no procesa. Esto evita cargas de demo que terminen con pads vacíos bajo backpressure.
+
+La cola usa `load_and_play`: carga y arranque ocupan una entrada, comparten el ticket de carga y se aplican antes de la primera muestra del bloque. Repeat-one usa un único `Trigger`, sin el par seek/play. Las tareas de prefetch llevan revisión de cola además del ID: se descartan resultados y errores de una sesión anterior, incluso si la nueva sesión tiene los mismos IDs. Una precarga fallida se suprime para ese próximo ID durante la sesión; al avanzar se permite un último intento y, si falla, la cola se detiene. Reiniciar la cola restablece esa política. La carga manual sigue pausada y conserva su confirmación por callback.
 
 El modo nativo se guarda en SQLite; `SetMode` es un comando único al renderer. Política en `session.rs`: player permite transporte/FX de A, master/pánico y pausas, y bloquea reproducción de B/samples incluso por MIDI. Cambiar de dispositivo reaplica el modo. Las preferencias de tema tienen tipo versionado y validación separada; no tocan el audio. Ver THEMES.
 

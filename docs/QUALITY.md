@@ -31,6 +31,8 @@ Los tests del motor validan transporte, seek/EOF, loops, pánico, crossfader, l�
 
 ## Prueba manual local
 
+Regresiones añadidas el 2026-10-26: cue tras EOF reinicia sin interrumpir el otro deck; retriggers rápidos con contribución L/R separada a 44.1/48/96 kHz; samples y transportes independientes con PCM compartido; A+B y carga+play atómicos en límites de cola; allocator ampliado a esos comandos; precarga fallida acotada y resultados antiguos descartados. La ayuda se verifica por resolución de textos/mapeos, diagnósticos y markup accesible. Estas pruebas no comprueban sonido percibido, interacción real del WebView ni el aspecto del footer.
+
 1. Cargar demo; reproducir A, cambiar a mezcla, reproducir B, mover crossfader y comprobar cada extremo.
 2. Guardar cues en posiciones distintas; saltar; marcar IN/OUT; activar/desactivar loop; variar rate, EQ, filtro, echo y master.
 3. Disparar Z/X/C/V mientras suenan los decks; repetir teclado desde foco en botones e inputs.

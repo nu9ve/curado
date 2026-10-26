@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-26",
+  "kind": "offline wall-clock render probe, not hardware latency",
+  "sampleRate": 48000,
+  "frames": 256,
+  "slots": 6,
+  "simulatedSecondsPerRun": 60,
+  "budgetUs": 5333.33,
+  "runs": [
+    {
+      "context": "Concurrent with desktop build",
+      "p50Us": 17.46,
+      "p95Us": 60.83,
+      "p99Us": 74.21,
+      "maxUs": 209.79,
+      "clippedSamples": 0
+    },
+    {
+      "context": "After desktop build completed; host not isolated",
+      "p50Us": 16.75,
+      "p95Us": 18.21,
+      "p99Us": 63.37,
+      "maxUs": 52988.25,
+      "clippedSamples": 0
+    }
+  ],
+  "limitation": "Maximum elapsed block time exceeded the budget in the second run. The cause of the outlier is unestablished; these measurements neither prove hardware dropouts nor establish glitch-free playback. Real-device load and scheduling measurements remain required."
+}

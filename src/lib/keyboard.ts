@@ -62,6 +62,9 @@ export function actionLabel(kind: string) {
         toggle: 'Play / pausa',
         cue: 'Hot cue',
         setCue: 'Guardar cue',
+        playBoth: 'Reproducir A + B',
+        pauseBoth: 'Pausar A + B',
+        cueBoth: 'Hot cue A + B',
         loop: 'Loop on/off',
         loopIn: 'Loop IN',
         loopOut: 'Loop OUT',
@@ -82,6 +85,7 @@ export function actionLabel(kind: string) {
 }
 /** Player mode keeps only deck A transport (mirrors `session.rs`, slightly stricter). */
 export function allowedInMode(action: KeyBinding['action'], mode: 'player' | 'mix') {
+  if (['playBoth', 'pauseBoth', 'cueBoth'].includes(action.kind)) return mode === 'mix';
   return mode === 'mix' || (action.slot === 0 && action.kind !== 'crossfader');
 }
 export function matchKey(

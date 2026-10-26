@@ -33,6 +33,8 @@
 **Controlar**
 
 - Atajos físicos remapeables; cada tecla ilumina su control y muestra qué acaba de pasar.
+- Ayuda contextual fija en el footer: nombre, función, atajos y consejos expandibles al señalar o enfocar controles.
+- Hot cues que saltan y reproducen; controles A+B para iniciar, pausar o disparar cue 1 simultáneamente en el motor.
 - MIDI Learn para Note On y CC absolutos, con mapeos persistentes.
 - Menu bar / tray para play, silencio y salir sin abrir la ventana.
 
@@ -98,7 +100,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 bun run probe
 ```
 
-`probe` mide el coste de render offline con seis fuentes y efectos (hoy ~18 µs P99 por bloque de 256 frames frente a 5,3 ms de presupuesto). No es una medida de latencia física.
+`probe` mide el tiempo de render offline con seis fuentes y efectos frente al presupuesto de 5,3 ms por bloque de 256 frames a 48 kHz. Resultados y outliers en [docs/STATUS.md](docs/STATUS.md); no mide latencia física ni garantiza ausencia de cortes.
 
 ## Hacia dónde va
 

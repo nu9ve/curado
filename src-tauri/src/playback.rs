@@ -16,6 +16,13 @@ pub struct Queue {
     pub error: Option<String>,
     /// At most one decoded clip waiting for the transition (≤96 MiB of PCM).
     prefetched: Option<(u64, Arc<Clip>)>,
+    revision: u64,
+    failed_prefetch: Option<u64>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PrefetchRequest {
+    revision: u64,
+    id: u64,
 }
 #[derive(Clone, Serialize)]
 pub struct Status {
@@ -44,10 +51,12 @@ impl Queue {
         }
     }
     pub fn set(&mut self, ids: Vec<u64>, repeat: String) {
+        let revision = self.revision.wrapping_add(1);
         *self = Self {
             ids,
             repeat,
             enabled: true,
+            revision,
             ..Default::default()
         };
     }
@@ -62,17 +71,37 @@ impl Queue {
         }
     }
     /// The track worth decoding now, if the current one is close to its end.
-    pub fn wants_prefetch(&self, snap: &Snapshot) -> Option<u64> {
+    pub fn wants_prefetch(&self, snap: &Snapshot) -> Option<PrefetchRequest> {
         let a = &snap.slots[0];
         let next = self.upcoming()?;
         let near_end = a.playing && a.duration > 0. && a.duration - a.position < PREFETCH_SECONDS;
         let current = self.ids.get(self.index).copied() == Some(a.id);
         let pending = self.prefetched.as_ref().map(|(id, _)| *id);
-        (self.enabled && current && near_end && pending != Some(next)).then_some(next)
+        (self.enabled
+            && current
+            && near_end
+            && pending != Some(next)
+            && self.failed_prefetch != Some(next))
+        .then_some(PrefetchRequest {
+            revision: self.revision,
+            id: next,
+        })
     }
-    pub fn store_prefetch(&mut self, id: u64, clip: Arc<Clip>) {
-        if self.enabled && self.upcoming() == Some(id) {
-            self.prefetched = Some((id, clip));
+    pub fn finish_prefetch(&mut self, request: PrefetchRequest, result: Result<Arc<Clip>, String>) {
+        if self.enabled && self.revision == request.revision && self.upcoming() == Some(request.id)
+        {
+            match result {
+                Ok(clip) => {
+                    self.prefetched = Some((request.id, clip));
+                    self.error = None;
+                }
+                Err(error) => {
+                    // Do not repeatedly decode a missing/corrupt file at every 50 ms tick.
+                    // A new queue session resets this; advance still gets one final attempt.
+                    self.failed_prefetch = Some(request.id);
+                    self.error = Some(error);
+                }
+            }
         }
     }
     pub fn take_prefetch(&mut self, id: u64) -> Option<Arc<Clip>> {
@@ -130,58 +159,84 @@ pub fn tick(app: &AppState) {
     let Some(snapshot) = snapshot else {
         return;
     };
-    let (step, prefetch, idle) = {
+    let (revision, step, prefetch, idle) = {
         let mut queue = app.queue.lock().unwrap();
         let step = queue.finished(&snapshot);
         let prefetch = queue.wants_prefetch(&snapshot);
-        (step, prefetch, queue.release_if_idle())
+        (queue.revision, step, prefetch, queue.release_if_idle())
     };
     drop(idle);
     let result = match step {
         Some(Step::Restart) => (|| {
+            let queue = app.queue.lock().unwrap();
+            if !queue.enabled || queue.revision != revision {
+                return Ok(());
+            }
             let output = app.output.lock().unwrap();
             let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
-            handle.control(0, Control::Seek(0.))?;
-            handle.control(0, Control::Play)
+            handle.control(0, Control::Trigger)
         })(),
-        Some(Step::Next(id)) => advance(app, id),
+        Some(Step::Next(id)) => advance(app, revision, id),
         None => {
-            if let Some(id) = prefetch {
+            if let Some(request) = prefetch {
                 // Decode without holding queue/output; a manual load may cancel the queue meanwhile.
                 let decoded = {
                     let _decode = app.decode_gate.lock().unwrap();
-                    app.decode_track(id)
+                    {
+                        let queue = app.queue.lock().unwrap();
+                        if !queue.enabled
+                            || queue.revision != request.revision
+                            || queue.upcoming() != Some(request.id)
+                        {
+                            return;
+                        }
+                    }
+                    app.decode_track(request.id)
                 };
-                match decoded {
-                    Ok(clip) => app.queue.lock().unwrap().store_prefetch(id, clip),
-                    Err(e) => app.queue.lock().unwrap().error = Some(e),
-                }
+                app.queue.lock().unwrap().finish_prefetch(request, decoded);
             }
             Ok(())
         }
     };
     if let Err(e) = result {
         let mut q = app.queue.lock().unwrap();
-        q.error = Some(e);
-        q.enabled = false;
+        if q.revision == revision && q.enabled {
+            q.error = Some(e);
+            q.enabled = false;
+        }
     }
 }
-fn advance(app: &AppState, id: u64) -> Result<(), String> {
-    let ready = app.queue.lock().unwrap().take_prefetch(id);
+fn advance(app: &AppState, revision: u64, id: u64) -> Result<(), String> {
+    let ready = {
+        let mut queue = app.queue.lock().unwrap();
+        if !queue.enabled || queue.revision != revision {
+            return Ok(());
+        }
+        queue.take_prefetch(id)
+    };
     let _decode = app.decode_gate.lock().unwrap();
+    {
+        let queue = app.queue.lock().unwrap();
+        if !queue.enabled || queue.revision != revision {
+            return Ok(());
+        }
+    }
     let clip = match ready {
         Some(clip) => clip,
         None => app.decode_track(id)?,
     };
     // Manual loads cancel the queue while the background decode is running.
     let queue = app.queue.lock().unwrap();
-    if !queue.enabled || queue.ids.get(queue.index).copied() != Some(id) {
+    if !queue.enabled
+        || queue.revision != revision
+        || queue.ids.get(queue.index).copied() != Some(id)
+    {
         return Ok(());
     }
     let output = app.output.lock().unwrap();
     let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
-    handle.load(0, clip)?;
-    handle.control(0, Control::Play)
+    handle.load_and_play(0, clip)?;
+    Ok(())
 }
 #[cfg(test)]
 mod tests {
@@ -248,15 +303,16 @@ mod tests {
         snap.slots[0].position = 10.;
         assert_eq!(q.wants_prefetch(&snap), None, "too early");
         snap.slots[0].position = 90.;
-        assert_eq!(q.wants_prefetch(&snap), Some(2));
-        q.store_prefetch(7, clip(7));
-        assert_eq!(q.wants_prefetch(&snap), Some(2), "ignores stale ids");
-        q.store_prefetch(2, clip(2));
+        let request = q.wants_prefetch(&snap).unwrap();
+        assert_eq!(request.id, 2);
+        q.finish_prefetch(PrefetchRequest { id: 7, ..request }, Ok(clip(7)));
+        assert_eq!(q.wants_prefetch(&snap), Some(request), "ignores stale ids");
+        q.finish_prefetch(request, Ok(clip(2)));
         assert_eq!(q.wants_prefetch(&snap), None, "already decoded");
         assert!(q.take_prefetch(3).is_none(), "mismatch drops the clip");
-        q.store_prefetch(2, clip(2));
+        q.finish_prefetch(request, Ok(clip(2)));
         assert_eq!(q.take_prefetch(2).map(|c| c.id), Some(2));
-        q.store_prefetch(2, clip(2));
+        q.finish_prefetch(request, Ok(clip(2)));
         q.enabled = false;
         assert!(q.release_if_idle().is_some());
         let mut one = Queue::default();
@@ -266,5 +322,38 @@ mod tests {
             None,
             "repeat one reuses the loaded clip"
         );
+    }
+    #[test]
+    fn failed_prefetch_is_bounded_and_old_results_cannot_modify_a_new_queue() {
+        let (h, _) = curado_audio::engine(48000);
+        let mut snap = h.snapshot();
+        snap.slots[0].id = 1;
+        snap.slots[0].duration = 100.;
+        snap.slots[0].position = 90.;
+        snap.slots[0].playing = true;
+        let mut q = Queue::default();
+        q.set(vec![1, 2], "off".into());
+        let old = q.wants_prefetch(&snap).unwrap();
+        q.finish_prefetch(old, Err("missing file".into()));
+        assert_eq!(q.error.as_deref(), Some("missing file"));
+        for _ in 0..100 {
+            assert!(q.wants_prefetch(&snap).is_none());
+        }
+        assert!(q.enabled, "the current track can still finish");
+        q.set(vec![1, 2], "off".into());
+        let current = q.wants_prefetch(&snap).unwrap();
+        assert_ne!(
+            current, old,
+            "same track IDs do not imply the same queue session"
+        );
+        q.finish_prefetch(old, Err("late error".into()));
+        q.finish_prefetch(old, Ok(clip(2)));
+        assert!(q.error.is_none());
+        assert!(q.prefetched.is_none());
+        q.finish_prefetch(current, Ok(clip(2)));
+        assert_eq!(q.take_prefetch(2).unwrap().id, 2);
+        q.enabled = false;
+        q.finish_prefetch(current, Err("cancelled".into()));
+        assert!(q.error.is_none());
     }
 }

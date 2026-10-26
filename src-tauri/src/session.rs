@@ -9,6 +9,9 @@ pub enum Mode {
 }
 impl Mode {
     pub fn allows(self, action: &Action) -> bool {
+        if matches!(action.kind.as_str(), "playBoth" | "pauseBoth" | "cueBoth") {
+            return self == Self::Mix;
+        }
         self == Self::Mix
             || action.kind == "panic"
             || action.kind == "master"
@@ -32,5 +35,9 @@ mod tests {
         assert!(Mode::Mix.allows(&a(2, "trigger", 0.)));
         assert!(!Mode::Player.allows(&a(0, "crossfader", 0.5)));
         assert!(Mode::Player.allows(&a(0, "panic", 0.)));
+        for kind in ["playBoth", "pauseBoth", "cueBoth"] {
+            assert!(!Mode::Player.allows(&a(0, kind, 0.)));
+            assert!(Mode::Mix.allows(&a(0, kind, 0.)));
+        }
     }
 }

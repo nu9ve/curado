@@ -8,6 +8,7 @@ import { WaveOverview } from './Waveform';
 import { Meter, Slider } from './Controls';
 import { keyFor } from './Deck';
 import { Logo } from './Logo';
+import { ContextHelp } from './ContextHelp';
 
 /** Generative cover from the track id: theme colors, a smooth gradient and dithered grain. */
 export function TrackArt({ id, size = 'md' }: { id?: number; size?: 'sm' | 'md' | 'lg' }) {
@@ -49,7 +50,11 @@ export function NowPlaying({
         </span>
         <h2>{track?.title ?? 'dale espacio a tu música'}</h2>
         <p>{track?.artist ?? 'Importa una pista o prueba la sesión de ejemplo.'}</p>
-        {s.queue.error && <p className="error-text">Cola detenida: {s.queue.error}</p>}
+        {s.queue.error && (
+          <p className="error-text">
+            {s.queue.active ? 'Aviso de cola' : 'Cola detenida'}: {s.queue.error}
+          </p>
+        )}
       </div>
       <WaveOverview
         trackId={track?.id}
@@ -82,10 +87,16 @@ export function BottomBar({
   tracks,
   onError,
   onNext,
+  keys,
+  helpExpanded,
+  onHelpExpand,
 }: {
   tracks: Track[];
   onError: (e: unknown) => void;
   onNext: (direction: number) => void;
+  keys: KeyBinding[];
+  helpExpanded: boolean;
+  onHelpExpand: (expanded: boolean) => void;
 }) {
   const s = useSnapshot();
   const a = s.audio?.slots[0] ?? EMPTY_SLOT;
@@ -93,51 +104,55 @@ export function BottomBar({
   const progress = a.duration ? a.position / a.duration : 0;
   return (
     <footer className="bottom-bar">
-      <div className="bottom-track">
-        <TrackArt id={track?.id} size="sm" />
-        <span>
-          <strong>{track?.title ?? 'tu música, a tu ritmo'}</strong>
-          <small>{track?.artist ?? 'Selecciona una pista para comenzar'}</small>
-        </span>
-      </div>
-      <div className="bottom-transport">
-        <button aria-label="Pista anterior" disabled={!tracks.length} onClick={() => onNext(-1)}>
-          <SkipBack size={14} />
-        </button>
-        <button
-          className="mini-play"
-          disabled={!track}
-          aria-label="Play o pausa deck A"
-          data-action={actionKey({ slot: 0, kind: 'toggle', value: 0 })}
-          onClick={() => control(0, 'toggle').catch(onError)}
-        >
-          {a.playing ? (
-            <Pause size={15} fill="currentColor" />
-          ) : (
-            <Play size={15} fill="currentColor" />
-          )}
-        </button>
-        <button aria-label="Pista siguiente" disabled={!tracks.length} onClick={() => onNext(1)}>
-          <SkipForward size={14} />
-        </button>
-        <span className="mono">{time(a.position)}</span>
-        <div className="bottom-progress" style={{ '--p': progress } as CSSProperties}>
-          <i />
+      <div className="bottom-playback">
+        <div className="bottom-track">
+          <TrackArt id={track?.id} size="sm" />
+          <span>
+            <strong>{track?.title ?? 'tu música, a tu ritmo'}</strong>
+            <small>{track?.artist ?? 'Selecciona una pista para comenzar'}</small>
+          </span>
         </div>
-        <span className="mono">{time(a.duration)}</span>
+        <div className="bottom-transport">
+          <button aria-label="Pista anterior" disabled={!tracks.length} onClick={() => onNext(-1)}>
+            <SkipBack size={14} />
+          </button>
+          <button
+            className="mini-play"
+            disabled={!track}
+            aria-label="Play o pausa deck A"
+            data-action={actionKey({ slot: 0, kind: 'toggle', value: 0 })}
+            onClick={() => control(0, 'toggle').catch(onError)}
+          >
+            {a.playing ? (
+              <Pause size={15} fill="currentColor" />
+            ) : (
+              <Play size={15} fill="currentColor" />
+            )}
+          </button>
+          <button aria-label="Pista siguiente" disabled={!tracks.length} onClick={() => onNext(1)}>
+            <SkipForward size={14} />
+          </button>
+          <span className="mono">{time(a.position)}</span>
+          <div className="bottom-progress" style={{ '--p': progress } as CSSProperties}>
+            <i />
+          </div>
+          <span className="mono">{time(a.duration)}</span>
+        </div>
+        <div className="bottom-master">
+          <Volume2 size={14} />
+          <Slider
+            vertical={false}
+            label="MASTER"
+            tone="master"
+            action={actionKey({ slot: 0, kind: 'master', value: 0 })}
+            defaultValue={0.75}
+            value={s.audio?.master ?? 0.75}
+            onChange={(v) => parameter(0, 'master', v, onError)}
+          />
+          <Meter value={s.audio?.peak ?? 0} label="Nivel master" />
+        </div>
       </div>
-      <div className="bottom-master">
-        <Volume2 size={14} />
-        <Slider
-          vertical={false}
-          label="MASTER"
-          tone="master"
-          defaultValue={0.75}
-          value={s.audio?.master ?? 0.75}
-          onChange={(v) => parameter(0, 'master', v, onError)}
-        />
-        <Meter value={s.audio?.peak ?? 0} label="Nivel master" />
-      </div>
+      <ContextHelp keys={keys} expanded={helpExpanded} onExpand={onHelpExpand} />
     </footer>
   );
 }
