@@ -17,6 +17,7 @@ test('every CSS variable is a palette token or a declared structural variable', 
     '--art-x',
     '--art-y',
     '--zone',
+    '--angle',
   ];
   for (const match of css.matchAll(/var\((--[\w-]+)/g))
     expect(match[1] in tokens || declared.has(match[1]) || inline.includes(match[1])).toBe(true);

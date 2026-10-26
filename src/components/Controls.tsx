@@ -151,6 +151,7 @@ export function Knob({
   const { shown, hold, letGo } = useLiveValue(value);
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y: number; value: number } | null>(null);
+  const [active, setActive] = useState(false);
   const set = (v: number) => {
     const next = clampTo(v, min, max);
     hold(next);
@@ -177,7 +178,8 @@ export function Knob({
   return (
     <div
       ref={ref}
-      className={`knob ${tone ? `tone-${tone}` : ''} ${className}`}
+      className={`knob ${tone ? `tone-${tone}` : ''} ${active ? 'is-active' : ''} ${className}`}
+      style={{ '--angle': `${angle}deg` } as CSSProperties}
       role="slider"
       tabIndex={0}
       aria-label={label}
@@ -187,8 +189,12 @@ export function Knob({
       aria-valuetext={format?.(shown)}
       data-action={action}
       onPointerDown={(e) => {
+        // No text selection or native drag while turning; keep keyboard focus on the knob.
+        e.preventDefault();
+        e.currentTarget.focus({ preventScroll: true });
         e.currentTarget.setPointerCapture(e.pointerId);
         drag.current = { y: e.clientY, value: shown };
+        setActive(true);
       }}
       onPointerMove={(e) => {
         if (!drag.current) return;
@@ -197,10 +203,12 @@ export function Knob({
       }}
       onPointerUp={() => {
         drag.current = null;
+        setActive(false);
         letGo();
       }}
       onPointerCancel={() => {
         drag.current = null;
+        setActive(false);
         letGo();
       }}
       onDoubleClick={() => {
@@ -216,32 +224,26 @@ export function Knob({
         letGo();
       }}
     >
-      <svg viewBox="0 0 48 48" aria-hidden="true">
-        {Array.from({ length: SEGMENTS }, (_, i) => {
-          const p = i / (SEGMENTS - 1);
-          const lit = p >= Math.min(o, t) - 0.001 && p <= Math.max(o, t) + 0.001;
-          return (
-            <rect
-              key={i}
-              className={lit ? 'lit' : undefined}
-              x="23"
-              y="1.5"
-              width="2"
-              height="5"
-              transform={`rotate(${-SWEEP / 2 + p * SWEEP} 24 24)`}
-            />
-          );
-        })}
-        <circle className="knob-cap" cx="24" cy="24" r="14" />
-        <rect
-          className="knob-pointer"
-          x="23"
-          y="11"
-          width="2"
-          height="8"
-          transform={`rotate(${angle} 24 24)`}
-        />
-      </svg>
+      <span className="knob-dial" aria-hidden="true">
+        <svg viewBox="0 0 48 48">
+          {Array.from({ length: SEGMENTS }, (_, i) => {
+            const p = i / (SEGMENTS - 1);
+            const lit = p >= Math.min(o, t) - 0.001 && p <= Math.max(o, t) + 0.001;
+            return (
+              <rect
+                key={i}
+                className={lit ? 'lit' : undefined}
+                x="23"
+                y="1.5"
+                width="2"
+                height="5"
+                transform={`rotate(${-SWEEP / 2 + p * SWEEP} 24 24)`}
+              />
+            );
+          })}
+        </svg>
+        <i className="knob-cap" />
+      </span>
       <span className="knob-label">{label}</span>
       <b className="knob-value">{format ? format(shown) : Math.round(t * 100)}</b>
     </div>
@@ -297,6 +299,8 @@ export function Slider({
         aria-valuetext={format?.(shown)}
         data-action={action}
         onPointerDown={(e) => {
+          e.preventDefault();
+          e.currentTarget.focus({ preventScroll: true });
           e.currentTarget.setPointerCapture(e.pointerId);
           active.current = true;
           fromPointer(e.clientX, e.clientY);

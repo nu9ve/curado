@@ -33,3 +33,7 @@ Revisión general solicitada por el usuario: rendimiento, coordinación entre ac
 **Documentación.** Nuevo `SESSIONS.md` con diez temas para sesiones dedicadas; ADR-009 a ADR-012; README público.
 
 Aprendizajes: separar dibujo estático de overlays móviles es la mayor mejora de coste en la UI; el análisis cabe en el pase de decodificación; contraste por estilo se prueba sobre ambos materiales (chrome y sheet). Nada de lo visual se inspeccionó en pantalla por preferencia del usuario.
+
+### Ajustes tras primera revisión visual
+
+El usuario autorizó revisar visualmente. Se revisó la interfaz en la vista previa web (`bun run dev`, sin audio) a 1100 y 1440 px. Correcciones: arrastrar perillas/faders seleccionaba texto (WebKit necesita `-webkit-user-select`; además `preventDefault` + foco manual en `pointerdown`); grano dither del chrome a 1 px por texel y opacidad 0,10 (antes 2 px y 0,28, competía con el texto); el mixer pasa a superficie lisa sin grano; perillas con tapa física, anillo LED con glow y el valor sustituye a la etiqueta solo mientras se toca (menos texto en pantalla); faders con grip; decks con plato y pitch arriba y pads/transporte a todo el ancho (antes se aplastaban a 1440 px). Pendiente: revisar en la app nativa con pistas cargadas y los estilos pixel/gótico/y2k/mínimo.

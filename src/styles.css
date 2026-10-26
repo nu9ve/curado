@@ -132,15 +132,17 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
+  -webkit-user-select: none;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 [data-style='pixel'] body,
 [data-typography='pixel'] body {
   -webkit-font-smoothing: none;
 }
 input,
-textarea,
-.track-table td {
+textarea {
+  -webkit-user-select: text;
   user-select: text;
 }
 button,
@@ -407,58 +409,103 @@ input[type='range']::-moz-range-thumb {
   --tone-glow: var(--line-strong);
 }
 
-/* Rotary knob. */
+/* Rotary knob: lit LED ring + a turned cap with a pointer, label underneath. */
 .knob {
   display: grid;
   justify-items: center;
-  gap: 1px;
-  width: 54px;
+  gap: 2px;
+  width: 58px;
   cursor: ns-resize;
   touch-action: none;
   border-radius: var(--r);
   outline-offset: 0;
 }
+.knob-dial {
+  position: relative;
+  width: 46px;
+  height: 46px;
+}
 .knob svg {
-  width: 40px;
-  height: 40px;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
 }
 .knob rect {
-  fill: var(--line-strong);
+  fill: color-mix(in srgb, var(--text) 14%, transparent);
   transition: fill 0.12s;
 }
 .knob rect.lit {
   fill: var(--tone);
+  filter: drop-shadow(0 0 2px var(--tone-glow));
 }
-.knob .knob-cap {
-  fill: var(--surface-raised);
-  stroke: var(--line);
-  stroke-width: 1;
+.knob-cap {
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 35% 28%,
+      color-mix(in srgb, var(--text) 22%, transparent),
+      transparent 55%
+    ),
+    linear-gradient(180deg, var(--surface-hover), var(--chrome));
+  box-shadow:
+    0 3px 8px var(--shadow),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 18%, transparent),
+    inset 0 -2px 3px var(--shadow);
+  transform: rotate(var(--angle));
+  transition: box-shadow 0.15s;
 }
-.knob .knob-pointer {
-  fill: var(--text);
+.knob-cap::after {
+  content: '';
+  position: absolute;
+  left: calc(50% - 1.5px);
+  top: 3px;
+  width: 3px;
+  height: 9px;
+  border-radius: 2px;
+  background: var(--text);
 }
 .knob:hover .knob-cap,
+.knob.is-active .knob-cap,
 .knob:focus-visible .knob-cap {
-  fill: var(--surface-hover);
+  box-shadow:
+    0 0 0 2px var(--tone),
+    0 4px 14px var(--tone-glow),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 18%, transparent);
+}
+[data-style='pixel'] .knob-cap {
+  border-radius: 30%;
+}
+.knob-label,
+.knob-value {
+  font-size: 9px;
+  line-height: 11px;
+  height: 11px;
 }
 .knob-label {
   font-family: var(--font-pixel);
-  font-size: 9px;
   letter-spacing: 0.1em;
-  color: var(--text-secondary);
-}
-.knob-value {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 400;
   color: var(--text-muted);
-  min-height: 11px;
+}
+/* The value replaces the label while you touch the knob: one line of text, not two. */
+.knob-value {
+  display: none;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: var(--tone);
+}
+.knob:hover .knob-label,
+.knob.is-active .knob-label,
+.knob:focus-visible .knob-label {
+  display: none;
 }
 .knob:hover .knob-value,
-.knob:focus-visible .knob-value,
-.knob:active .knob-value {
-  color: var(--tone);
+.knob.is-active .knob-value,
+.knob:focus-visible .knob-value {
+  display: block;
 }
 
 /* Linear fader with cap; vertical by default. */
@@ -525,14 +572,25 @@ input[type='range']::-moz-range-thumb {
     inset 0 1px 0 var(--chrome-line);
   z-index: 2;
 }
+.slider-cap::before {
+  content: '';
+  position: absolute;
+  inset: 3px 6px;
+  background: repeating-linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--text) 16%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
 .slider-cap::after {
   content: '';
   position: absolute;
-  left: 4px;
-  right: 4px;
+  left: 3px;
+  right: 3px;
   top: calc(50% - 1px);
   height: 2px;
   background: var(--tone);
+  box-shadow: 0 0 6px var(--tone-glow);
 }
 .slider-track:active .slider-cap,
 .slider-track:focus-visible .slider-cap {
@@ -658,14 +716,19 @@ input[type='range']::-moz-range-thumb {
     linear-gradient(180deg, var(--chrome-2), var(--chrome));
   opacity: 0.55;
 }
+/* Grain at one CSS pixel per texel: a material, never a pattern that competes with text. */
 [data-texture='dither'] .app-shell::after {
   background-image: var(--tex-grain);
-  background-size: 16px 16px;
+  background-size: 8px 8px;
   image-rendering: pixelated;
-  opacity: 0.28;
+  opacity: 0.1;
 }
 [data-theme='light'][data-texture='dither'] .app-shell::after {
-  opacity: 0.45;
+  opacity: 0.16;
+}
+[data-style='pixel'][data-texture='dither'] .app-shell::after {
+  background-size: 16px 16px;
+  opacity: 0.14;
 }
 [data-texture='flat'] .app-shell::before {
   background: var(--chrome);
@@ -784,7 +847,7 @@ input[type='range']::-moz-range-thumb {
   content: '';
   position: absolute;
   inset: 0;
-  background: var(--tex-accent-x) left center / 128px 16px repeat-y;
+  background: var(--tex-accent-x) left center / 64px 8px repeat-y;
   image-rendering: pixelated;
   opacity: 0;
   pointer-events: none;
@@ -793,7 +856,7 @@ input[type='range']::-moz-range-thumb {
   background: transparent;
 }
 [data-texture='dither'] .nav-item.active::before {
-  opacity: 0.5;
+  opacity: 0.32;
 }
 [data-texture='flat'] .nav-item.active {
   background: var(--accent-soft);
@@ -1354,15 +1417,32 @@ input[type='range']::-moz-range-thumb {
 }
 .deck-body {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'platter pads pitch';
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'platter pitch'
+    'pads pads';
   align-items: center;
-  gap: 16px;
+  gap: 14px 16px;
 }
 .deck-1 .deck-body {
-  grid-template-areas: 'pitch pads platter';
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'pitch platter'
+    'pads pads';
 }
 .deck-body > .platter {
+  grid-area: platter;
+  justify-self: center;
+}
+.deck-body > .deck-pads {
+  grid-area: pads;
+}
+.deck-body > .pitch {
+  grid-area: pitch;
+  --len: clamp(130px, 12vw, 176px);
+}
+
+.platter {
   grid-area: platter;
 }
 .deck-body > .deck-pads {
@@ -1377,7 +1457,7 @@ input[type='range']::-moz-range-thumb {
   position: relative;
   display: grid;
   place-items: center;
-  width: clamp(124px, 11vw, 172px);
+  width: clamp(140px, 13vw, 196px);
   aspect-ratio: 1;
   padding: 0;
   border-radius: 50% !important;
@@ -1515,6 +1595,12 @@ input[type='range']::-moz-range-thumb {
   grid-template-columns: 1.4fr 1fr 1fr;
 }
 .transport button,
+.loop-row button,
+.cue-pad {
+  min-width: 0;
+  overflow: hidden;
+}
+.transport button,
 .loop-row button {
   gap: 5px;
   font-family: var(--font-pixel);
@@ -1541,21 +1627,20 @@ input[type='range']::-moz-range-thumb {
   gap: 14px 6px;
   padding: 14px 14px 12px;
   border-radius: calc(var(--r) * 1.6);
-  background: linear-gradient(180deg, var(--chrome-2), var(--chrome));
+  background: linear-gradient(180deg, var(--surface-raised), var(--chrome) 85%);
   box-shadow:
     inset 0 0 0 1px var(--chrome-line),
-    inset 0 1px 0 var(--line);
+    inset 0 1px 0 var(--line),
+    0 24px 50px -30px var(--shadow);
   position: relative;
   overflow: hidden;
 }
-[data-texture='dither'] .mixer::after {
+/* Smooth anodised face: the mixer is where you read values, so no grain here. */
+.mixer::after {
   content: '';
   position: absolute;
   inset: 0;
-  background-image: var(--tex-grain);
-  background-size: 16px 16px;
-  image-rendering: pixelated;
-  opacity: 0.3;
+  background: radial-gradient(120% 60% at 50% 0%, var(--chrome-line), transparent 70%);
   pointer-events: none;
 }
 .mixer > * {
@@ -1576,8 +1661,8 @@ input[type='range']::-moz-range-thumb {
 }
 .channel-knobs {
   display: grid;
-  grid-template-columns: repeat(2, 54px);
-  gap: 2px 2px;
+  grid-template-columns: repeat(2, 58px);
+  gap: 6px 4px;
 }
 .channel-rate {
   display: grid;

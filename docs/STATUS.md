@@ -5,7 +5,7 @@ Actualizado: **2026-10-25** (America/Hermosillo). Versión **0.1.0** con redise�
 ## Para retomar
 
 1. Leer este documento, ARCHITECTURE, ROADMAP y [SESSIONS](SESSIONS.md).
-2. La preferencia vigente es **sin Computer Use ni pruebas visuales**. Usar código, compilación y pruebas automatizadas. **El rediseño de esta sesión no se ha visto en pantalla**: pedir al usuario una revisión visual o autorización explícita antes de iterar sobre detalles de estilo.
+2. Preferencia: **sin Computer Use** salvo instrucción explícita. El 2026-10-25 el usuario autorizó una revisión visual: se hizo en la vista previa web (sin audio, sin pistas) del estilo curado en mezcla y reproductor. La app nativa con pistas reales y los otros cuatro estilos siguen sin revisión visual.
 3. Nombre siempre en minúsculas: **curado**. Color inicial exacto **#d66154**, estilo **curado**.
 4. Siguiente prioridad estructural: S1 streaming con presupuesto de memoria. Siguiente prioridad de experiencia: S2 reloj de posición (playhead/platos a 60 FPS sin violar el invariante 2).
 
@@ -38,7 +38,7 @@ Actualizado: **2026-10-25** (America/Hermosillo). Versión **0.1.0** con redise�
 - `bun run desktop:build`: `target/release/bundle/macos/curado.app` ARM64 de **13,09 MiB**, firma ad hoc y `codesign --verify --deep --strict` correctos. `CFBundleName` = curado, identificador sin cambios.
 - Probe offline (render sin cambios): P50 **16,75 µs**, P95 **17,38 µs**, P99 **18,12 µs**, máximo **101,46 µs** de un presupuesto de 5333 µs; cero recortes. Ver `render-probe.json`.
 
-**No verificado**: aspecto visual de ningún estilo, legibilidad real de las waveforms, comportamiento de la vista mini en pantalla, rendimiento del WebView con la consola a 20 Hz, decodificación+análisis con archivos largos reales. CI de tres OS configurada pero sin ejecución verificada.
+**No verificado**: aspecto de los estilos pixel/gótico/y2k/mínimo y del modo claro, legibilidad real de las waveforms, comportamiento de la vista mini en pantalla, rendimiento del WebView con la consola a 20 Hz, decodificación+análisis con archivos largos reales. CI de tres OS configurada pero sin ejecución verificada.
 
 ## Cambios con efecto para el usuario
 

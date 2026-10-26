@@ -91,6 +91,8 @@ export function WaveOverview({
       tabIndex={onSeek ? 0 : undefined}
       onPointerDown={(e) => {
         if (!onSeek || !d) return;
+        e.preventDefault();
+        e.currentTarget.focus({ preventScroll: true });
         e.currentTarget.setPointerCapture(e.pointerId);
         seekAt(e.clientX, e.currentTarget);
       }}
