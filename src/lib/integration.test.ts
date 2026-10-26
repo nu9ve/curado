@@ -49,3 +49,41 @@ test('macOS uses integrated native controls with scoped drag/theme permissions',
   );
   expect(capabilities.permissions.some((p) => p.includes('webview'))).toBe(false);
 });
+
+test('every application command is ACL-listed and only main receives its permission', async () => {
+  const read = (path: string) => Bun.file(new URL(path, import.meta.url)).text();
+  const [build, registry, app] = await Promise.all([
+    read('../../src-tauri/build.rs'),
+    read('../../src-tauri/app_commands.rs'),
+    read('../../src-tauri/src/lib.rs'),
+  ]);
+  const commands = [...registry.matchAll(/"([a-z_]+)"/g)].map((m) => m[1]).sort();
+  const block = app.match(/tauri::generate_handler!\[([\s\S]*?)\]/)?.[1];
+  expect(block).toBeDefined();
+  const registered = block!
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .sort();
+  expect(commands).toEqual(registered);
+  expect(new Set(commands).size).toBe(commands.length);
+  expect(build).toContain('AppManifest::new().commands(app_commands::COMMANDS)');
+  expect(capabilities.windows).toEqual(['main']);
+  expect('remote' in capabilities).toBe(false);
+  const allowed = capabilities.permissions.filter((p) => p.startsWith('allow-')).sort();
+  expect(allowed).toEqual(commands.map((c) => `allow-${c.replaceAll('_', '-')}`).sort());
+  expect(app).toContain('web::allows_native_commands(invoke.message.webview_ref().label())');
+  expect(app).toContain('web::hide_on_close(');
+});
+
+test('the service viewer cannot create permissive windows or inject remote controls into the engine', async () => {
+  const source = await Bun.file(new URL('../../src-tauri/src/web.rs', import.meta.url)).text();
+  expect(source).toContain('https://www.fractos.app/es/radio');
+  expect(source).toContain('.incognito(true)');
+  expect(source).toContain('.on_navigation(move |url| service.allows(url))');
+  expect(source).toContain('NewWindowResponse::Deny');
+  expect(source).toContain('.on_download(|_, _| false)');
+  expect(source).not.toContain('.initialization_script(');
+  expect(source).not.toContain('.eval(');
+  expect(source).not.toContain('audio_action');
+});

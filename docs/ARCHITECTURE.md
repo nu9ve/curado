@@ -101,6 +101,12 @@ CoreMIDI/WinMM/ALSA mediante midir. Callback de MIDI solo copia tres bytes a col
 
 Metal vive en otro proceso. La app extrae un helper Swift a su caché; recibe RMS, peak y 64 muestras de scope, nunca PCM completo. Una tubería bloqueada retiene solo al worker visual. Metal dibuja una malla procedural mediante shaders; no hay FFT ni separación real de bandas aún. Minimizado/oculto omite dibujo. El helper termina al cerrar su ventana o al cerrarse stdin. Para distribución firmada se debe reemplazar la extracción por un helper firmado dentro del bundle.
 
+## Servicios web aislados
+
+`web.rs` abre/reutiliza ventanas con URLs fijas de fractos radio y SoundCloud. Un gate independiente serializa apertura/cierre fuera del callback. Navegación HTTPS restringida por hosts exactos, widgets incluidos; popups y descargas denegados, perfil incognito. El contenido y audio remoto no pasan por IPC ni por el motor. Destruir estas ventanas detiene su reproducción; la política de ocultar al cerrar solo aplica a `main`. Cambiar a la vista radio/web conserva modo, cola y transportes locales.
+
+`app_commands.rs` registra todos los comandos propios en `AppManifest`; build genera sus permisos. La capability local los concede exclusivamente a `main`, sin grant remoto. El handler además rechaza otros labels. Un contrato automatizado compara las tres listas para evitar comandos sin protección o sin permiso. CSP y permisos core permanecen iguales. Las pruebas cubren la política y el cableado por código, no la compatibilidad de los reproductores o sus sesiones en hardware. Ver ADR-012.
+
 ## Cues persistentes, modos y temas
 
 Cada clip comparte un `CueState` por track: tres valores y revisión atómicos. Guardar un cue no asigna memoria ni hace I/O; el callback actualiza segundos en ese estado. Decks que cargan la misma pista comparten sus cues. Un worker independiente (`curado-autosave`, 50 ms) detecta revisiones y guarda en `settings` con clave `cues:<id>`; solo marca revisión guardada después de una escritura exitosa. Si falla, reintenta y publica `persistenceError`. El cierre normal hace un flush. Loops y posiciones de sesión todavía son temporales.

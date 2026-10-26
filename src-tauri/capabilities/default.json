@@ -1,9 +1,7 @@
 {
   "identifier": "main",
   "description": "Local application window. File selection and database access remain in Rust. Window size/always-on-top only serve the mini player.",
-  "windows": [
-    "main"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
@@ -11,6 +9,32 @@
     "core:window:allow-set-background-color",
     "core:window:allow-set-size",
     "core:window:allow-set-min-size",
-    "core:window:allow-set-always-on-top"
+    "core:window:allow-set-always-on-top",
+    "allow-status",
+    "allow-audio-action",
+    "allow-get-library",
+    "allow-track-waveform",
+    "allow-edit-library",
+    "allow-import-media",
+    "allow-create-demo",
+    "allow-load-track",
+    "allow-audio-devices",
+    "allow-configure-audio",
+    "allow-get-keyboard",
+    "allow-save-keyboard",
+    "allow-midi-ports",
+    "allow-midi-connect",
+    "allow-midi-learn",
+    "allow-midi-remove",
+    "allow-open-visuals",
+    "allow-play-queue",
+    "allow-stop-queue",
+    "allow-get-theme",
+    "allow-save-theme",
+    "allow-set-mode",
+    "allow-save-track-music",
+    "allow-analyze-track",
+    "allow-open-web-service",
+    "allow-close-web-services"
   ]
 }

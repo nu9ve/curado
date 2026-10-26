@@ -9,6 +9,16 @@ Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con BPM/key
 3. Nombre siempre en minúsculas: **curado**. Color inicial exacto **#d66154**, estilo **curado**.
 4. Siguiente prioridad estructural: S1 streaming con presupuesto de memoria. Siguiente prioridad de experiencia: S2 reloj de posición (playhead/platos a 60 FPS sin violar el invariante 2).
 
+## Sesión radio/web · 2026-10-26
+
+Implementado lanzador **radio / web** con ventanas aisladas para `https://www.fractos.app/es/radio` y SoundCloud Discover. HTTP público: fractos redirige a www por HTTPS y responde 200. El propietario confirma iframes de YouTube/SoundCloud: no hay fuente PCM ni mezcla nativa. Cambiar vista conserva los decks/cola. Cerrar una ventana remota la destruye; la UI puede cerrar ambas para detener el audio web. Master, FX, sync y pánico siguen controlando solo audio local.
+
+URLs fijas, política HTTPS por hosts exactos (widgets incluidos), incognito, popups/descargas denegados. Manifiesto explícito de 26 comandos; ACL solo main y defensa adicional por label, sin permisos remotos ni cambios CSP/core. Pruebas: **24 tests TS y 41 Rust** (27 motor + 14 app); clippy limpio. `bun run build` (vía desktop:build), `bun run format:check`, `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` y `git diff --check`: correctos. `.app` ARM64 de **13,44 MiB**, firma ad hoc verificada; no notarizada.
+
+`bun run desktop:install --no-build`: instalada y registrada en `/Users/nu9ve/Applications/curado.app`, SHA-256 del ejecutable `0996a7b8750239d93a3c1114133c9be6130c0b51ace2f13d09f0d26279a7d178`. No se abrió; lanzamiento e indexación Spotlight/Raycast pendientes de comprobar.
+
+**Pendiente de comprobar**: reproducción real de embeds, cookies/login y navegación en WebView de cada OS. No se abrió la app ni se hizo revisión visual/audio. Un HTTP 200 y tests de política no validan compatibilidad de players. Login por popups/hosts externos bloqueado; sesión no persistente. Siguiente integración posible: transporte/volumen vía protocolo con fractos y APIs de widgets; EQ/BPM/key/sync nativos requieren fuentes directas autorizadas y streaming. Ver ADR-012/S5.
+
 ## Sesión musical · 2026-10-26
 
 Implementados análisis de BPM/offset y tonalidad mayor/menor, notación americana/Camelot en biblioteca/decks y editor de BPM/offset/key con reanálisis. Nuevas importaciones analizan hasta 90 s; pistas anteriores se analizan al cargar. Metadata versionada en settings por ID; las correcciones manuales se conservan, sin migración ni modificación de archivos musicales.
@@ -95,7 +105,7 @@ Al terminar esa sesión seguían pendientes las cinco entregas mayores. La sesi�
 - El feedback visual cubre teclado y clics; acciones MIDI no se reflejan aún en la UI (S7).
 - Una sola salida estéreo; sin cue de auriculares, ASIO/JACK ni PipeWire nativo.
 - Conexión MIDI manual; sin Clock, encoders relativos, LED ni controlador físico probado.
-- Sin media keys/Now Playing/MPRIS/SMTC, video, plugins ni servicios remotos (explorador web propuesto en S5/ADR-012).
+- Sin media keys/Now Playing/MPRIS/SMTC, video ni plugins. Explorador remoto aislado implementado (S5/ADR-012); reproducción web pendiente de comprobar y sin integración con el motor.
 - `color-mix()` y unidades de contenedor requieren WebKit de Safari 16+.
 
 ## Aprendizajes de implementación

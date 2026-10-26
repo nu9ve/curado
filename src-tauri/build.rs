@@ -1,3 +1,4 @@
+mod app_commands;
 fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
@@ -27,5 +28,10 @@ fn main() {
         assert!(status.success(), "Metal visualizer compilation failed");
         println!("cargo:rerun-if-changed=native/CuradoVisuals.swift");
     }
-    tauri_build::build();
+    println!("cargo:rerun-if-changed=app_commands.rs");
+    tauri_build::try_build(
+        tauri_build::Attributes::new()
+            .app_manifest(tauri_build::AppManifest::new().commands(app_commands::COMMANDS)),
+    )
+    .expect("Application command permissions must compile");
 }

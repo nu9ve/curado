@@ -77,6 +77,12 @@ Configuración → MIDI → seleccionar puerto → elegir acción → Aprender �
 
 Admite Note On con velocity >0 y CC absolutos 0–127; en EQ, CC 64 equivale a ganancia unitaria. No admite todavía encoders relativos, Clock, SysEx, feedback LED ni reconexión automática. Un mapeo CC hacia botón dispara cada mensaje ≥64; para botones preferir Note On. En player las acciones de reproducción de B y samples también se bloquean desde MIDI; cambiar a Mezcla para utilizarlas.
 
+## Radio y servicios web
+
+**radio / web** en la barra lateral permite abrir fractos radio y SoundCloud en ventanas separadas. Abrir de nuevo enfoca la existente. Requieren internet; navegación limitada a dominios del servicio y sus widgets, sesión incognito, sin popups ni descargas. Algunos logins/enlaces externos pueden quedar bloqueados; su compatibilidad no se ha comprobado.
+
+El audio web se controla desde cada player: no responde al master, crossfader, FX, sync ni Escape de los decks locales. **detener audio web y cerrar** destruye ambas ventanas. El botón de cierre de una ventana web también la cierra, aunque la principal use cerrar para ocultar. Al enfocar la web, los atajos locales no reciben sus teclas. La vista conserva el estado de los decks y la cola, que pueden seguir sonando.
+
 ## Audio y segundo plano
 
 Configuración → Audio muestra backend, sample rate, callbacks y muestras recortadas al techo. Un contador de recorte creciente indica exceso de nivel; bajar ganancia/master. Cambiar salida/buffer descarga los seis slots. Buffer automático es el punto inicial; probar 256/512 solo con mediciones. Bluetooth agrega latencia que esta app no elimina.

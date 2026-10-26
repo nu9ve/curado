@@ -11,7 +11,7 @@
 
 ---
 
-**curado** es una app local para escuchar tu biblioteca y mezclarla en vivo. El audio vive en un motor Rust (CPAL + Symphonia) que nunca bloquea, asigna memoria ni toca disco dentro del callback; la interfaz (Tauri 2 + React) solo muestra lo que el motor reporta y le envía acciones validadas. Todo funciona sin conexión y tus archivos nunca se mueven ni se modifican.
+**curado** es una app local para escuchar tu biblioteca y mezclarla en vivo. El audio vive en un motor Rust (CPAL + Symphonia) que nunca bloquea, asigna memoria ni toca disco dentro del callback; la interfaz (Tauri 2 + React) solo muestra lo que el motor reporta y le envía acciones validadas. La biblioteca y mezcla locales funcionan sin conexión y tus archivos nunca se mueven ni se modifican. La vista opcional radio/web requiere internet.
 
 > **Estado: 0.1, en desarrollo activo.** Probado localmente en Apple Silicon (macOS). Windows y Linux comparten el código y tienen CI configurada, pero aún no se validan en hardware. Lee [docs/STATUS.md](docs/STATUS.md) antes de usarlo en serio y [docs/QUALITY.md](docs/QUALITY.md) para lo que falta antes de llamarlo estable.
 
@@ -116,7 +116,7 @@ bun run probe
 
 ## Hacia dónde va
 
-Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, validación de análisis/sync y transposición sobre un corpus real, más vistas (compacta, escenario) y un explorador web aislado para servicios como SoundCloud. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
+Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, validación de análisis/sync y transposición sobre un corpus real, más vistas (compacta, escenario) y validación de reproducción/cookies del explorador web. La entrada **radio / web** abre fractos radio y SoundCloud en ventanas separadas: su audio se controla en sus players y queda fuera del mixer, FX, sync y Escape nativos; **detener audio web y cerrar** destruye esas ventanas. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
 
 ## Contribuir
 

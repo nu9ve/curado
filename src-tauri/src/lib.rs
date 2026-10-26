@@ -7,6 +7,7 @@ mod preferences;
 mod session;
 mod tuning;
 mod visuals;
+mod web;
 use curado_audio::{
     decode::decode,
     output::{self, Output, OutputInfo},
@@ -23,6 +24,7 @@ use std::{
     time::Duration,
 };
 use tauri::{Emitter, Manager};
+use web::{close_web_services, open_web_service};
 
 pub struct AppState {
     db: Mutex<Database>,
@@ -688,38 +690,54 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                if window.app_handle().tray_by_id("curado").is_some() {
+                if web::hide_on_close(
+                    window.label(),
+                    window.app_handle().tray_by_id("curado").is_some(),
+                ) {
                     api.prevent_close();
                     let _ = window.hide();
                 }
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            status,
-            audio_action,
-            get_library,
-            track_waveform,
-            edit_library,
-            import_media,
-            create_demo,
-            load_track,
-            audio_devices,
-            configure_audio,
-            get_keyboard,
-            save_keyboard,
-            midi_ports,
-            midi_connect,
-            midi_learn,
-            midi_remove,
-            open_visuals,
-            play_queue,
-            stop_queue,
-            get_theme,
-            save_theme,
-            set_mode,
-            save_track_music,
-            analyze_track
-        ])
+        .invoke_handler({
+            let handler: fn(tauri::ipc::Invoke) -> bool = tauri::generate_handler![
+                status,
+                audio_action,
+                get_library,
+                track_waveform,
+                edit_library,
+                import_media,
+                create_demo,
+                load_track,
+                audio_devices,
+                configure_audio,
+                get_keyboard,
+                save_keyboard,
+                midi_ports,
+                midi_connect,
+                midi_learn,
+                midi_remove,
+                open_visuals,
+                play_queue,
+                stop_queue,
+                get_theme,
+                save_theme,
+                set_mode,
+                save_track_music,
+                analyze_track,
+                open_web_service,
+                close_web_services
+            ];
+            move |invoke: tauri::ipc::Invoke| {
+                if !web::allows_native_commands(invoke.message.webview_ref().label()) {
+                    invoke
+                        .resolver
+                        .reject("Esta ventana web no tiene acceso a comandos nativos");
+                    return true;
+                }
+                handler(invoke)
+            }
+        })
         .build(tauri::generate_context!())
         .expect("No se pudo iniciar curado")
         .run(|app, event| {

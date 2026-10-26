@@ -12,6 +12,7 @@ import {
   LoaderCircle,
   Sparkles,
   PictureInPicture2,
+  Radio,
 } from 'lucide-react';
 import { connectTheme } from './lib/theme-store';
 import {
@@ -38,6 +39,7 @@ import { ZoomWave } from './components/Waveform';
 import { KeyboardMap, KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
+import { WebExplorer } from './components/WebExplorer';
 
 export default function App() {
   const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
@@ -283,6 +285,15 @@ export default function App() {
           )}
         </nav>
         <div className="sidebar-bottom">
+          <button
+            className="settings-button"
+            onClick={() => setView('web')}
+            aria-pressed={view === 'web'}
+            data-help="web-explorer"
+          >
+            <Radio size={15} />
+            radio / web
+          </button>
           <button className="demo-button" disabled={!!busy} onClick={demo}>
             <Sparkles size={15} />
             <span>
@@ -301,7 +312,7 @@ export default function App() {
         <div className="breadcrumb" data-tauri-drag-region>
           <span>tu espacio</span>
           <i>/</i>
-          <b>{mode === 'player' ? 'reproductor' : 'mezcla'}</b>
+          <b>{view === 'web' ? 'radio / web' : mode === 'player' ? 'reproductor' : 'mezcla'}</b>
         </div>
         <div className={`mode-switch is-${mode}`} role="group" aria-label="Modo de uso">
           <i className="mode-indicator" aria-hidden="true" />
@@ -355,7 +366,9 @@ export default function App() {
               escritorio.
             </div>
           )}
-          {mode === 'mix' ? (
+          {view === 'web' ? (
+            <WebExplorer onError={onError} onNotice={notify} />
+          ) : mode === 'mix' ? (
             <MixView
               library={library}
               keys={keys}
@@ -372,28 +385,30 @@ export default function App() {
               <Visual onError={onError} />
             </div>
           )}
-          <Library
-            data={library}
-            view={view}
-            selected={selected}
-            onSelect={setSelected}
-            onLoad={load}
-            onEdit={edit}
-            onImport={importMedia}
-            onQueue={(ids, repeat) =>
-              call('play_queue', { ids, repeat })
-                .then(() =>
-                  notify(
-                    repeat === 'off'
-                      ? 'Cola en reproducción. Se detendrá al terminar la selección.'
-                      : 'Cola en reproducción con repetición activada.',
-                  ),
-                )
-                .catch(onError)
-            }
-            busy={busy}
-            mode={mode}
-          />
+          {view !== 'web' && (
+            <Library
+              data={library}
+              view={view}
+              selected={selected}
+              onSelect={setSelected}
+              onLoad={load}
+              onEdit={edit}
+              onImport={importMedia}
+              onQueue={(ids, repeat) =>
+                call('play_queue', { ids, repeat })
+                  .then(() =>
+                    notify(
+                      repeat === 'off'
+                        ? 'Cola en reproducción. Se detendrá al terminar la selección.'
+                        : 'Cola en reproducción con repetición activada.',
+                    ),
+                  )
+                  .catch(onError)
+              }
+              busy={busy}
+              mode={mode}
+            />
+          )}
         </div>
         <KeyHud />
       </main>

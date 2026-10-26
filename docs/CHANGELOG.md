@@ -1,5 +1,11 @@
 # Registro de evolución
 
+## 2026-10-26 · fractos radio y explorador web aislado
+
+El propietario confirmó que fractos usa iframes de YouTube/SoundCloud. Nueva entrada radio/web con ventanas separadas para fractos (URL HTTPS canónica verificada) y SoundCloud, reutilización al abrir y cierre explícito para detener su audio. La UI y ayuda explican que este audio queda fuera de decks, master, FX, sync y pánico. No se integran fuentes ni se modifica fractos.
+
+Navegación por HTTPS/hosts exactos, incognito, sin popups/descargas. Cerrar al tray se limita a main. Se registran explícitamente los 26 comandos propios en AppManifest, concedidos solo a main, con rechazo adicional por label en el handler. Tests comparan registro/handler/capability y validan la política de URLs; CSP, permisos core y audio nativo sin cambios. Sin dependencias nuevas. Evidencia final y límites en STATUS; sin abrir la app ni probar reproducción/login remotos.
+
 ## 2026-10-26 · BPM/key, cuantizado, sync, FX e instalación local
 
 Análisis offline acotado a 90 s (`music.rs`): BPM/offset con ataques/autocorrelación/refinamiento y key mayor/menor por FFT/chroma/perfiles. Metadata versionada por ID en settings, sin cambio de esquema; se guarda al importar/cargar y se puede corregir/reanalizar. Biblioteca muestra BPM y key americana/Camelot. Decks añaden master, sync, tempo, Q activo por defecto, loops por beats, transposición, key lock, key sync y editor de grid/key.

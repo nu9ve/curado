@@ -47,7 +47,7 @@ CI ejecutada en los tres OS, corpus de codecs/errores, estrés de dos horas, acc
 - Renderer GPU compartido wgpu → Metal/D3D/Vulkan, FFT por worker y features musicales suavizadas con timestamps; calidad adaptativa por presupuesto GPU.
 - Scene presets, waveform 3D, paisajes, grabación/export de sets con permisos explícitos.
 - Host de plugins VST/AU solo con aislamiento de fallos y revisión de licencia.
-- Explorador web aislado para SoundCloud / radio de fractos (S5, ADR-012): ventana sin IPC, lista blanca, audio fuera del motor.
+- Explorador web aislado implementado para SoundCloud / radio de fractos (S5, ADR-012), audio fuera del motor. Pendiente validar players/cookies/login en WebView real y diseñar control de transporte/volumen con fractos; integración de fuentes al motor requiere streaming autorizado.
 - Video, red o servicios musicales integrados al motor son proyectos propios, no capacidades implícitas de Symphonia/Tauri.
 - Temas compartibles (export/import de un tema v2 validado) y más estilos.
 
