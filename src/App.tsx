@@ -125,6 +125,7 @@ export default function App() {
       setLoading((prev) => [...prev, slot]);
       try {
         await call('load_track', { slot, id });
+        setLibrary(await call<LibraryData>('get_library'));
         void refreshWaveform(id);
         notify(`Pista lista en ${slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`}.`);
       } catch (e) {
@@ -363,6 +364,7 @@ export default function App() {
               onLoad={load}
               selected={selected}
               onTrigger={trigger}
+              onLibrary={setLibrary}
             />
           ) : (
             <div className="listen-stage">
@@ -516,6 +518,7 @@ function MixView({
   onLoad,
   selected,
   onTrigger,
+  onLibrary,
 }: {
   library: LibraryData;
   keys: KeyBinding[];
@@ -524,6 +527,7 @@ function MixView({
   onLoad: (slot: number, id: number) => void;
   selected: number | null;
   onTrigger: (binding: KeyBinding) => void;
+  onLibrary: (data: LibraryData) => void;
 }) {
   const { audio } = useSnapshot();
   const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
@@ -551,6 +555,7 @@ function MixView({
       <div className="console">
         <Deck
           index={0}
+          onLibrary={onLibrary}
           tracks={library.tracks}
           keys={keys}
           onError={onError}
@@ -559,6 +564,7 @@ function MixView({
         <Mixer keys={keys} onError={onError} />
         <Deck
           index={1}
+          onLibrary={onLibrary}
           tracks={library.tracks}
           keys={keys}
           onError={onError}

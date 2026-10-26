@@ -30,6 +30,7 @@
     "active": true,
     "targets": "all",
     "category": "Music",
+    "resources": { "../licenses/": "licenses/" },
     "shortDescription": "Native audio, intentional listening.",
     "macOS": {
       "minimumSystemVersion": "12.0"

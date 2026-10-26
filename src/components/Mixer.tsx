@@ -71,11 +71,30 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
           format={eq}
           onChange={param('low')}
         />
-        <div className="channel-rate" title="Velocidad del deck">
-          <span>RATE</span>
-          <b>{`${slot.rate >= 1 ? '+' : '−'}${Math.abs((slot.rate - 1) * 100).toFixed(1)}`}</b>
-        </div>
+        <Knob
+          label="HP"
+          action={act('highPass')}
+          tone={tone}
+          value={slot.highPass}
+          onChange={param('highPass')}
+          format={(v) => (v < 0.001 ? 'OFF' : `${Math.round(20 * 1000 ** v)} Hz`)}
+        />
       </div>
+      <label className="echo-division">
+        ECHO · BEATS
+        <select
+          aria-label={`División echo ${index ? 'B' : 'A'}`}
+          data-action={act('echoBeats')}
+          value={slot.echoBeats}
+          onChange={(e) => control(index, 'echoBeats', +e.target.value).catch(onError)}
+        >
+          {[0.25, 0.5, 0.75, 1, 2].map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="channel-fader">
         <Meter vertical value={slot.peak} label={`Nivel deck ${index ? 'B' : 'A'}`} />
         <Slider

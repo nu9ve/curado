@@ -8,6 +8,7 @@ import { EMPTY_SLOT } from './types';
 import type { AppSnapshot, Audio } from './types';
 
 const audio = (): Audio => ({
+  masterDeck: 0,
   slots: Array.from({ length: 6 }, (_, index) => ({ ...EMPTY_SLOT, id: index + 1 })),
   peak: 0,
   rms: 0,
@@ -19,6 +20,7 @@ const audio = (): Audio => ({
   clipped: 0,
 });
 const snapshot = (): AppSnapshot => ({
+  tuningError: null,
   mode: 'mix',
   audio: audio(),
   output: null,

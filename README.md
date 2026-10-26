@@ -26,8 +26,10 @@
 **Mezclar**
 
 - Consola distribuida como tu teclado: deck A a la izquierda, mixer al centro, deck B a la derecha, samples abajo.
-- Dos decks con platos, pitch vertical (±20 %), tres hot cues persistentes, loops IN/OUT y nudge; cuatro samples one-shot.
-- Mixer con EQ de tres bandas, filtro, echo, faders verticales, medidores LED y crossfader equal-power.
+- BPM y tonalidad estimados al importar, notación americana/Camelot y corrección manual del beatgrid.
+- Sync nativo de tempo/fase, cuantizado activo por defecto, loops de 1/2/4/8/16 beats y transposición ±12 semitonos con key lock.
+- Dos decks con platos, tempo vertical (±50 %), tres hot cues persistentes, loops IN/OUT y nudge; cuatro samples one-shot.
+- Mixer con EQ de tres bandas, filtros LP/HP, echo sincronizado al BPM, faders verticales, medidores LED y crossfader equal-power.
 - Waveforms de tres bandas (graves, medios, agudos) estilo club: vista general y vista detallada con playhead central.
 
 **Controlar**
@@ -70,6 +72,16 @@ Generar la app de macOS (firma ad hoc local, sin notarizar):
 bun run desktop:build
 ```
 
+Para compilar e instalar la última versión local en `~/Applications/curado.app`, registrada para Spotlight y Raycast:
+
+```sh
+bun run desktop:install
+# Si acabas de compilar:
+bun run desktop:install --no-build
+```
+
+El instalador comprueba firma e identidad, copia antes de reemplazar y revierte si falla el cambio. No abre la app ni fuerza su cierre. Si la instalada sigue abierta, ciérrala para actualizarla. La indexación del launcher puede tardar.
+
 El resultado queda en `target/release/bundle/macos/curado.app`. Dentro de la app, **sesión de prueba** (barra lateral) genera dos tracks y cuatro samples locales para probar sin música propia.
 
 `bun run dev` abre solo la interfaz en el navegador, sin audio: el motor necesita el proceso de escritorio. Instrucciones por sistema en [docs/PLATFORMS.md](docs/PLATFORMS.md).
@@ -104,7 +116,7 @@ bun run probe
 
 ## Hacia dónde va
 
-Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, beatgrid y sync, más vistas (compacta, escenario) y un explorador web aislado para servicios como SoundCloud. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
+Streaming para pistas largas, reloj de posición para un playhead fluido, resampler y EQ de calidad, validación de análisis/sync y transposición sobre un corpus real, más vistas (compacta, escenario) y un explorador web aislado para servicios como SoundCloud. Prioridades en [docs/ROADMAP.md](docs/ROADMAP.md) y fichas de trabajo en [docs/SESSIONS.md](docs/SESSIONS.md).
 
 ## Contribuir
 

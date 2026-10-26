@@ -2,6 +2,8 @@
 
 ## macOS / Apple Silicon
 
+Signalsmith Stretch 0.1.3 añade compilación C++ y bindgen/libclang. Xcode completo proporciona las herramientas en este Mac; si bindgen no encuentra libclang, configurar `LIBCLANG_PATH` hacia la instalación de LLVM/Xcode. Esto es requisito de build, no un permiso ni servicio en runtime.
+
 Bun, Rust estable, Xcode completo con herramientas de línea de comandos y SDK macOS. El build usa `xcrun swiftc` para AppKit/MetalKit. Target mínimo declarado: macOS 12; el helper se compila para la misma arquitectura Rust con deployment target 12. Compatibilidad con versiones antiguas aún no verificada. La máquina actual compila ARM64 nativo.
 
 ```sh
@@ -14,9 +16,21 @@ Resultado: `target/release/bundle/macos/curado.app` (el nombre visible del produ
 
 Datos: `~/Library/Application Support/studio.curado.player/curado.sqlite` y carpeta `demo/`. Caché del helper: `~/Library/Caches/studio.curado.player/curado visuals.app` (versiones anteriores dejaban `Curado Visuals.app`; puede borrarse a mano, la app no borra cachés antiguas). SQLite puede tener archivos `-wal`/`-shm`: usar backup consistente con SQLite o cerrar la app antes de copiar.
 
+Instalar/actualizar para el usuario, sin sudo ni lanzamiento automático:
+
+```sh
+bun run desktop:install
+bun run desktop:install --no-build
+bun run desktop:install --check
+```
+
+Destino: `~/Applications/curado.app`. El script valida firma/identificador, rechaza un destino que sea symlink u otra aplicación, verifica SHA-256 del ejecutable copiado, reemplaza mediante renames con rollback y registra LaunchServices. Si esa app está abierta, pide cerrarla y no interrumpe su audio. Conserva el identificador y todos los datos de usuario. Spotlight/Raycast pueden tardar en refrescar su índice; no se considera probado su lanzamiento por completar el registro. Si sigue abierta otra instancia desde el checkout, cerrarla antes de lanzar la instalada para evitar que single-instance enfoque el proceso anterior.
+
 ## Windows
 
 Rust MSVC, Microsoft C++ Build Tools, Windows SDK, WebView2 y Bun. CPAL utiliza WASAPI; este build no habilita ASIO. midir usa WinMM. Tray disponible mediante Tauri. Crear instalador con `bun tauri build` desde Windows; `desktop:build` está orientado al bundle de Mac y usa `--bundles app`.
+
+El build de Signalsmith requiere LLVM/libclang para bindgen y el compilador C++; su configuración y ejecución física en Windows siguen pendientes de CI/hardware. El instalador local actual es solo macOS.
 
 Pruebas físicas pendientes: shared audio con interfaces/USB/Bluetooth, suspensión, cambio de dispositivo, DPI y layouts de teclado. No afirmar soporte de ASIO por usar CPAL: requiere feature/SDK/build y verificación independiente.
 
@@ -26,7 +40,7 @@ Bun, Rust, compilador C y dependencias Tauri/GTK/WebKit más ALSA. En Ubuntu 24.
 
 ```sh
 sudo apt-get update
-sudo apt-get install build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev patchelf
+sudo apt-get install build-essential pkg-config libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libasound2-dev libclang-dev patchelf
 bun install --frozen-lockfile
 bun run desktop
 ```

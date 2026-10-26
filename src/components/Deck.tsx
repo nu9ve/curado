@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import { Play, Pause, Repeat2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useSnapshot, control, parameter } from '../lib/bridge';
-import type { KeyBinding, Track } from '../lib/types';
+import type { KeyBinding, Track, Library } from '../lib/types';
+import { MusicalControls } from './MusicalControls';
 import { EMPTY_SLOT, remaining, time } from '../lib/types';
 import { bindingLabel } from '../lib/keyboard';
 import { actionKey } from '../lib/feedback';
@@ -55,12 +56,14 @@ export function Deck({
   keys,
   onError,
   loading,
+  onLibrary,
 }: {
   index: number;
   tracks: Track[];
   keys: KeyBinding[];
   onError: (e: unknown) => void;
   loading?: boolean;
+  onLibrary: (data: Library) => void;
 }) {
   const snap = useSnapshot();
   const slot = snap.audio?.slots[index] ?? EMPTY_SLOT;
@@ -91,6 +94,13 @@ export function Deck({
           </small>
         </div>
       </header>
+      <MusicalControls
+        index={index}
+        slot={slot}
+        disabled={!!empty}
+        onError={onError}
+        onLibrary={onLibrary}
+      />
       <WaveOverview
         trackId={track?.id}
         slot={slot}
@@ -178,11 +188,11 @@ export function Deck({
           label="PITCH"
           action={act('rate')}
           tone={tone}
-          min={0.8}
-          max={1.2}
+          min={0.5}
+          max={1.5}
           origin={1}
           defaultValue={1}
-          value={slot.rate}
+          value={slot.tuning.rate}
           format={(v) => `${v >= 1 ? '+' : '−'}${Math.abs((v - 1) * 100).toFixed(1)}%`}
           onChange={(v) => parameter(index, 'rate', v, onError)}
         />

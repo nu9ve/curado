@@ -16,7 +16,7 @@
 La vista Mezcla se distribuye como el teclado: **deck A a la izquierda, deck B a la derecha, mixer al centro, samples abajo**.
 
 - Arriba, dos waveforms detalladas (A y B) con el playhead fijo al centro y 8 s visibles; clic para buscar relativo al centro. Graves en azul, medios ámbar, agudos blanco (o RGB/mono según Apariencia).
-- Cada deck: título y tiempo restante, waveform completa con cues numerados y loop, **plato** que gira con la posición real (clic = play/pausa), tres hot cues, transporte (play, cue, nudge −/+), loop/IN/OUT y **pitch vertical** en el borde exterior (±20 %, doble clic vuelve a 0).
+- Cada deck: título y tiempo restante, waveform completa con cues numerados y loop, **plato** que gira con la posición real (clic = play/pausa), tres hot cues, transporte (play, cue, nudge −/+), loop/IN/OUT y **pitch vertical** en el borde exterior (±50 %, doble clic vuelve a 0).
 - Mixer: por canal HI/MID/LOW (unidad al centro), FILTER (paso bajo, OFF a la derecha), ECHO, medidor LED en dB y fader de volumen vertical; master vertical con medidor, botón de silencio y crossfader horizontal con sus teclas ← ↓ →.
 - Mapa del teclado: muestra qué tecla controla qué zona (A coral, B complementario, samples ámbar, mixer neutro). Las teclas se iluminan al pulsarlas y se pueden clicar.
 
@@ -47,7 +47,21 @@ Cada atajo de teclado ilumina el control correspondiente y muestra un **HUD** co
 | Crossfader izquierda / centro / derecha | ← / ↓ / →     |
 | Detener decks y bajar master a cero     | ESC           |
 
-Un **hot cue salta y reproduce**, incluso desde pausa o fin de pista; repetirlo no alterna pausa. Los tres cues empiezan en 0:00 y muestran su tiempo, incluso antes de guardar uno. Shift + clic en un hot cue guarda posición sin iniciar reproducción. Clic en waveform busca conservando pausa/reproducción; las flechas también buscan al enfocar la waveform (Shift = paso fino). Un salto de cue, seek o nudge fuera del tramo de loop lo desactiva; dentro lo conserva. Loop sin puntos crea un tramo de hasta cuatro segundos desde la posición actual; no está ajustado a beats. Nudge desplaza la posición, no emula la inercia de un jog.
+Un **hot cue salta y reproduce**, incluso desde pausa o fin de pista; repetirlo no alterna pausa. Los tres cues empiezan en 0:00 y muestran su tiempo, incluso antes de guardar uno. Shift + clic en un hot cue guarda posición sin iniciar reproducción. Clic en waveform busca conservando pausa/reproducción; las flechas también buscan al enfocar la waveform (Shift = paso fino). Un salto de cue, seek o nudge fuera del tramo de loop lo desactiva; dentro lo conserva. Con BPM conocido, Loop usa la longitud elegida en beats; sin grid conserva el fallback de hasta cuatro segundos. Q alinea inicio/final y evita loops parciales de cola. Nudge desplaza la posición, no emula la inercia de un jog.
+
+## BPM, tonalidad y mezcla armónica
+
+Al importar se estiman BPM, offset de beat y tonalidad. La biblioteca muestra BPM original y notación americana (C, C♯, Am…) junto a Camelot. Las pistas antiguas se analizan al cargar; abre **beatgrid / análisis** para corregir BPM (incluye ×2/÷2), marcar «beat aquí», elegir tonalidad o reanalizar. Reanalizar reemplaza correcciones manuales; guardar no modifica el archivo original. La periodicidad mostrada describe el análisis, no un porcentaje de exactitud. Hay música sin un BPM/key global válido.
+
+- **MASTER** elige la referencia. Activa **SYNC** en el otro deck para igualar tempo y fase. No inicia reproducción. Ajusta el BPM desde el master; mover manualmente la velocidad del follower desactiva su sync. El rango de velocidad es 0,5×–1,5× y el campo de tempo absoluto admite 40–300 BPM dentro de ese rango.
+- **Q** empieza activo. Cues/IN/OUT y loops usan el beatgrid; el selector crea 1/2/4/8/16 beats. Cerca del final recoloca un loop para conservar beats completos; no crea uno si no cabe. Con SYNC+Q, el cue del seguidor espera al siguiente beat del master y muestra «en espera». Pánico o pausa conjunta cancelan ese cue; nunca debe arrancar después del silencio total.
+- **Key lock** empieza activo. Los botones −/+ transponen semitonos sin cambiar BPM; el centro vuelve a 0. El tono mostrado corresponde al ajuste aplicado; sin key lock incluye cents debidos a varispeed. **Key sync** iguala la tónica del master o su relativa si difieren los modos mayor/menor; requiere key lock en el master y no convierte escalas menores en mayores. Es puntual, no un seguimiento permanente.
+- Los ajustes de tempo/key que necesiten procesamiento muestran **preparando** y conservan el audio anterior hasta terminar. Se puede seguir usando play, cues y mixer; cambiar la petición cancela la anterior. Si falla, aparece reintento. Esta primera implementación prepara clips completos, por lo que el ajuste puede tardar y consumir memoria adicional.
+- El mixer añade **HP** (paso alto independiente de LP) y **ECHO · BEATS** (0,25/0,5/0,75/1/2). Echo sigue el BPM de salida; sin análisis usa 120 BPM. Cambiar su división suaviza el tiempo, con posible barrido de tono en las repeticiones.
+
+Al cargar otra pista se reinician tempo/transposición/key lock de ese deck y su sync; se conservan los FX. Cargar el master desactiva el seguimiento del otro deck. Cambiar a player cancela sync/cues pendientes y devuelve el master a A.
+
+La estimación necesita validación en música real. Revisa el grid antes de mezclar; una pista con tempo variable no queda sincronizada por un único BPM. Los loops todavía no tienen crossfade y transposiciones extremas pueden alterar transitorios/timbre.
 
 ## Ayuda contextual en el footer
 

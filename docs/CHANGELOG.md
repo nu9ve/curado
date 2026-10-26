@@ -1,5 +1,17 @@
 # Registro de evolución
 
+## 2026-10-26 · BPM/key, cuantizado, sync, FX e instalación local
+
+Análisis offline acotado a 90 s (`music.rs`): BPM/offset con ataques/autocorrelación/refinamiento y key mayor/menor por FFT/chroma/perfiles. Metadata versionada por ID en settings, sin cambio de esquema; se guarda al importar/cargar y se puede corregir/reanalizar. Biblioteca muestra BPM y key americana/Camelot. Decks añaden master, sync, tempo, Q activo por defecto, loops por beats, transposición, key lock, key sync y editor de grid/key.
+
+El renderer conserva el reloj: loops en límites de beat, seguimiento del tempo/fase y cue del follower diferido hasta el siguiente beat bajo SYNC+Q. Cambios de contexto y pánico cancelan cues en espera. Tuning se prepara en un worker con Signalsmith Stretch 0.1.3 MIT, sin FFT/C++ en callback; conserva cantidad de frames y compensa latencia. Se agrupan controles rápidos, cancelan resultados antiguos, valida el lote con tickets/revisiones y confirma al terminar el bloque, incluso al descartar. Se mantiene el transporte y el audio anterior hasta aplicar el nuevo resultado. Hay fallos/reintento explícitos.
+
+Mixer: HP independiente, echo con divisiones de beat, interpolación del delay y smoothing por sample rate; se limpian estados diminutos para evitar denormales en FX. Delay preasignado de ocho segundos, sin reservas en callback. Se mantiene EQ básico y techo; no se presentan como DSP de mastering.
+
+Nuevo instalador `desktop:install`: compilación por defecto, destino por usuario, verificación de identidad/firma/hash, staging y rollback, registro LaunchServices sin abrir/cerrar apps. Se añadió a AGENTS y documentación. Avisos MIT incluidos en bundle. Dependencia nueva exacta y motivo en ADR-014; instalación en ADR-015.
+
+Evidencia y límites en STATUS: 22 tests TS, 38 Rust, probe de callback y de preparación musical. Sin revisión visual/audio físico ni precisión certificada sobre música real. Streaming y presupuesto global siguen siendo prioridades estructurales.
+
 ## 2026-10-26 · Ayuda contextual y transporte fiable A/B
 
 Petición: ayuda fija y expandible en el footer, y diagnóstico del deck B silencioso al reactivar cues rápidamente. La captura mostraba B pausado. Dos regresiones reprodujeron el contrato anterior: `Cue` solo buscaba y no iniciaba reproducción tras pausa/EOF. Se cambió a salto + play atómico, sin modificar el transporte del otro deck. Seek/nudge conservan pausa; saltar fuera del loop lo desactiva.

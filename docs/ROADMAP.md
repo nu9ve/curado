@@ -4,7 +4,7 @@ Los temas grandes tienen su ficha en [SESSIONS](SESSIONS.md) (S1…S10).
 
 ## Secuencia de entregas acordada · 2026-10-26
 
-La corrección de hot cues, transporte A+B y base de ayuda contextual precede estas entregas. No completa streaming, reloj fluido ni sync musical. Ninguna entrega sustituye las puertas de QUALITY.
+La corrección de hot cues, transporte A+B y base de ayuda contextual precede estas entregas. Esa sesión no completó streaming, reloj fluido ni sync musical; la sesión musical posterior añade la base de sync/beatgrid/key lock descrita en STATUS. Ninguna entrega sustituye las puertas de QUALITY.
 
 | Entrega                         | Dependencias                              | Cierre verificable pendiente                                                                                                   |
 | ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -36,8 +36,8 @@ CI ejecutada en los tres OS, corpus de codecs/errores, estrés de dos horas, acc
 
 ## P1 · Mezcla más seria
 
-- BPM/beatgrid offline y beat clock común (S4), reutilizando el pase de `analysis.rs`. No basar sync en timers JS.
-- Time stretch/key lock con revisión de calidad, licencia y latencia. Su latencia debe incorporarse a todo el routing.
+- Base S4 implementada: BPM/key offline, grid editable, loops por beats, sync nativo y cues diferidos. Pendientes corpus real, métricas de precisión, tempo variable y tratamiento de grids dudosos.
+- Transposición/key lock inicial mediante Signalsmith preparado offline. Pendientes calidad auditiva en corpus real, procesamiento incremental compatible con streaming y presupuesto global de memoria; conservar compensación de latencia y contratos de transporte.
 - Salida cue/master multicanal y selección de pares; ASIO/JACK/PipeWire según plataforma. Requiere cambios de configuración, routing, UI y tests hardware.
 - Jog/nudge continuo (arrastrar el plato) y acciones con timestamp, controles relativos MIDI, hotplug, feedback LED y feedback de MIDI en la UI (S7).
 - Captura de teclado nativa solo si las mediciones lo requieren; global shortcuts opt-in con análisis de conflictos/permisos.

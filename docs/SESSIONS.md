@@ -24,10 +24,12 @@ Formato: **contexto** (por qué ahora), **alcance** (qué entra y qué no), **he
 - **Alcance**: resampler bandlimited (sinc/polyphase), EQ biquad tipo DJ (kill a −∞), filtro bipolar HP/LP, crossfade en límites de loop, limitador real. Revisar smoothing, denormales, latencia, bypass y presupuesto por callback (invariante 6).
 - **Hecho cuando**: tests de aliasing y discontinuidad, probe offline con nuevos P99, sin alloc en callback.
 
-## S4 · Beatgrid, BPM y sync (P1 mezcla)
+## S4 · Beatgrid, BPM, tonalidad y sync (P1 mezcla)
+
+**Base implementada el 2026-10-26**: análisis offline, grid editable, loops cuantizados, sync nativo, tonalidad americana/Camelot y transposición/key lock preparados en worker. No se cierra la sesión de calidad: faltan corpus real, validación auditiva y loops sin discontinuidades.
 
 - **Contexto**: la waveform de 3 bandas ya existe; falta estructura rítmica.
-- **Alcance**: análisis offline de BPM/onsets en el worker de decodificación (junto a `analysis.rs`), beatgrid persistida en SQLite, marcadores de beat en la waveform, loops cuantizados y sync de tempo. Key lock queda para otra sesión.
+- **Alcance**: análisis offline de BPM/onsets en el worker de decodificación (junto a `analysis.rs`), beatgrid persistida en SQLite, marcadores de beat en la waveform, loops cuantizados y sync de tempo. La preparación inicial de key lock ya existe; llevarla a streaming incremental y validar su calidad sigue pendiente.
 - **Hecho cuando**: corpus con BPM conocido dentro de ±0.1 BPM; loops de 1/2/4/8 beats sin discontinuidad.
 
 ## S5 · Explorador web (SoundCloud, radio de fractos) (P2)

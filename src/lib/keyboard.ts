@@ -78,6 +78,17 @@ export function actionLabel(kind: string) {
         high: 'Agudos',
         filter: 'Filtro LP',
         echo: 'Echo',
+        highPass: 'Filtro HP',
+        echoBeats: 'Echo en beats',
+        quantize: 'Cuantizado',
+        loopBeats: 'Loop en beats',
+        sync: 'Sync de tempo',
+        masterDeck: 'Deck master',
+        tempo: 'Tempo',
+        transpose: 'Transposición',
+        transposeStep: 'Transponer un semitono',
+        keyLock: 'Key lock',
+        keySync: 'Key sync',
         master: 'Master',
       } as Record<string, string>
     )[kind] ?? kind

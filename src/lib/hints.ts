@@ -34,7 +34,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Salta al hot cue y reproduce este deck.',
-    'Sin posición guardada, comienza en 0:00. Shift + clic en un pad guarda el cue; los atajos de guardar aparecen aquí si están asignados. Un salto fuera del loop lo desactiva.',
+    'Con SYNC y Q activos en el seguidor espera al siguiente beat del master. Sin posición guardada usa el inicio ajustado al grid. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
   ],
   setCue: [
     'Guarda la posición actual en este hot cue.',
@@ -62,7 +62,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   loop: [
     'Activa o desactiva el loop de este deck.',
-    'Sin puntos válidos crea hasta cuatro segundos desde la posición actual. Los loops todavía no se ajustan a beats.',
+    'Con BPM conocido usa la longitud elegida en beats y Q alinea el comienzo. Sin beatgrid crea hasta cuatro segundos. Los límites aún no tienen crossfade.',
   ],
   loopIn: [
     'Marca el comienzo del loop en la posición actual.',
@@ -81,8 +81,8 @@ const descriptions: Record<string, [string, string]> = {
     'El medidor del canal está antes del crossfader y master: puede mostrar señal aunque el canal no llegue a la salida. Doble clic restaura el valor inicial.',
   ],
   rate: [
-    'Cambia la velocidad y el tono de este deck.',
-    'No hay key lock: aumentar velocidad también sube el tono. Doble clic vuelve a velocidad original.',
+    'Cambia la velocidad de este deck.',
+    'Con key lock se conserva la tonalidad. El ajuste se prepara fuera del callback y se aplica al estar listo. Sin key lock funciona como varispeed. Doble clic vuelve a velocidad original.',
   ],
   low: [
     'Ajusta los graves de este canal.',
@@ -102,7 +102,51 @@ const descriptions: Record<string, [string, string]> = {
   ],
   echo: [
     'Añade echo a este canal.',
-    'El retardo es fijo, de 375 ms; no está sincronizado al BPM. Doble clic elimina el efecto.',
+    'El tiempo sigue el BPM de salida y la división elegida en beats; sin análisis usa 120 BPM. Doble clic elimina el efecto.',
+  ],
+  highPass: [
+    'Atenúa los graves con un filtro paso alto.',
+    'OFF conserva el paso completo. Es independiente del filtro paso bajo; ambos tienen suavizado para evitar saltos.',
+  ],
+  echoBeats: [
+    'Elige la duración del echo en beats.',
+    '0,5 equivale a medio beat; 0,75 es una división con puntillo. Los cambios de tiempo se suavizan y pueden producir un barrido de tono en la cola.',
+  ],
+  quantize: [
+    'Activa o desactiva el ajuste al beatgrid.',
+    'Está activado por defecto. Los loops y cues usan el grid nativo; sin BPM conocido no se puede cuantizar. Corrige BPM y offset si la detección no coincide.',
+  ],
+  loopBeats: [
+    'Crea un loop con una longitud en beats.',
+    'Con Q activo comienza en el inicio del beat. El beatgrid pertenece a esta pista; sync conserva la relación de tempo con el master.',
+  ],
+  sync: [
+    'Vincula tempo y fase de este deck al master.',
+    'Elige el otro deck como master. El tempo sigue sus cambios dentro del rango ±50 %. Un cambio manual de velocidad de este deck desactiva sync.',
+  ],
+  masterDeck: [
+    'Elige el deck que guía la sincronización.',
+    'El otro deck puede seguirlo con SYNC. Cambiar de master no inicia reproducción ni ajusta por sí solo la tonalidad.',
+  ],
+  tempo: [
+    'Ajusta el BPM de reproducción.',
+    'No modifica el BPM original detectado. En un deck sincronizado, cambia el tempo desde su master; key lock conserva tonalidad al ajustar velocidad.',
+  ],
+  transpose: [
+    'Cambia la tonalidad en semitonos sin cambiar el BPM.',
+    'El worker prepara PCM de la misma duración. Durante la preparación sigue sonando el ajuste anterior. No cambia modo mayor/menor.',
+  ],
+  transposeStep: [
+    'Sube o baja un semitono sin cambiar el BPM.',
+    'Las pulsaciones se acumulan en el motor. Se cancelan preparaciones obsoletas y se aplica la última petición lista, conservando transporte y cues.',
+  ],
+  keyLock: [
+    'Conserva la tonalidad al cambiar el tempo.',
+    'Activado por defecto. Sin key lock la velocidad cambia también el tono; la UI muestra el desplazamiento estimado en cents.',
+  ],
+  keySync: [
+    'Iguala tonalidad o relativa compatible con el master.',
+    'Se elige la transposición más cercana. Si los modos mayor/menor difieren se usa la relativa; transponer no convierte un acorde menor en mayor. Es una acción puntual, no un seguimiento de cambios futuros.',
   ],
   crossfader: [
     'Distribuye la mezcla entre A y B.',

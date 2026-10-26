@@ -35,5 +35,6 @@ Aplicación de audio de escritorio. El nombre se escribe siempre en minúsculas:
 - Actualizar `docs/CHANGELOG.md`; ajustar arquitectura/decisiones/contratos si cambiaron.
 - Verificar `bun run check`, `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`.
 - Si cambia empaquetado, Swift, bridge o ciclo de vida, construir `.app` y probar contratos relevantes por código. No abrir ni inspeccionar visualmente mientras siga vigente la preferencia del usuario.
+- Tras cambios verificados, instalar la versión local con `bun run desktop:install` (o `bun run desktop:install --no-build` si se acaba de compilar). El destino es `~/Applications/curado.app`, registrado para Spotlight/Raycast. No forzar el cierre de una instancia abierta ni interrumpir audio: registrar si impide actualizar. No abrir la app automáticamente.
 - No declarar production ready sin cumplir `docs/QUALITY.md`.
 - No commitear, publicar ni modificar archivos musicales del usuario sin instrucción.

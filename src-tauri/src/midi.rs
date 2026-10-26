@@ -150,7 +150,9 @@ impl Midi {
                             // EQ range is 0..2 with unity at the centre detent (CC 64).
                             "low" | "mid" | "high" => raw.value as f64 / 64.,
                             "rate" => 0.8 + raw.value as f64 / 127. * 0.4,
-                            "master" | "crossfader" | "filter" | "echo" => raw.value as f64 / 127.,
+                            "master" | "crossfader" | "filter" | "echo" | "highPass" => {
+                                raw.value as f64 / 127.
+                            }
                             _ => {
                                 if raw.value < 64 {
                                     continue;

@@ -17,6 +17,7 @@ pub struct Clip {
     pub waveform: Vec<[u8; 4]>,
     pub title: Option<String>,
     pub artist: Option<String>,
+    pub music: crate::music::MusicAnalysis,
 }
 impl Clip {
     pub fn duration(&self) -> f64 {
@@ -24,6 +25,13 @@ impl Clip {
     }
 }
 pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
+    decode_with_music(path, id, None)
+}
+pub fn decode_with_music(
+    path: &Path,
+    id: u64,
+    cached: Option<crate::music::MusicAnalysis>,
+) -> Result<Clip, String> {
     let file = File::open(path).map_err(|e| format!("No se pudo abrir el archivo: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
@@ -109,6 +117,9 @@ pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
         return Err("El archivo no contiene muestras decodificables".into());
     }
     let waveform = analysis.map(WaveformBuilder::finish).unwrap_or_default();
+    let music = cached
+        .filter(|m| m.valid())
+        .unwrap_or_else(|| crate::music::analyze(&samples, sample_rate));
     Ok(Clip {
         id,
         cues: Arc::new(CueState::default()),
@@ -117,6 +128,7 @@ pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
         waveform,
         title,
         artist,
+        music,
     })
 }
 

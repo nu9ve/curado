@@ -3,6 +3,7 @@ import { Search, ArrowUpRight, Star, Play, X, Music2, FolderOpen, Disc3 } from '
 import type { Library as LibraryData, LibraryEdit, Track } from '../lib/types';
 import { TrackArt } from './Player';
 import { time } from '../lib/types';
+import { keyLabel } from '../lib/music';
 export const Library = memo(function Library({
   data,
   view,
@@ -177,6 +178,8 @@ export const Library = memo(function Library({
               <th>pista / artista</th>
               <th>formato</th>
               <th>duración</th>
+              <th>BPM</th>
+              <th>key / Camelot</th>
               <th aria-label="Favoritos" />
               <th aria-label="Cargar pista" />
             </tr>
@@ -285,6 +288,16 @@ function TrackRow({
         <small className="rate">{(track.sampleRate / 1000).toFixed(1)} kHz</small>
       </td>
       <td className="duration">{time(track.duration)}</td>
+      <td className="mono">{track.music?.bpm?.toFixed(1) ?? '—'}</td>
+      <td
+        className="mono"
+        title={
+          track.music?.manual ? 'Corrección manual' : 'Estimación automática; corrige en el deck'
+        }
+      >
+        {keyLabel(track.music?.key ?? null)}{' '}
+        <small>{keyLabel(track.music?.key ?? null, 'camelot')}</small>
+      </td>
       <td>
         <button
           className={`icon-button star ${track.favorite ? 'is-favorite' : ''}`}

@@ -38,6 +38,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
             waveform: vec![],
             title: None,
             artist: None,
+            music: Default::default(),
             cues: Arc::new(crate::annotations::CueState::default()),
         })
     };
@@ -75,5 +76,41 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
         renderer.render(&mut output, 2);
         ACTIVE.with(|a| a.set(false));
     }
+    handle
+        .set_music(
+            1,
+            crate::music::MusicAnalysis {
+                version: 1,
+                bpm: Some(120.),
+                key: Some(crate::music::MusicalKey {
+                    tonic: 0,
+                    minor: false,
+                }),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    handle.control(0, crate::Control::HighPass(0.5)).unwrap();
+    handle.control(0, crate::Control::EchoBeats(0.75)).unwrap();
+    handle.control(0, crate::Control::LoopBeats(1.)).unwrap();
+    handle.control(1, crate::Control::Sync(true)).unwrap();
+    handle.control(0, crate::Control::TransposeStep(1)).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    renderer.render(&mut output, 2);
+    ACTIVE.with(|a| a.set(false));
+    let slot = handle.snapshot().slots[0].clone();
+    let batch = [
+        Some(crate::tuning::TunedClip {
+            clip: clip(),
+            load_ticket: slot.load_ticket,
+            revision: slot.tune_revision,
+            tuning: slot.tuning,
+        }),
+        None,
+    ];
+    handle.apply_tuning(batch).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    renderer.render(&mut output, 2);
+    ACTIVE.with(|a| a.set(false));
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
 }

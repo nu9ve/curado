@@ -1,6 +1,6 @@
 # Estado de curado
 
-Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con ayuda contextual, hot cues que reproducen y transporte conjunto A/B. Base funcional de pruebas locales; no se ha completado la matriz de producción de QUALITY.
+Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con BPM/key estimados, beatgrid editable, sync, cuantizado y transposición preparada fuera del callback. Base funcional de pruebas locales; no se ha completado la matriz de producción de QUALITY.
 
 ## Para retomar
 
@@ -9,13 +9,32 @@ Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con ayuda c
 3. Nombre siempre en minúsculas: **curado**. Color inicial exacto **#d66154**, estilo **curado**.
 4. Siguiente prioridad estructural: S1 streaming con presupuesto de memoria. Siguiente prioridad de experiencia: S2 reloj de posición (playhead/platos a 60 FPS sin violar el invariante 2).
 
+## Sesión musical · 2026-10-26
+
+Implementados análisis de BPM/offset y tonalidad mayor/menor, notación americana/Camelot en biblioteca/decks y editor de BPM/offset/key con reanálisis. Nuevas importaciones analizan hasta 90 s; pistas anteriores se analizan al cargar. Metadata versionada en settings por ID; las correcciones manuales se conservan, sin migración ni modificación de archivos musicales.
+
+Q está activo por defecto. Loops de 1/2/4/8/16 beats se alinean al grid y evitan colas parciales; sin grid se conserva el loop en segundos. Sync nativo sigue BPM/fase del master. Un cue del follower con SYNC+Q espera al siguiente beat, se ejecuta por muestra y se cancela con pánico/pausa conjunta/cambios de contexto. Transposición ±12 semitonos, key lock y key sync puntual (tónica o relativa) usan PCM preparado en worker con Signalsmith Stretch 0.1.3 MIT; el audio anterior continúa hasta estar listo. Se validan tickets/revisiones y se confirma la aplicación o descarte del lote. Nuevos FX: HP y echo en beats con smoothing y delay preasignado de 8 s por slot.
+
+`bun run desktop:install` compila e instala en `~/Applications/curado.app`; `--no-build` reutiliza el bundle verificado y `--check` comprueba sin instalar. El script valida identidad/firma/hash, reemplaza con rollback y registra LaunchServices. AGENTS incorpora su ejecución al cierre. No abre la app ni fuerza el cierre de la instalada. La indexación de Spotlight/Raycast y el lanzamiento desde esos programas no se consideran probados por registrar el bundle.
+
+### Evidencia de esta sesión
+
+- `bun run check`: **22 tests**, incluidos los 24 códigos Camelot/transposición y rollback real del instalador en un directorio temporal.
+- `cargo test --workspace --locked`: **38 tests** (27 motor + 11 app): clicks de 90/120/124/150 BPM dentro de ±0,1 BPM y offset a ±20 ms; triadas mayores/menores en las 12 raíces; sync tempo/fase con loop; cue diferido y cancelación por pánico; transposición de 220→440 Hz, key lock a 1,25×, stereo y longitud preservados; tuning obsoleto/reintento/recarga del mismo ID; HP, delay rítmico, metadata SQLite y allocator ampliado a nuevos comandos.
+- Build frontend y `.app` ARM64 correctos, firma ad hoc verificada; avisos MIT del wrapper, Stretch y Linear incluidos en recursos. CPP/libclang se usan en build; CPP/FFT no entran al callback. Sin nuevos permisos Tauri/CSP.
+- `bun run desktop:install --no-build`: **instalada y registrada** en `/Users/nu9ve/Applications/curado.app`. SHA-256 del ejecutable: `c1bd4b0d85e532f13b375f29a32f433c642509473a600bc899490de975f7cd68`. Bundle de 13,31 MiB; no se abrió. Registro/copia verificados, lanzamiento e indexación desde Raycast/Spotlight pendientes del usuario.
+- Probe offline con seis fuentes/FX: P50 **36,67 µs**, P95 **39,38 µs**, P99 **51,29 µs**, máximo **147,25 µs** de 5333,33 µs; cero recortes. No borra el outlier histórico de la sesión anterior ni valida salida física.
+- Probe musical sintético (30 s/48 kHz): análisis **22,76 ms**, preparación (rate 1,25× y +2 semitonos) **457,12 ms**, BPM estimado **119,943** para 120, 1.440.000 frames conservados y 23.040.000 bytes de PCM entre fuente/resultado. No es RSS total ni latencia DAC. Ver `music:probe` y `musical-probe-2026-10-26.json`.
+
+**Límites vigentes:** no se ha escuchado/inspeccionado esta entrega ni validado con corpus real/controlador. El análisis es heurístico, no detecta tempo variable/downbeats/modulaciones; los indicadores no son probabilidades calibradas. Loops sin crossfade. Key lock/transposición preparan clips completos: pueden tardar segundos y añadir hasta 192 MiB de fuentes + 192 MiB de resultados, además de los clips existentes; falta presupuesto global. El límite de 96 MiB por archivo sigue vigente. No hay timestretch continuo para pistas largas, recuperación automática ni matriz de producción completa.
+
 ## Implementado
 
 | Área                | Estado y alcance                                                                                                                        |
 | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Stack               | Bun + React/TS/Vite + Tauri 2; crate de audio Rust independiente                                                                        |
 | Reproducción        | CPAL, Symphonia, mono/estéreo, 2 decks y 4 one shots, seek, fin de pista                                                                |
-| Mezcla              | Equal power, master, EQ básico, LP, echo, varispeed, nudge, loops IN/OUT                                                                |
+| Mezcla              | Equal power, master, EQ básico, LP/HP, echo en beats, tempo, nudge, loops IN/OUT                                                        |
 | Waveforms           | Análisis offline 3 bandas a 50 bins/s en la decodificación, BLOB SQLite v3, IPC binario, vista general + detallada (8 s)                |
 | Cues                | Tres por track, estado atómico compartido entre decks, autosave SQLite y restauración al cargar                                         |
 | Biblioteca          | Archivos/carpetas, metadatos, búsqueda, favoritos, playlists; listado sin peaks (escala con bibliotecas grandes)                        |
@@ -31,7 +50,7 @@ Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con ayuda c
 | Ayuda               | Footer fijo con hover/foco, función, atajos remapeados y detalles expandibles; diagnóstico de transporte/routing por deck               |
 | Transporte conjunto | Play/pausa/cue A+B en un único comando; carga+play de cola atómica; precarga con revisión y fallo acotado                               |
 
-## Trabajo de 2026-10-26
+## Sesión previa · footer y transporte A/B
 
 El caso reportado (B en silencio al pulsar cue mientras A suena) se reprodujo por código: el cue anterior cambiaba posición sin iniciar un deck pausado/terminado. Las regresiones fallaron antes del cambio. Ahora salto + play son un único comando por slot, sin alternar ni modificar el otro deck. No se constató una carrera por compartir el dispositivo de salida: ambos decks ya se suman en el renderer y conservan posición, reproducción y ganancias independientes.
 
@@ -39,9 +58,9 @@ Se añadieron acciones A+B en el mismo límite de bloque, pruebas a 44.1/48/96 k
 
 El footer resuelve acciones exactas y mapeos actuales; controles genéricos tienen fallback de etiqueta/título. Expande dentro del chrome sin tapar la hoja; Escape desde la ayuda no envía pánico. La vista mini no cambia. La implementación y el markup se verifican automáticamente; **el nuevo footer y sus estados no se han inspeccionado visualmente ni escuchado en hardware**.
 
-Las cinco entregas aceptadas siguen desglosadas en ROADMAP con criterios de cierre. Streaming, importación cancelable, reloj fluido, sesión persistente, DSP avanzado, recuperación de dispositivos, reproductor completo y beat sync **siguen pendientes**; estos cambios no equivalen a completarlas.
+Al terminar esa sesión seguían pendientes las cinco entregas mayores. La sesión musical posterior implementa una base de la entrega 5; streaming, importación cancelable, reloj fluido, sesión, DSP avanzado, recuperación y validación de producción siguen pendientes.
 
-### Evidencia actual · 2026-10-26
+### Evidencia de esa sesión · 2026-10-26
 
 - `bun run check`: **20 tests TypeScript**, 11.459 assertions, sin fallos. Incluye ayuda por acción/cue exactos, remapeos, diagnósticos, modo y markup de expansión accesible.
 - `cargo test --workspace --locked`: **26 tests Rust** (16 motor + 10 app), sin fallos. Incluye allocator con A/B + sample, cues conjuntos, carga+play, EOF, PCM compartido y precargas obsoletas/fallidas.
@@ -71,7 +90,7 @@ Las cinco entregas aceptadas siguen desglosadas en ROADMAP con criterios de cier
 ## Límites importantes
 
 - PCM precargado limitado a 96 MiB por archivo (~4:22 a 48 kHz estéreo); el prefetch de la cola puede sumar un clip residente más.
-- Interpolación lineal y velocidad/tono unidos. Sin beatgrid/sync/key lock; loops sin crossfade; techo de amplitud básico.
+- Interpolación lineal en reproducción; EQ y techo básicos; loops sin crossfade. Transposición/key lock se preparan por clip y no son DSP continuo de baja latencia.
 - UI a 20 Hz: playhead, waveform detallada y platos avanzan en pasos de 50 ms (S2).
 - El feedback visual cubre teclado y clics; acciones MIDI no se reflejan aún en la UI (S7).
 - Una sola salida estéreo; sin cue de auriculares, ASIO/JACK ni PipeWire nativo.

@@ -183,6 +183,22 @@ export function ZoomWave({
       ctx.fillStyle = `${p.text}22`;
       ctx.fillRect(0, h / 2 - 0.5, w, 1);
     }
+    if (slot.music.bpm) {
+      const beat = 60 / slot.music.bpm;
+      const first = Math.max(
+        0,
+        Math.ceil((slot.position - WINDOW_SECONDS / 2 - slot.music.beatOffset) / beat),
+      );
+      ctx.fillStyle = p.tokens['--text-muted'];
+      for (let n = first; n < first + WINDOW_SECONDS / beat + 2; n++) {
+        const x = Math.round(toX(slot.music.beatOffset + n * beat));
+        if (x < 0 || x > w) continue;
+        ctx.globalAlpha = 0.4;
+        ctx.fillRect(x, 0, 1, h);
+        ctx.globalAlpha = 1;
+        ctx.fillRect(x, h - 6, 1, 6);
+      }
+    }
     // Played side slightly dimmed so the direction of travel reads at a glance.
     ctx.fillStyle = p.tokens['--wave-dim'];
     ctx.globalAlpha = 0.45;
@@ -211,6 +227,7 @@ export function ZoomWave({
     slot.loopIn,
     slot.loopOut,
     slot.looping,
+    slot.music,
     crisp,
     tone,
     wave,

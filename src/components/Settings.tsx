@@ -259,6 +259,7 @@ export function Settings({
                       'mid',
                       'high',
                       'filter',
+                      'highPass',
                       'echo',
                     ].map((kind) => (
                       <option key={`${slot}:${kind}`} value={`${slot}:${kind}`}>

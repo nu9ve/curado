@@ -15,6 +15,7 @@ fn main() {
         waveform: vec![],
         title: None,
         artist: None,
+        music: Default::default(),
         cues: Arc::new(curado_audio::annotations::CueState::default()),
     });
     let mut output = [0.0_f32; 512];

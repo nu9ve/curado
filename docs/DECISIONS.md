@@ -1,5 +1,19 @@
 # Decisiones técnicas
 
+## ADR-014 · Análisis musical editable, sync nativo y pitch preparado — aceptada (2026-10-26)
+
+El usuario pidió BPM, tonalidad americana/Camelot, transposición, key lock/key sync, cuantizado activo por defecto y loops sincronizados. Se añade análisis offline acotado a 90 s, con autocorrelación/refinamiento de ataques y chroma/perfiles [Krumhansl-Kessler documentados por Humdrum](https://extras.humdrum.org/man/keycor/). No se presume precisión de producto por pasar señales sintéticas. Offset, BPM y key son editables y se guardan por ID en settings, sin nueva migración ni tocar tags originales. El mapeo Camelot sigue la [referencia del creador](https://mixedinkey.com/camelot-wheel/0/); americana/Camelot representan la misma tonalidad.
+
+Se fija la nueva dependencia **signalsmith-stretch =0.1.3**, wrapper Rust y biblioteca C++ bajo MIT. [API y licencia oficiales](https://github.com/Signalsmith-Audio/signalsmith-stretch); avisos incluidos en `licenses/signalsmith-stretch` y en recursos del bundle. Cargo.lock incorpora sus transitivas; no se actualizaron dependencias existentes por rutina y se conserva bun.lock. Compilar requiere C++ y libclang/bindgen además de Rust.
+
+Se eligió preparar PCM fuera del callback, manteniendo longitud/sample rate y compensando input/output latency, para no introducir FFT, C++ ni reservas en tiempo real mientras el motor siga usando clips completos. La conversión de velocidad permanece nativa. Costes aceptados para esta fase: demora al preparar, caché/resultados adicionales y calidad pendiente de corpus/escucha. No es procesamiento continuo de pitch ni resuelve streaming. Al pasar a S1 deberá migrarse a preparación incremental con presupuesto y medición de latencia.
+
+El motor conserva Q, tempo, fases y cues diferidos; React no sincroniza audio con timers. Sync no inicia reproducción ni transforma el modo mayor/menor. Key sync elige la tónica o relativa compatible más cercana, puntualmente. Un lote de tuning se valida con generación/ticket/revisión y se confirma incluso si se descarta para permitir nuevos intentos.
+
+## ADR-015 · Instalación local por script y LaunchServices — aceptada (2026-10-26)
+
+El usuario solicita que cada cierre deje una app local actualizada para lanzar desde Spotlight/Raycast. `desktop:install` compila por defecto y copia a `~/Applications/curado.app` sin sudo. Verifica identificador, firma y hash del ejecutable, prepara la copia antes del reemplazo, usa renames con rollback y registra el destino en LaunchServices. No modifica preferencias, biblioteca ni originales, no abre la app y no fuerza cierres. Si la instalada está abierta, se detiene con un error para evitar reemplazar recursos mientras suena. La indexación del launcher y el lanzamiento manual siguen siendo comprobaciones distintas de copiar/registrar el bundle.
+
 ## ADR-013 · Hot cues que reproducen y transporte conjunto — aceptada (2026-10-26)
 
 El usuario observó que B seguía en silencio al reactivar su cue mientras A sonaba. En código, `Cue` cambiaba posición pero conservaba `playing=false` tras pausa/EOF; dos regresiones fallaron antes de corregirlo. Se define el hot cue como salto + reproducción en un único comando. Guardar cue y buscar posición mantienen sus contratos separados. Saltar fuera de un loop lo desactiva.

@@ -13,6 +13,7 @@ pub struct Track {
     pub duration: f64,
     pub sample_rate: u32,
     pub favorite: bool,
+    pub music: Option<curado_audio::music::MusicAnalysis>,
 }
 #[derive(Serialize)]
 pub struct Playlist {
@@ -103,7 +104,7 @@ impl Database {
     }
     pub fn library(&self) -> Result<Library, String> {
         // Waveforms are fetched per track on demand; the listing stays small for large libraries.
-        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,favorite FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
+        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,favorite,(SELECT value FROM settings WHERE key='music:'||tracks.id) FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
         let tracks = stmt
             .query_map([], |r| {
                 Ok(Track {
@@ -114,6 +115,12 @@ impl Database {
                     duration: r.get(4)?,
                     sample_rate: r.get(5)?,
                     favorite: r.get(6)?,
+                    music: r
+                        .get::<_, Option<String>>(7)?
+                        .and_then(|s| {
+                            serde_json::from_str::<curado_audio::music::MusicAnalysis>(&s).ok()
+                        })
+                        .filter(|m| m.valid()),
                 })
             })
             .map_err(|e| e.to_string())?
@@ -153,7 +160,23 @@ impl Database {
                 .into()
         });
         // `peaks` is the v1/v2 overview column, kept only for schema compatibility.
-        self.connection.execute("INSERT OR IGNORE INTO tracks(path,title,artist,duration,sample_rate,peaks,waveform) VALUES(?,?,?,?,?,'[]',?)", params![path.to_string_lossy(), title, clip.artist.as_deref().unwrap_or("Artista desconocido"), clip.duration(), clip.sample_rate, analysis::encode(&clip.waveform)]).map(|n| n > 0).map_err(|e| e.to_string())
+        let inserted=self.connection.execute("INSERT OR IGNORE INTO tracks(path,title,artist,duration,sample_rate,peaks,waveform) VALUES(?,?,?,?,?,'[]',?)", params![path.to_string_lossy(), title, clip.artist.as_deref().unwrap_or("Artista desconocido"), clip.duration(), clip.sample_rate, analysis::encode(&clip.waveform)]).map(|n| n > 0).map_err(|e| e.to_string())?;
+        let id: u64 = self
+            .connection
+            .query_row(
+                "SELECT id FROM tracks WHERE path=?",
+                [path.to_string_lossy()],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if self.music(id).is_none() {
+            self.save(&format!("music:{id}"), &clip.music)?;
+        }
+        Ok(inserted)
+    }
+    pub fn music(&self, id: u64) -> Option<curado_audio::music::MusicAnalysis> {
+        self.setting::<curado_audio::music::MusicAnalysis>(&format!("music:{id}"))
+            .filter(|m| m.valid())
     }
     pub fn waveform(&self, id: u64) -> Result<Vec<u8>, String> {
         self.connection
@@ -246,6 +269,29 @@ pub fn walk(root: PathBuf, files: &mut Vec<PathBuf>) -> Result<(), String> {
 mod tests {
     use super::*;
     #[test]
+    fn music_metadata_is_optional_validated_and_preserves_manual_settings() {
+        let db = Database::open(Path::new(":memory:")).unwrap();
+        db.connection.execute("INSERT INTO tracks(id,path,title,artist,duration,sample_rate,peaks) VALUES(1,'a.wav','A','B',30,48000,'[]')",[]).unwrap();
+        assert!(db.library().unwrap().tracks[0].music.is_none());
+        let music = curado_audio::music::MusicAnalysis {
+            version: 1,
+            bpm: Some(123.45),
+            beat_offset: 0.123,
+            key: Some(curado_audio::music::MusicalKey {
+                tonic: 9,
+                minor: true,
+            }),
+            manual: true,
+            ..Default::default()
+        };
+        db.save("music:1", &music).unwrap();
+        assert_eq!(db.music(1), Some(music));
+        assert_eq!(db.library().unwrap().tracks[0].music, Some(music));
+        db.save("music:1", &serde_json::json!({"bad":true}))
+            .unwrap();
+        assert!(db.library().unwrap().tracks[0].music.is_none());
+    }
+    #[test]
     fn playlists_persist_and_cascade_without_deleting_files() {
         let db = Database::open(Path::new(":memory:")).unwrap();
         db.connection.execute("INSERT INTO tracks(id,path,title,artist,duration,sample_rate,peaks) VALUES(1,'/tmp/a.wav','A','B',1,48000,'[]')", []).unwrap();
@@ -295,6 +341,7 @@ mod tests {
             waveform: vec![[9, 8, 7, 6]],
             title: None,
             artist: None,
+            music: Default::default(),
         };
         assert!(db.fill_waveform(10, &clip).unwrap());
         assert!(!db.fill_waveform(10, &clip).unwrap(), "never overwrites");

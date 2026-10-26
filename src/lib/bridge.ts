@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import type { Action, AppSnapshot } from './types';
 export const native = isTauri();
 let snapshot: AppSnapshot = {
+  tuningError: null,
   mode: 'player',
   persistenceError: null,
   queue: { count: 0, index: 0, active: false, repeat: 'off', error: null },

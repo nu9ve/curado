@@ -250,6 +250,7 @@ mod tests {
             waveform: vec![],
             title: None,
             artist: None,
+            music: Default::default(),
         })
     }
     #[test]

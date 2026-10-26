@@ -6,7 +6,36 @@ export interface Track {
   duration: number;
   sampleRate: number;
   favorite: boolean;
+  music: MusicAnalysis | null;
 }
+export interface MusicalKey {
+  tonic: number;
+  minor: boolean;
+}
+export interface MusicAnalysis {
+  version: number;
+  bpm: number | null;
+  beatOffset: number;
+  bpmConfidence: number;
+  key: MusicalKey | null;
+  keyConfidence: number;
+  manual: boolean;
+}
+export interface Tuning {
+  rate: number;
+  semitones: number;
+  keyLock: boolean;
+}
+export const EMPTY_MUSIC: MusicAnalysis = {
+  version: 1,
+  bpm: null,
+  beatOffset: 0,
+  bpmConfidence: 0,
+  key: null,
+  keyConfidence: 0,
+  manual: false,
+};
+export const DEFAULT_TUNING: Tuning = { rate: 1, semitones: 0, keyLock: true };
 export interface Playlist {
   id: number;
   name: string;
@@ -55,9 +84,21 @@ export interface Slot {
   high: number;
   filter: number;
   echo: number;
+  highPass: number;
+  echoBeats: number;
   cues: number[];
   loopIn: number;
   loopOut: number;
+  loadTicket: number;
+  music: MusicAnalysis;
+  tuning: Tuning;
+  appliedTuning: Tuning;
+  tuneRevision: number;
+  tunedRevision: number;
+  quantize: boolean;
+  sync: boolean;
+  loopBeats: number;
+  queued: boolean;
 }
 export interface Audio {
   slots: Slot[];
@@ -69,6 +110,7 @@ export interface Audio {
   streamError: boolean;
   callbacks: number;
   clipped: number;
+  masterDeck: number;
 }
 export interface Output {
   device: string;
@@ -92,6 +134,7 @@ export interface AppSnapshot {
   output: Output | null;
   error: string | null;
   midi: MidiState;
+  tuningError: string | null;
 }
 export interface ImportReport {
   added: number;
@@ -106,6 +149,16 @@ export type LibraryEdit =
   | { kind: 'favorite'; track: number; value: boolean }
   | { kind: 'removeTrack'; track: number };
 export const EMPTY_SLOT: Slot = {
+  loadTicket: 0,
+  music: EMPTY_MUSIC,
+  tuning: DEFAULT_TUNING,
+  appliedTuning: DEFAULT_TUNING,
+  tuneRevision: 0,
+  tunedRevision: 0,
+  quantize: true,
+  sync: false,
+  loopBeats: 4,
+  queued: false,
   id: 0,
   position: 0,
   duration: 0,
@@ -119,6 +172,8 @@ export const EMPTY_SLOT: Slot = {
   high: 1,
   filter: 1,
   echo: 0,
+  highPass: 0,
+  echoBeats: 0.5,
   cues: [0, 0, 0],
   loopIn: 0,
   loopOut: 0,

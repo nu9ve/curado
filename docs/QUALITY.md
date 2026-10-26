@@ -45,6 +45,8 @@ Regresiones añadidas el 2026-10-26: cue tras EOF reinicia sin interrumpir el ot
 
 ## Medición
 
+La base musical se prueba con clicks y triadas sintéticas, no con un corpus de exactitud certificado. Antes de anunciar análisis/sync profesional: corpus con tempo conocido, cambios de tempo, intros silenciosas, grabaciones humanas, percusión sin tonalidad, keys ambiguas/modulaciones y todas las velocidades/transposiciones admitidas; pruebas auditivas de ataques, fase estéreo y bypass; memoria total durante preparación/cancelación y mezcla bajo carga. Loops sin crossfade siguen pendientes. El pitch preparado fuera del callback no equivale a un procesador incremental ni a una transición instantánea de tempo. Los probes musicales no miden DAC ni calidad percibida.
+
 No usar RSS de un proceso como memoria total de Tauri: WebKit y GPU tienen procesos propios. No usar porcentaje de CPU como prueba de ausencia de glitches. Presupuesto por callback = frames/sample_rate (256/48000 ≈5.33 ms); comparar P50/P95/P99 y máximo bajo carga. Medir latencia total con loopback y timestamps: buffer + OS + hardware + scheduling.
 
 Las pruebas offline no validan DAC, jitter de hardware ni audio percibido. No afirmar que un backend está en modo exclusivo, usa ASIO, tiene prioridad RT adicional o es zero-copy sin comprobar su configuración real.

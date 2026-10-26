@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-26",
+  "context": "Local Apple Silicon, release build, non-isolated host; synthetic offline probes, not DAC latency or auditory quality",
+  "callback": {
+    "sampleRate": 48000,
+    "frames": 256,
+    "slots": 6,
+    "simulatedSeconds": 60,
+    "p50Us": 36.67,
+    "p95Us": 39.38,
+    "p99Us": 51.29,
+    "maxUs": 147.25,
+    "budgetUs": 5333.33,
+    "clippedSamples": 0
+  },
+  "musicalPreparation": {
+    "sourceSeconds": 30,
+    "sourceSampleRate": 48000,
+    "expectedBpm": 120,
+    "detectedBpm": 119.943,
+    "analysisMs": 22.76,
+    "prepareMs": 457.12,
+    "targetRate": 1.25,
+    "targetSemitones": 2,
+    "keyLock": true,
+    "preparedFrames": 1440000,
+    "sourceAndPreparedPcmBytes": 23040000
+  },
+  "limits": "One synthetic fixture is not a real-music accuracy corpus. PCM bytes do not measure total process memory. The historical scheduling outlier remains recorded in render-probe-2026-10-26.json."
+}

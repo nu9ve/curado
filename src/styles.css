@@ -2941,3 +2941,97 @@ input[type='color'] {
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+
+/* Musical controls share each deck's tone and use the existing flat controls. */
+.musical-controls {
+  display: grid;
+  gap: 7px;
+  margin: 10px 0 14px;
+  min-width: 0;
+}
+.musical-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+.musical-row button,
+.musical-row select {
+  min-height: 28px;
+  padding: 4px 7px;
+  font-size: 10px;
+}
+.musical-row button[aria-pressed='true'] {
+  color: var(--tone);
+  background: var(--tone-soft);
+}
+.tempo-control {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.tempo-control input {
+  width: 86px;
+  min-height: 28px;
+  padding: 4px 6px;
+  font: 600 13px var(--font-mono);
+}
+.musical-key {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 84px;
+  font-size: 13px;
+}
+.musical-key b {
+  color: var(--tone);
+}
+.musical-key small,
+.tuning-pending,
+.musical-controls > small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.analysis-editor {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.analysis-editor summary {
+  cursor: pointer;
+  padding: 4px 0;
+}
+.analysis-editor form {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: end;
+  padding: 8px 0;
+}
+.analysis-editor label {
+  display: grid;
+  gap: 3px;
+}
+.analysis-editor input {
+  width: 88px;
+  padding: 5px;
+}
+.analysis-editor select,
+.analysis-editor button {
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 10px;
+}
+.echo-division {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+.echo-division select {
+  min-height: 24px;
+  padding: 2px;
+  font-size: 10px;
+}

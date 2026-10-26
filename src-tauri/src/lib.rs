@@ -5,6 +5,7 @@ mod midi;
 mod playback;
 mod preferences;
 mod session;
+mod tuning;
 mod visuals;
 use curado_audio::{
     decode::decode,
@@ -39,18 +40,26 @@ pub struct AppState {
     persistence_error: Mutex<Option<String>>,
     generation: AtomicU64,
     running: AtomicBool,
+    tuning_error: Mutex<Option<String>>,
 }
 impl AppState {
     fn decode_track(&self, id: u64) -> Result<Arc<curado_audio::decode::Clip>, String> {
-        let (path, initial) = {
+        let (path, initial, music) = {
             let db = self.db.lock().unwrap();
             (
                 db.path(id)?,
                 db.setting::<[f64; 3]>(&format!("cues:{id}"))
                     .unwrap_or([0.; 3]),
+                db.music(id),
             )
         };
-        let mut clip = decode(&path, id)?;
+        let mut clip = curado_audio::decode::decode_with_music(&path, id, music)?;
+        if music.is_none() {
+            self.db
+                .lock()
+                .unwrap()
+                .save(&format!("music:{id}"), &clip.music)?;
+        }
         clip.cues = self.annotations.lock().unwrap().state(id, initial);
         // Tracks imported before schema v3 gain their band waveform on first load.
         let _ = self.db.lock().unwrap().fill_waveform(id, &clip);
@@ -98,6 +107,7 @@ impl AppState {
         let queue = self.queue.lock().unwrap().status();
         let persistence_error = self.persistence_error.lock().unwrap().clone();
         let mode = *self.mode.lock().unwrap();
+        let tuning_error = self.tuning_error.lock().unwrap().clone();
         AppSnapshot {
             audio,
             output,
@@ -106,6 +116,7 @@ impl AppState {
             queue,
             persistence_error,
             mode,
+            tuning_error,
         }
     }
 }
@@ -119,6 +130,8 @@ struct AppSnapshot {
     #[serde(rename = "persistenceError")]
     persistence_error: Option<String>,
     mode: session::Mode,
+    #[serde(rename = "tuningError")]
+    tuning_error: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -205,6 +218,52 @@ async fn track_waveform(
 async fn get_library(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
     let s = state.inner().clone();
     work(move || s.db.lock().unwrap().library()).await
+}
+#[tauri::command]
+async fn save_track_music(
+    id: u64,
+    mut music: curado_audio::music::MusicAnalysis,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Library, String> {
+    if !music.valid() {
+        return Err("BPM, primer beat o tonalidad inválidos".into());
+    }
+    music.version = 1;
+    music.manual = true;
+    if let Some(bpm) = music.bpm {
+        music.beat_offset = music.beat_offset.rem_euclid(60. / bpm);
+    }
+    let s = state.inner().clone();
+    work(move || {
+        let db = s.db.lock().unwrap();
+        db.path(id)?;
+        db.save(&format!("music:{id}"), &music)?;
+        let library = db.library()?;
+        drop(db);
+        if let Some(output) = s.output.lock().unwrap().as_ref() {
+            output.handle.set_music(id, music)?;
+        }
+        Ok(library)
+    })
+    .await
+}
+#[tauri::command]
+async fn analyze_track(id: u64, state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
+    let s = state.inner().clone();
+    work(move || {
+        let _decode = s.decode_gate.lock().unwrap();
+        let path = s.db.lock().unwrap().path(id)?;
+        let clip = decode(&path, id)?;
+        let db = s.db.lock().unwrap();
+        db.save(&format!("music:{id}"), &clip.music)?;
+        let library = db.library()?;
+        drop(db);
+        if let Some(output) = s.output.lock().unwrap().as_ref() {
+            output.handle.set_music(id, clip.music)?;
+        }
+        Ok(library)
+    })
+    .await
 }
 #[tauri::command]
 async fn edit_library(
@@ -557,8 +616,13 @@ pub fn run() {
                 persistence_error: Mutex::new(None),
                 generation: AtomicU64::new(0),
                 running: AtomicBool::new(true),
+                tuning_error: Mutex::new(None),
             });
             app.manage(state.clone());
+            let pitch = state.clone();
+            std::thread::Builder::new()
+                .name("curado-tuning".into())
+                .spawn(move || tuning::run(pitch))?;
             if let Err(error) = tray(app) {
                 eprintln!("curado tray unavailable: {error}");
             }
@@ -652,7 +716,9 @@ pub fn run() {
             stop_queue,
             get_theme,
             save_theme,
-            set_mode
+            set_mode,
+            save_track_music,
+            analyze_track
         ])
         .build(tauri::generate_context!())
         .expect("No se pudo iniciar curado")
