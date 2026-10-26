@@ -1,58 +1,67 @@
-# Calidad y criterios de publicación
+# Quality and release criteria
 
-La versión 0.1 de curado es una base funcional de prueba local. Para usar la etiqueta production ready deben existir evidencias de las siguientes puertas; ninguna casilla se presume cumplida.
+curado 0.1 is a functional local-testing foundation. Production readiness requires evidence for every gate below; no row is assumed complete.
 
-## Puertas
+## Gates
 
-| Puerta       | Criterio                                                                                                                    |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| Compilación  | Release reproducible desde lockfiles en los tres OS, fmt, lint, types y tests verdes                                        |
-| Tiempo real  | Callback sin alloc/dealloc/locks; pruebas de carga, jitter y medición física keyboard/MIDI → DAC                            |
-| Estabilidad  | Sesiones de 2 h, 6 fuentes + FX, importación concurrente y visuales, sin glitches, crash ni crecimiento de memoria          |
-| Dispositivos | Hotplug, ausencia de salida, cambio de default, buffers rechazados, sleep/wake y recuperación                               |
-| Archivos     | Corpus mono/estéreo 44.1/48/96 kHz MP3/FLAC/WAV/AAC/ALAC/AIFF/Vorbis, corruptos, grandes, unicode y rutas movidas           |
-| Persistencia | Reinicio, migraciones, backup/restore, DB corrupta, disco lleno, referencias desaparecidas                                  |
-| Entrada      | Layout ES/US, foco/text inputs, conflicto/repeat, MIDI real en tres OS y eventos densos                                     |
-| Distribución | Firma/notarización macOS y helper, firma Windows, paquetes Linux y licencias/notices                                        |
-| UX           | Tab/foco, Escape en modales, lector de pantalla, contraste, escalado, etiquetas tras remap y revisión visual de cada estilo |
+| Gate         | Required evidence                                                                                 |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| Build        | Reproducible release from lockfiles on three OS; fmt/lint/types/tests passing                     |
+| Real time    | No callback alloc/dealloc/locks; load/jitter tests; physical keyboard/MIDI→DAC latency            |
+| Stability    | Two-hour sessions, six sources + FX, concurrent import/visuals, no glitches/crashes/memory growth |
+| Devices      | Hotplug, no output, default changes, rejected buffers, sleep/wake/recovery                        |
+| Files        | Mono/stereo 44.1/48/96 kHz MP3/FLAC/WAV/AAC/ALAC/AIFF/Vorbis; corrupt/large/Unicode/moved paths   |
+| Persistence  | Restart, migrations, backup/restore, corrupt DB, full disk, missing references                    |
+| Input        | ES/US layouts, focus/text, conflicts/repeats, real three-OS MIDI/dense events                     |
+| Distribution | macOS/helper signing/notarization, Windows signing, Linux packages, licenses/notices              |
+| UX           | Tab/focus, modal Escape, screen reader, contrast, scaling, remap labels and visual style review   |
 
-## Comprobaciones automatizadas
+## Automated checks
 
 ```sh
 bun run check
 bun run build
-bun x prettier --check src scripts docs README.md package.json
+bun run format:check
 cargo fmt --all -- --check
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace --locked
+cargo clippy --workspace --all-targets --locked -- -D warnings
 ```
 
-Los tests del motor validan transporte, seek/EOF, loops, pánico, crossfader, límites, sample-rate conversion y cola saturada, transición de modos y cues compartidos. La auditoría de allocator verifica cero alloc/dealloc en el render cubierto, incluyendo load/reemplazo/seek/filtro/cue. Hay pruebas de decodificación WAV mono/estéreo y rechazo de basura, y de análisis de waveform (50 bins/s, separación de bandas 60 Hz vs 9 kHz). SQLite verifica relaciones, deduplicación en playlists, cascada, settings y migración v1→v3 con backfill de waveform sin sobrescritura. La cola verifica avance, repetición y prefetch (momento, IDs obsoletos y liberación al detenerse). TypeScript verifica la paleta en 5 estilos, migración de tema v1→v2, contrato binario de waveform, matriz Bayer, geometría del logo, permisos de ventana y política de modo del teclado. El teclado verifica combinaciones únicas, Shift-cues, modificadores y filtros de modo. Ver el resultado real más reciente en STATUS.
+Engine tests cover transport/seek/EOF/loops/panic/crossfader/bounds/rate conversion/backpressure/mode transitions/shared cues. Allocator audit covers zero alloc/dealloc in tested render operations, including clip replacement, seek/filter/cue. WAV tests include mono/stereo/garbage; waveform tests cover 50 bins/s and 60 Hz/9 kHz band separation. SQLite covers relationships, playlist dedup/cascades/settings/v1→v3 migration and non-overwriting waveform backfill. Queue covers advance/repeat/prefetch timing/stale IDs/release.
 
-## Prueba manual local
+TypeScript covers five-style palette, v1→v2 theme migration, waveform binary contract, Bayer/logo, window permissions, keyboard uniqueness/Shift/modifier/mode policy, hints, installation rollback and musical notation. Browser contracts scope ACL to the local WebView and check native child wiring; Rust checks URLs/bounds. Musical tests use synthetic clicks/triads and prepared audio. Latest actual counts/results are in STATUS.
 
-Regresiones añadidas el 2026-10-26: cue tras EOF reinicia sin interrumpir el otro deck; retriggers rápidos con contribución L/R separada a 44.1/48/96 kHz; samples y transportes independientes con PCM compartido; A+B y carga+play atómicos en límites de cola; allocator ampliado a esos comandos; precarga fallida acotada y resultados antiguos descartados. La ayuda se verifica por resolución de textos/mapeos, diagnósticos y markup accesible. Estas pruebas no comprueban sonido percibido, interacción real del WebView ni el aspecto del footer.
+## Manual local test plan
 
-1. Cargar demo; reproducir A, cambiar a mezcla, reproducir B, mover crossfader y comprobar cada extremo.
-2. Guardar cues en posiciones distintas; saltar; marcar IN/OUT; activar/desactivar loop; variar rate, EQ, filtro, echo y master.
-3. Disparar Z/X/C/V mientras suenan los decks; repetir teclado desde foco en botones e inputs.
-4. Importar fixture 44.1 kHz y archivo 48 kHz; comprobar duración y que no cambie pitch al cambiar de sample rate de archivo.
-5. Crear playlist, añadir/quitar pista, favorito, buscar; salir/reabrir y verificar persistencia. «Retirar» nunca debe borrar original.
-6. Escuchar selección; dejar terminar una pista; comprobar avance con ventana oculta. Pausa no debe avanzar; pánico debe detener la cola.
-7. Abrir Metal, minimizar/cerrar/reabrir; comparar CPU/GPU y continuidad de audio. Cerrar la ventana principal y controlar desde tray.
-8. Elegir otro output/buffer. Configuración fallida conserva salida anterior; configuración válida descarga slots y permite recargarlos.
-9. Con controlador físico, aprender nota/CC, reiniciar y verificar mapeo; desconectar/reconectar; revisar dropped/error.
+Added automated regressions on 2026-10-26 cover cue after EOF without interrupting the other deck; rapid L/R-separated retriggers at 44.1/48/96 kHz; independent samples/transports/shared PCM; atomic A+B/load+play under queue bounds; allocator; bounded failed/stale prefetch. Help checks text/mappings/diagnostics/accessibility markup. These do not validate perceived audio, real WebView interaction or footer appearance.
 
-## Medición
+The following is a **plan**, not a completed test record. Respect current authorization before launching/inspecting the app:
 
-La base musical se prueba con clicks y triadas sintéticas, no con un corpus de exactitud certificado. Antes de anunciar análisis/sync profesional: corpus con tempo conocido, cambios de tempo, intros silenciosas, grabaciones humanas, percusión sin tonalidad, keys ambiguas/modulaciones y todas las velocidades/transposiciones admitidas; pruebas auditivas de ataques, fase estéreo y bypass; memoria total durante preparación/cancelación y mezcla bajo carga. Loops sin crossfade siguen pendientes. El pitch preparado fuera del callback no equivale a un procesador incremental ni a una transición instantánea de tempo. Los probes musicales no miden DAC ni calidad percibida.
+1. Load demo, play A, switch to mix/play B, check both crossfader ends.
+2. Save distinct cues; jump; IN/OUT/loop; vary rate/EQ/filter/echo/master.
+3. Trigger Z/X/C/V during deck playback, repeat with focus on buttons/inputs.
+4. Import 44.1/48 kHz fixtures; verify duration and unchanged pitch across source sample rates.
+5. Playlist add/remove/favorite/search; restart persistence; removal must never delete originals.
+6. Queue EOF/advance with hidden window; pause must not advance, panic must stop queue.
+7. Open/minimize/close/reopen Metal, compare CPU/GPU/audio; close main and use tray.
+8. Change output/buffer; failed configuration preserves prior output, success unloads/reloads slots.
+9. Real MIDI learn/restart/disconnect/reconnect; inspect dropped/error state.
+10. Integrated browser: native panel bounds/focus, resize/footer expansion, dialog hide/restore, switch/leave/mini stopping audio, blocked navigation/popups and player/login compatibility.
 
-No usar RSS de un proceso como memoria total de Tauri: WebKit y GPU tienen procesos propios. No usar porcentaje de CPU como prueba de ausencia de glitches. Presupuesto por callback = frames/sample_rate (256/48000 ≈5.33 ms); comparar P50/P95/P99 y máximo bajo carga. Medir latencia total con loopback y timestamps: buffer + OS + hardware + scheduling.
+## Measurement
 
-Las pruebas offline no validan DAC, jitter de hardware ni audio percibido. No afirmar que un backend está en modo exclusivo, usa ASIO, tiene prioridad RT adicional o es zero-copy sin comprobar su configuración real.
+Synthetic clicks/triads do not certify musical accuracy. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality; measure total memory during preparation/cancel/mixing under load. Loop crossfade remains absent. Offline clip pitch preparation is neither streaming DSP nor instant tempo transition; music probes measure no DAC/perceived quality.
 
-## Riesgos conocidos
+Process RSS alone is not Tauri's total memory: WebKit/GPU have separate processes. CPU percentage does not prove glitch freedom. Callback budget = frames/sample_rate, 256/48000 ≈5.33 ms. Compare P50/P95/P99/max under load. Measure end-to-end latency by loopback/timestamps: buffer + OS + hardware + scheduling.
 
-Interpolación lineal puede introducir aliasing al cambiar rate; límites de loop no tienen crossfade; DSP es básico, no ecualización ni limitación de calidad profesional. Las discontinuidades manuales se atenúan con 128 frames y los parámetros principales con smoothing, pero necesitan pruebas auditivas. Scope de 64 muestras y RMS son una visualización, no un analizador espectral. Un archivo corrupto puede agotar tiempo de decodificación antes de alcanzar el límite de PCM; falta cancelación/timeouts y fuzzeo. Modo y mapeos MIDI comparten política nativa; falta validar la ergonomía con controladores físicos.
+Offline tests do not validate DAC/hardware jitter/perception. Do not claim exclusive backend, ASIO, extra RT priority or zero-copy without checking actual configuration. Preserve the historical callback outlier in STATUS; a later faster probe does not erase it.
 
-Las pruebas de apariencia cubren matemática y contratos de color/configuración, no screenshots. El rediseño (estilos, consola, waveforms, vista mini) no tiene revisión visual. El usuario pidió explícitamente no continuar con revisión visual ni Computer Use. La cabecera Overlay y nuevos temas se compilan y se prueban por configuración, sin inspección visual de esta entrega.
+## Known risks
+
+Linear interpolation can alias with rate changes; loops lack crossfade; EQ/ceiling are basic. Manual discontinuities use 128-frame transitions and main parameters smooth, but listening tests remain necessary. A 64-sample scope/RMS is not spectral analysis. Corrupt files can consume decode time before PCM limits: cancellation/timeouts/fuzzing missing. MIDI/native mode share policy, but real controller ergonomics remain unvalidated.
+
+Appearance tests cover math/configuration, not screenshots. The authorized web-preview review covered curado at 1100/1440 px without audio; loaded native decks, alternate styles and later changes remain unreviewed. Further Computer Use/visual tests require explicit authorization. Existing screenshots may be reused in docs without becoming evidence of current validation.
+
+## Release licensing
+
+A license recommendation is not permission applied to code. Before any public paid or free release, resolve [Licensing](LICENSING.md), dependency/source obligations, exact bundled font notices and asset/brand rights. Neither local ad hoc signing nor an English README makes this a public release.

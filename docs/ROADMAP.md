@@ -1,54 +1,54 @@
-# Prioridades y dependencias
+# Priorities and dependencies
 
-Los temas grandes tienen su ficha en [SESSIONS](SESSIONS.md) (S1…S10).
+Large work topics have dedicated briefs in [Sessions](SESSIONS.md), S1…S10.
 
-## Secuencia de entregas acordada · 2026-10-26
+## Agreed delivery sequence · 2026-10-26
 
-La corrección de hot cues, transporte A+B y base de ayuda contextual precede estas entregas. Esa sesión no completó streaming, reloj fluido ni sync musical; la sesión musical posterior añade la base de sync/beatgrid/key lock descrita en STATUS. Ninguna entrega sustituye las puertas de QUALITY.
+Footer help and A/B transport fixed a concrete problem but did not complete musical synchronization. The subsequent musical session adds the sync/grid/key-lock foundation recorded in STATUS. No delivery replaces QUALITY gates.
 
-| Entrega                         | Dependencias                              | Cierre verificable pendiente                                                                                                   |
-| ------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 1 · Pistas largas e importación | S1                                        | Archivo de 60 min con seek/loops y memoria global acotada; progreso, cancelación e importación que cede a cargas prioritarias. |
-| 2 · Transporte fluido y sesión  | Reloj nativo S2; almacenamiento de sesión | Playhead fluido sin deriva; confirmación de acciones; restauración pausada de decks y loops sin snapshots incoherentes.        |
-| 3 · Calidad y recuperación      | S3; ciclo de vida de dispositivos         | Medidas de aliasing/discontinuidad, limitador, coste RT; hotplug/sleep-wake y cierre determinista.                             |
-| 4 · Reproductor cotidiano       | Biblioteca y cola robustas                | Cola editable, shuffle, playlists reordenables, media keys, álbumes/artwork y reparación de rutas.                             |
-| 5 · Mezcla avanzada             | Reloj/streaming/DSP; S4 y routing         | BPM/beatgrid editable, loops por beats y sync; después key lock y preescucha hardware.                                         |
+| Delivery                         | Dependencies                     | Remaining verifiable completion                                                                                 |
+| -------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1 · Long tracks and import       | S1                               | 60-minute seek/loop playback with bounded global memory; progress/cancel and imports yielding to priority loads |
+| 2 · Smooth transport and session | S2 native clock; session storage | Smooth playhead without drift; action acknowledgement; coherent paused deck/loop restoration                    |
+| 3 · Quality and recovery         | S3; device lifecycle             | Aliasing/discontinuity/limiter/RT measurements; hotplug, sleep/wake, deterministic shutdown                     |
+| 4 · Everyday player              | Robust library/queue             | Editable queue, shuffle, reorderable playlists, media keys, albums/artwork and moved-file repair                |
+| 5 · Advanced mixing              | Clock/streaming/DSP; S4/routing  | Editable BPM/grid, beat loops and sync; then validated key lock and hardware headphone cue                      |
 
-CI ejecutada en los tres OS, corpus de codecs/errores, estrés de dos horas, accesibilidad y distribución firmada deben acompañar el avance. S1 continúa siendo la siguiente prioridad estructural; no aumentar el límite de PCM como sustituto del presupuesto de memoria.
+Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and signed distribution must accompany progress. S1 remains the structural priority; raising the PCM limit is not a replacement for a memory budget.
 
-## P0 · Antes de estabilidad de producción
+## P0 · Before production stability
 
-1. **Streaming y memoria por presupuesto global** (S1). Decodificación incremental, rings preasignados por deck, prefetch de cues, bounded seek, cancelación y tiempo límite por tarea. Mantener precarga para samples. Añadir corpus de tracks largos y disco lento. Afecta waveform, cola, loops, cue y caché.
-2. **Contratos de sesión nativos** y **reloj de posición** para playhead fluido (S2). Modo nativo y cues por track ya implementados. Completar loops/sesión de decks persistentes, ack transaccional de todos los transportes y restauración pausada. No persistir posiciones desde snapshots incoherentes.
-3. **Audio de mayor calidad** (S3). Resampler bandlimited, crossfade en loops, rampas medidas por sample rate, EQ biquad, headroom y limitador real. Tests de discontinuidad, aliasing, denormales y coste de callback antes de añadir FX.
-4. **Resiliencia de OS/dispositivos**. Hotplug y sleep/wake, reconexión controlada sin sorpresa de volumen; teardown y join de threads determinista, errores recuperables de DB. Medir UI/input/DAC y callback bajo carga.
-5. **Distribución y prueba física** (S10). CI ejecutada tres OS, helper firmado dentro del bundle, firmas/notarización, auditoría de dependencias/licencias, dos horas de estrés. Tray y salida explícita en Linux sin indicador.
+1. **Streaming/global memory budget (S1):** incremental decode, preallocated deck rings, cue prefetch, bounded seek, cancellation/time limits. Keep sample preload; add long-track/slow-disk corpus. Affects waveform, queue, loops, cue/cache.
+2. **Native session contracts and smooth position clock (S2):** mode/track cues already persist. Finish deck loops/session, transactional transport acknowledgements and paused restoration. Do not persist incoherent snapshot positions.
+3. **Audio quality (S3):** bandlimited resampler, loop crossfade, sample-rate-aware measured ramps, biquad EQ, headroom/real limiter. Measure discontinuity, aliasing, denormals and callback cost before adding effects.
+4. **OS/device resilience:** hotplug/sleep-wake, controlled reconnect without surprise volume; deterministic thread teardown/join; recoverable DB errors. Measure UI/input/DAC/callback under load.
+5. **Distribution/physical testing (S10):** executed three-OS CI, signed in-bundle helper, signing/notarization, dependency/license audit, two-hour stress; explicit Linux exit without usable tray. Project license decision is documented in [Licensing](LICENSING.md), still unapplied.
 
-## P1 · Reproductor completo
+## P1 · Complete player
 
-- Cola editable y shuffle. Prefetch de la siguiente pista ya implementado; gapless real requiere P0 streaming y reloj nativo.
-- Playlists reordenables, tags reales, artwork, álbumes, reubicación de archivos y escaneo incremental cancelable.
-- Temas, estilos y modo ya persisten. Completar estado de navegación y salida validada al arrancar.
-- Vistas alternas (S6): mini siempre encima ya existe; faltan compacta, foco/escenario, visual flotante y persistencia de tamaño por vista.
-- Tray macOS con icono plantilla y «ahora suena» (S8).
-- Media keys / Now Playing macOS, SMTC Windows, MPRIS Linux; autostart opt-in y asociaciones de archivo.
-- Accesibilidad: foco atrapado en modal y restauración, Escape, contraste de interfaz auditado (paleta ya tiene pruebas matemáticas), escalado dinámico, lector de pantalla.
+- Editable queue/shuffle; next-track prefetch exists. Real gapless depends on streaming/native clock.
+- Reorderable playlists, real tags, artwork/albums, file relocation and cancellable incremental scans.
+- Theme/style/mode persist; finish navigation state and validated startup output.
+- Alternate views (S6): mini exists; compact/focus/stage/floating visual and per-view size persistence remain.
+- macOS template tray icon/now-playing (S8).
+- Media keys/macOS Now Playing, Windows SMTC, Linux MPRIS; opt-in autostart/file associations.
+- Accessibility: modal focus trap/restoration, Escape, audited contrast beyond palette math, dynamic scaling/screen reader.
 
-## P1 · Mezcla más seria
+## P1 · Deeper mixing
 
-- Base S4 implementada: BPM/key offline, grid editable, loops por beats, sync nativo y cues diferidos. Pendientes corpus real, métricas de precisión, tempo variable y tratamiento de grids dudosos.
-- Transposición/key lock inicial mediante Signalsmith preparado offline. Pendientes calidad auditiva en corpus real, procesamiento incremental compatible con streaming y presupuesto global de memoria; conservar compensación de latencia y contratos de transporte.
-- Salida cue/master multicanal y selección de pares; ASIO/JACK/PipeWire según plataforma. Requiere cambios de configuración, routing, UI y tests hardware.
-- Jog/nudge continuo (arrastrar el plato) y acciones con timestamp, controles relativos MIDI, hotplug, feedback LED y feedback de MIDI en la UI (S7).
-- Captura de teclado nativa solo si las mediciones lo requieren; global shortcuts opt-in con análisis de conflictos/permisos.
+- S4 foundation exists: offline BPM/key, editable grid, beat loops, native sync/deferred cues. Need real corpus/accuracy metrics, variable-tempo strategy and uncertain-grid handling.
+- Initial Signalsmith pitch/key lock prepares offline clips. Need listening quality, incremental streaming integration and global memory budget; preserve latency compensation/transport contracts.
+- Multichannel cue/master output and pair selection; ASIO/JACK/PipeWire per platform require configuration/routing/UI/hardware tests.
+- Continuous jog/nudge by dragging platter, timestamped actions, relative MIDI, hotplug, LEDs/UI MIDI feedback (S7).
+- Native keyboard capture only if measurements justify it; global shortcuts opt-in with conflict/permission review.
 
-## P2 · Expansión
+## P2 · Expansion
 
-- Renderer GPU compartido wgpu → Metal/D3D/Vulkan, FFT por worker y features musicales suavizadas con timestamps; calidad adaptativa por presupuesto GPU.
-- Scene presets, waveform 3D, paisajes, grabación/export de sets con permisos explícitos.
-- Host de plugins VST/AU solo con aislamiento de fallos y revisión de licencia.
-- Explorador web nativo integrado y aislado implementado para SoundCloud / radio de fractos (S5, ADR-012), audio fuera del motor. Pendiente validar players/cookies/login en WebView real y diseñar control de transporte/volumen con fractos; integración de fuentes al motor requiere streaming autorizado.
-- Video, red o servicios musicales integrados al motor son proyectos propios, no capacidades implícitas de Symphonia/Tauri.
-- Temas compartibles (export/import de un tema v2 validado) y más estilos.
+- Shared wgpu GPU renderer → Metal/D3D/Vulkan; worker FFT/timestamped smoothed musical features; adaptive GPU budget.
+- Scene presets, 3D waveform, landscapes, set recording/export with explicit permissions.
+- VST/AU hosting only with fault isolation/license review.
+- Integrated isolated web browser exists for SoundCloud/fractos (S5/ADR-012), audio outside engine. Validate players/cookies/login and design fractos transport/volume protocol. Native source integration requires authorized streaming.
+- Video/network/music-service integration into engine are separate projects, not implied Symphonia/Tauri features.
+- Shareable validated theme-v2 export/import and more styles.
 
-Cada entrega debe actualizar STATUS y CHANGELOG, añadir evidencia para su contrato y reevaluar las funciones afectadas. No lanzar múltiples cambios de DSP, scheduling y visuales a la vez: se pierde atribución de rendimiento y de fallos.
+Every delivery updates STATUS/CHANGELOG, adds contract evidence and reevaluates affected behavior. Avoid simultaneous DSP/scheduling/visual changes that obscure performance or failure attribution.

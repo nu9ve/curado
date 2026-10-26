@@ -1,91 +1,99 @@
-# Decisiones técnicas
+# Technical decisions
 
-## ADR-014 · Análisis musical editable, sync nativo y pitch preparado — aceptada (2026-10-26)
+## ADR-016 · English documentation and bilingual entry points — accepted (2026-10-26)
 
-El usuario pidió BPM, tonalidad americana/Camelot, transposición, key lock/key sync, cuantizado activo por defecto y loops sincronizados. Se añade análisis offline acotado a 90 s, con autocorrelación/refinamiento de ataques y chroma/perfiles [Krumhansl-Kessler documentados por Humdrum](https://extras.humdrum.org/man/keycor/). No se presume precisión de producto por pasar señales sintéticas. Offset, BPM y key son editables y se guardan por ID en settings, sin nueva migración ni tocar tags originales. El mapeo Camelot sigue la [referencia del creador](https://mixedinkey.com/camelot-wheel/0/); americana/Camelot representan la misma tonalidad.
+The maintainer requested English documentation, a friendly README, a Spanish welcome/README, agent-assisted setup, mixer imagery and a nu9ve.xyz credit. English is the technical documentation language; README.es.md remains Spanish, with reciprocal top links. Existing Spanish UI labels are retained in usage instructions; this is not UI localization. SETUP is the user/agent installation path; AGENTS retains engineering invariants and Spanish communication with the maintainer.
 
-Se fija la nueva dependencia **signalsmith-stretch =0.1.3**, wrapper Rust y biblioteca C++ bajo MIT. [API y licencia oficiales](https://github.com/Signalsmith-Audio/signalsmith-stretch); avisos incluidos en `licenses/signalsmith-stretch` y en recursos del bundle. Cargo.lock incorpora sus transitivas; no se actualizaron dependencias existentes por rutina y se conserva bun.lock. Compilar requiere C++ y libclang/bindgen además de Rust.
+Reuse the user-provided mixer capture, labeled as a development session rather than current release verification. No new visual test or app launch is implied. Documentation-only sessions run required checks but need not rebuild/reinstall an unchanged native app.
 
-Se eligió preparar PCM fuera del callback, manteniendo longitud/sample rate y compensando input/output latency, para no introducir FFT, C++ ni reservas en tiempo real mientras el motor siga usando clips completos. La conversión de velocidad permanece nativa. Costes aceptados para esta fase: demora al preparar, caché/resultados adicionales y calidad pendiente de corpus/escucha. No es procesamiento continuo de pitch ni resuelve streaming. Al pasar a S1 deberá migrarse a preparación incremental con presupuesto y medición de latencia.
+The maintainer prefers maximum freedom, including commercial forks, and is considering free downloads, donations and paid editions. LICENSING recommends MIT and compares Apache/MPL/GPL and commercial implications; **no project license is applied**. Holder/year, explicit license selection, contribution/brand/asset terms and complete dependency notices/source obligations remain separate decisions. Do not treat a recommendation as a license grant.
 
-El motor conserva Q, tempo, fases y cues diferidos; React no sincroniza audio con timers. Sync no inicia reproducción ni transforma el modo mayor/menor. Key sync elige la tónica o relativa compatible más cercana, puntualmente. Un lote de tuning se valida con generación/ticket/revisión y se confirma incluso si se descarta para permitir nuevos intentos.
+## ADR-014 · Editable musical analysis, native sync and prepared pitch — accepted (2026-10-26)
 
-## ADR-015 · Instalación local por script y LaunchServices — aceptada (2026-10-26)
+Requested: BPM, letter/Camelot key, transposition, key lock/sync, default quantize and synchronized loops. Offline analysis is bounded to 90 s, using attack autocorrelation/refinement and chroma/[Krumhansl-Kessler profiles documented by Humdrum](https://extras.humdrum.org/man/keycor/). Synthetic success is not product accuracy. Offset/BPM/key are editable and stored by ID in settings, without migration or original-tag changes. Camelot follows its [creator's reference](https://mixedinkey.com/camelot-wheel/0/); letter/Camelot represent the same key.
 
-El usuario solicita que cada cierre deje una app local actualizada para lanzar desde Spotlight/Raycast. `desktop:install` compila por defecto y copia a `~/Applications/curado.app` sin sudo. Verifica identificador, firma y hash del ejecutable, prepara la copia antes del reemplazo, usa renames con rollback y registra el destino en LaunchServices. No modifica preferencias, biblioteca ni originales, no abre la app y no fuerza cierres. Si la instalada está abierta, se detiene con un error para evitar reemplazar recursos mientras suena. La indexación del launcher y el lanzamiento manual siguen siendo comprobaciones distintas de copiar/registrar el bundle.
+New exact dependency **signalsmith-stretch =0.1.3**: MIT Rust wrapper and C++ library. [Official API/license](https://github.com/Signalsmith-Audio/signalsmith-stretch); notices in `licenses/signalsmith-stretch` and bundle resources. Cargo.lock includes transitives; existing dependencies were not routinely updated and bun.lock stays. C++/libclang/bindgen are build requirements.
 
-## ADR-013 · Hot cues que reproducen y transporte conjunto — aceptada (2026-10-26)
+Prepare equal-length/sample-rate PCM outside callback with input/output latency compensation. This avoids callback FFT/C++/allocations while clips remain fully loaded; playback rate stays native. Accepted costs: preparation delay, extra source/result memory and quality pending corpus/listening. It is neither continuous pitch DSP nor streaming; S1 must move to budgeted incremental preparation with latency measurement.
 
-El usuario observó que B seguía en silencio al reactivar su cue mientras A sonaba. En código, `Cue` cambiaba posición pero conservaba `playing=false` tras pausa/EOF; dos regresiones fallaron antes de corregirlo. Se define el hot cue como salto + reproducción en un único comando. Guardar cue y buscar posición mantienen sus contratos separados. Saltar fuera de un loop lo desactiva.
+Engine owns Q/tempo/phase/deferred cues; React timers never sync audio. Sync does not start transport or convert major/minor mode. One-shot key sync selects nearest compatible tonic/relative. Generation/ticket/revision validate batches; even rejected batches acknowledge so current work can retry.
 
-Los decks ya tienen estado independiente y se suman en un renderer común. Se conserva ese diseño: separar dispositivos/streams no resolvería la semántica de cue y complicaría sus relojes. Para control simultáneo explícito, `playBoth`/`pauseBoth`/`cueBoth` actúan sobre A/B dentro de una sola entrada de cola, incluso en el límite de 64 comandos por callback. No cambian routing ni volumen. Sin garantía de beat sync; la reproducción física y latencia siguen pendientes de hardware.
+## ADR-015 · Local installer and LaunchServices — accepted (2026-10-26)
 
-La cola también usa una entrada para carga+play y una para repetir la pista, evitando aceptación parcial bajo saturación. Una revisión de sesión invalida precargas antiguas (éxito o error). Los fallos de prefetch se acotan a un intento anticipado y otro al avanzar, en lugar de volver a decodificar en cada tick.
+Requested: leave an updated local app after app changes for Spotlight/Raycast. `desktop:install` builds by default, installs at `~/Applications/curado.app` without sudo, verifies identifier/signature/executable hash, stages before replacing, renames with rollback and registers LaunchServices. No preferences/library/original changes, automatic launch or forced quit. It refuses an open installed app to avoid replacing playing resources. Indexing/manual launch are separate from copy/registration checks. Documentation-only edits do not change that binary.
 
-La ayuda contextual usa identificadores de acción y mapeos guardados, con fallback de etiqueta/título para controles genéricos. Los textos son revisables en código; la ayuda no infiere acciones a partir de cercanía visual ni envía controles al motor.
+## ADR-013 · Playing hot cues and linked transport — accepted (2026-10-26)
 
-## ADR-001 · Rust + Tauri 2 + React + Bun — aceptada
+B stayed silent when retriggered while A played. `Cue` sought but preserved `playing=false` after pause/EOF; two regressions failed before the fix. Hot cue now jumps+plays in one command. Save cue and seek retain distinct contracts. Jumping outside loop disables it.
 
-El audio y los servicios de OS necesitan acceso nativo; la interfaz de biblioteca y decks se desarrolla con React. Bun es gestor de paquetes y lanzador de herramientas, no runtime de audio dentro de la app. Tauri usa el WebView del sistema. La UI no es AppKit/WinUI; menús, tray, audio y helper Metal sí usan APIs nativas.
+Deck state was already independent and summed in one renderer. Separate devices/streams would not fix cue semantics and would complicate clocks. Explicit `playBoth`/`pauseBoth`/`cueBoth` share one queue entry, including at the 64-command callback boundary. No routing/volume changes; linked transport itself is not beat sync. Physical playback/latency still need hardware tests.
 
-Reconsiderar JUCE/C++ cuando el objetivo inmediato sea routing profesional, plugins, SDKs de controladores o DSP disponible que compense el coste de FFI. La licencia y madurez de cada componente deben evaluarse antes de distribución comercial. No convertir todo el proyecto a JUCE por necesitar una librería DSP C++.
+Queue load+play and repeat each use one entry to avoid partial acceptance. Session revision invalidates old prefetch successes/errors. Failures allow one early attempt and one on advance, not repeated decode every tick.
 
-Referencia: [arquitectura Tauri](https://v2.tauri.app/concept/architecture/), [comandos](https://v2.tauri.app/develop/calling-rust/), [tray](https://v2.tauri.app/learn/system-tray/).
+Context help uses exact action IDs/current mappings with label/title fallback, not visual proximity. Text is maintained in code; help sends no engine controls.
 
-## ADR-002 · CPAL 0.16 y Symphonia 0.5.5 — aceptada para beta
+## ADR-001 · Rust + Tauri 2 + React + Bun — accepted
 
-Se eligieron APIs conocidas y acotadas. Existen versiones más recientes; no se asume que este baseline provea todos sus backends o mejoras. El lockfile fija las resoluciones reales. CPAL 0.16 usa CoreAudio en Mac, WASAPI en Windows y ALSA por defecto en Linux. ASIO/JACK son opcionales y no están activados aquí. PipeWire puede intervenir vía compatibilidad ALSA/Pulse según sistema; no se anuncia backend PipeWire nativo de este build.
+Audio/OS services need native access; React serves library/decks. Bun manages packages/tools, not audio runtime. Tauri uses system WebView. UI is not AppKit/WinUI; menus/tray/audio/Metal helper use native APIs.
 
-Symphonia `all` habilita los codecs incluidos, no cualquier codec que exista. Mono/estéreo validado por app; AAC-LC depende de perfil/archivo y no se promete HE-AAC/Opus/DRM. No se anuncia gapless de aplicación por tener una biblioteca que lo soporta.
+Reconsider JUCE/C++ when immediate professional routing/plugins/controller SDKs or available DSP justify FFI cost. Assess component licenses/maturity before commercial distribution; one C++ DSP library is not a reason to migrate the whole project.
 
-Actualizar tras pruebas de fixtures, API, latencia y todos los OS. Ver [CPAL 0.16](https://docs.rs/cpal/0.16.0/cpal/) y [Symphonia v0.5.5](https://github.com/pdeljanov/Symphonia/tree/v0.5.5).
+References: [Tauri architecture](https://v2.tauri.app/concept/architecture/), [commands](https://v2.tauri.app/develop/calling-rust/), [tray](https://v2.tauri.app/learn/system-tray/).
 
-## ADR-003 · PCM precargado con límites — temporal
+## ADR-002 · CPAL 0.16 and Symphonia 0.5.5 — accepted for beta
 
-Permite cues/seek/loops de implementación sencilla y elimina I/O del callback. El límite de 96 MiB evita lecturas de tamaño ilimitado. A 48 kHz estéreo float32 son unos 262 segundos; a 96 kHz la mitad. Coste: archivos largos rechazados y límite total de memoria aún grueso. Streaming con buffers y ventanas alrededor de cues es la prioridad siguiente; conservar esta ruta para samples cortos.
+Known bounded APIs were chosen. Newer releases do not imply their features exist here; lockfile determines resolution. CPAL 0.16 uses CoreAudio/WASAPI/default ALSA; optional ASIO/JACK are off. PipeWire may work via ALSA/Pulse compatibility, not an advertised native backend.
 
-## ADR-004 · Estado musical nativo; UI por snapshots — aceptada
+Symphonia `all` enables included codecs, not every codec. App validates mono/stereo. AAC-LC depends on profile/file; no HE-AAC/Opus/DRM promise. Library capability alone does not give app gapless behavior. Symphonia's MPL-2.0 distribution obligations need review independently of the project's future license.
 
-Transporte y DSP son autoridad del renderer. SQLite sirve a datos persistentes. React conserva navegación, no el reloj. MIDI y tray no dependen de UI. Teclado inicial usa eventos enfocados e IPC directo para mantener accesibilidad y portabilidad. Si las mediciones de latencia no cumplen, añadir capturas nativas por OS y timestamps alineados al reloj de dispositivo. No describir los atajos actuales como sample accurate.
+Update after fixture/API/latency/OS tests. [CPAL 0.16](https://docs.rs/cpal/0.16.0/cpal/), [Symphonia 0.5.5](https://github.com/pdeljanov/Symphonia/tree/v0.5.5).
 
-## ADR-005 · SQLite y archivos referenciados — aceptada
+## ADR-003 · Bounded preloaded PCM — temporary
 
-SQLite ofrece transacciones y relaciones para playlists, con migración inicial explícita. La app no copia toda la música, modifica tags ni elimina originales. Mover un archivo rompe su referencia; reparación de rutas y file watching quedan pendientes. Cues por pista y modo se guardan; loops/posiciones/estado de decks todavía son efímeros. El esquema v2 usa IDs AUTOINCREMENT: un ID borrado nunca debe identificar otro archivo y heredar cues incorrectos.
+Simple cue/seek/loops, no callback IO. 96 MiB prevents unbounded reads; about 262 s at 48 kHz stereo float32, half at 96 kHz. Costs: rejecting long files and no strict total budget. Streaming/windowed buffers around cues are next; keep preload for short samples.
 
-## ADR-006 · Metal separado del audio — aceptada para prototipo macOS
+## ADR-004 · Native musical state, snapshot UI — accepted
 
-AppKit + MTKView demuestra render nativo GPU y aislamiento de la UI. Se pasa telemetría reducida a 20 Hz. Metal no es una optimización del DSP de baja latencia; la GPU sirve para imagen. No mover efectos de bloques cortos a GPU sin medir sincronización, transferencias y carga compartida en Apple Silicon.
+Renderer owns transport/DSP; SQLite persists data; React owns navigation, not clock. MIDI/tray do not depend on UI. Focused keyboard events/direct IPC retain accessibility/portability. If latency measurements fail, add native per-OS capture/timestamps aligned to device clock. Current shortcuts are not sample accurate.
 
-Migrar el helper a un bundle firmado antes de distribución. Considerar renderer wgpu con Metal/D3D/Vulkan para paridad visual, manteniendo la misma interfaz de telemetría. [MetalKit](https://developer.apple.com/documentation/metalkit).
+## ADR-005 · SQLite and referenced files — accepted
 
-## ADR-007 · Honestidad de estado y puertas de calidad — aceptada
+Transactions/relationships with explicit initial migration. No copying all music, tag edits or original deletion. Moving a file breaks its reference; repair/file watching pending. Cues/mode persist, deck loops/positions/state remain temporary. v2 AUTOINCREMENT prevents deleted IDs from identifying another file and inheriting cues.
 
-«Compila» no demuestra estabilidad en directo, aislamiento perfecto ni soporte físico de controladores. Cada feature debe tener estado verificable y limitaciones. El usuario puede probar esta base local; la etiqueta production ready requiere cumplir QUALITY.
+## ADR-006 · Metal separated from audio — accepted for macOS prototype
 
-## ADR-008 · Color semántico y cabecera integrada — aceptada
+AppKit/MTKView demonstrates native GPU rendering and UI isolation, with 20 Hz reduced telemetry. GPU renders images; Metal is not low-latency DSP optimization. Do not move short-block effects to GPU without measuring synchronization/transfers/shared Apple Silicon load.
 
-El usuario eligió `#d66154` como base inicial y solicitó claro/oscuro/variaciones/HSV. La paleta deriva de una sola fuente pura TypeScript; CSS y Canvas consumen tokens/paleta, Metal recibe RGB reducido. Separar el acento exacto de su tono para texto conserva el color elegido y permite contraste legible. Persistencia de ajustes en SQLite con caché de primera pintura; nada del tema entra en el motor.
+Before distribution, use signed in-bundle helper. Consider wgpu→Metal/D3D/Vulkan parity with same telemetry contract. [MetalKit](https://developer.apple.com/documentation/metalkit).
 
-macOS conserva controles nativos con titlebar Overlay y título oculto, integrados en la cabecera. No usar una barra HTML que replique los botones del sistema. La preferencia expresa del usuario es continuar sin Computer Use ni pruebas visuales; pruebas de config/código y compilación no deben presentarse como revisión visual.
+## ADR-007 · Honest state and quality gates — accepted
 
-## ADR-009 · Fuentes locales vía Fontsource — aceptada
+Compilation proves neither live stability, perfect isolation nor physical controller support. Record verifiable state/limits per feature. Local testing is available; production readiness requires QUALITY.
 
-El usuario pidió Jersey 15 y una fuente pixel para textos especiales. La CSP prohíbe recursos remotos, así que se empaquetan archivos locales con `@fontsource/*` **5.3.0** (versión exacta, sin rango): Jersey 15 (display), Pixelify Sans 400/600 (etiquetas pixel; sustituye a «pixel basel», que no está disponible en Google Fonts/Fontsource), Geist Mono 400/600 (números, keycaps), UnifrakturMaguntia (display del estilo gótico) y Michroma (display y2k). Solo subconjunto latino (cubre español): ~120 KB woff2 en total. Todas con licencia SIL OFL 1.1; incluir sus avisos al distribuir. La UI general sigue con la fuente del sistema para legibilidad y aspecto nativo. Reconsiderar si se necesita otro alfabeto o una fuente variable.
+## ADR-008 · Semantic color and integrated header — accepted
 
-## ADR-010 · Waveform de 3 bandas offline y binaria — aceptada
+User chose `#d66154` and light/dark/variant/HSV controls. One pure TypeScript palette feeds CSS/Canvas; Metal receives reduced RGB. Separate exact accent from readable text tone. SQLite preferences/local first-paint cache never enter engine.
 
-Las waveforms se calculan durante la decodificación existente (sin segunda lectura del archivo) a 50 bins/s con `[peak, low, mid, high]` en `u8`, usando los mismos cortes que el EQ. Se guardan como BLOB (esquema v3) y viajan como `ArrayBuffer`. Alternativas descartadas: FFT por bin (más coste, más memoria, sin ganancia visible a esta escala), JSON de floats (10× más bytes en IPC), enviar peaks en `get_library` (no escala). Colores tipo club: graves azul, medios ámbar, agudos blanco; modo RGB y mono opcionales. Reconsiderar al introducir streaming (S1) y beatgrid (S4), que reutilizarán este pase de análisis.
+macOS keeps native controls with Overlay/hidden title integrated into header, without HTML system-button replicas. User requests no further Computer Use/visual tests unless explicitly authorized; config/code/build tests are not visual review.
 
-## ADR-011 · Sistema de estilos sobre tokens — aceptada
+## ADR-009 · Local fonts through Fontsource — accepted
 
-Los estilos (curado, pixel, gótico, y2k, mínimo) son semillas de `palette()` más reglas CSS por `data-style`; el color base sigue siendo del usuario dentro de cada estilo. Tipografía y textura son independientes y por defecto heredan del estilo. Preferencias en SQLite como tema v2; v1 se migra con valores por defecto en TS y Rust. El dither se genera con matriz Bayer en canvas una vez por cambio de tema; no hay imágenes externas. Se descartó un motor de skins con CSS arbitrario del usuario (riesgo de CSP/inyección y de romper contraste).
+Requested Jersey 15 and pixel lettering. CSP disallows remote fonts, so bundle exact **5.3.0** `@fontsource/*`: Jersey 15 display, Pixelify Sans labels (requested “pixel basel” unavailable on Google Fonts/Fontsource), Geist Mono numbers, UnifrakturMaguntia gothic display, Michroma y2k. Latin subset covers Spanish, ~120 KB woff2. All OFL 1.1: include exact family notices on distribution. General UI remains system font for legibility/native feel. Reconsider for other alphabets/variable fonts.
 
-## ADR-012 · Explorador web aislado — aceptada, base implementada
+## ADR-010 · Offline binary three-band waveform — accepted
 
-La petición posterior del usuario exige navegación dentro de curado. Se sustituye el lanzador de ventanas externas por un WebView nativo hijo de main, con panel reservado en React. Evita depender de que las páginas permitan ser iframed dentro del origen local. URLs fijas: `https://www.fractos.app/es/radio` y SoundCloud Discover. El propietario confirmó iframes de YouTube/SoundCloud; el audio permanece independiente del motor/mixer/sync/pánico.
+Compute in existing decoding pass, 50 bins/s `[peak, low, mid, high]` u8 using EQ splits; schema-v3 BLOB/raw ArrayBuffer IPC. Rejected: FFT/bin (cost/memory without visible gain here), float JSON (~10× bytes), peaks in `get_library` (poor scaling). Club colors: bass blue/mids amber/highs white; optional RGB/mono. Revisit with streaming/beatgrid reuse (S1/S4).
 
-`tauri` **2.12.5** ya resuelto ofrece `Window::add_child` bajo feature **unstable**: se habilita esa feature sin cambiar versiones ni lockfiles. La API puede cambiar en futuras versiones y requiere revisar el contrato al actualizar Tauri. Bounds lógicos controlados por React, validados por Rust; tamaño/foco y compatibilidad de players aún sin prueba de GUI. Cambiar servicio, detener o abandonar la vista destruye el hijo; los modales lo ocultan temporalmente sin detenerlo. Tray e instancia única usan Window para funcionar también con múltiples WebViews.
+## ADR-011 · Token-based styles — accepted
 
-URLs HTTPS por hosts exactos de servicio/widgets, sin popups ni descargas, incognito. CSP local intacta. AppManifest enumera comandos para generar ACL; **webviews: [main]** concede permisos solo al frontend local y se omite windows para que sus hijos no los hereden. Rechazo adicional por label en el handler. Sin grants remotos ni comandos genéricos de creación. Permisos generados reconstruidos desde app_commands.rs. Tests comparan registro/handler/capability y validan URLs/bounds; no equivalen a prueba de reproducción/cookies/login.
+curado/pixel/gothic/y2k/minimal are `palette()` seeds plus `data-style` rules; user keeps their color. Typography/texture independently default to style. Theme v2 SQLite, v1 migrates in TS/Rust. Theme-generated Bayer textures, no external images. Arbitrary user CSS skins rejected for CSP/injection/layout risk.
 
-La mezcla por volumen/transporte vía APIs oficiales de iframe requiere un protocolo con fractos y una sesión propia. No proporciona PCM para EQ/sync del motor; esa integración necesitaría fuentes directas autorizadas y streaming nativo. No se inyectan scripts ni se intenta extraer audio de los embeds. Referencias: [capabilities de Tauri](https://v2.tauri.app/security/capabilities/), [SoundCloud Widget API](https://developers.soundcloud.com/docs/api/html5-widget). Ver SESSIONS S5.
+## ADR-012 · Isolated integrated web browser — accepted, foundation implemented
+
+User requested internal browsing after external windows. A native child WebView reserves space in React, avoiding reliance on providers permitting HTML framing under local origin. Fixed URLs: `https://www.fractos.app/es/radio` and SoundCloud Discover. Owner confirms fractos embeds YouTube/SoundCloud; audio remains outside engine/mixer/sync/panic.
+
+Resolved **tauri 2.12.5** gates `Window::add_child` behind **unstable**. Enable feature without version/lockfile changes. Future minor APIs may change; review contract on upgrade. React controls logical bounds validated by Rust. Actual size/focus/player compatibility remains untested. Switching/stopping/leaving closes child; dialogs temporarily hide it without stopping. Tray/single-instance use Window for multi-WebView compatibility.
+
+HTTPS exact service/widget hosts, incognito, no popups/downloads; local CSP unchanged. AppManifest enumerates commands for generated ACL. **webviews: [main]**, with no `windows`, grants only local frontend (window scope would include children). Additional label rejection in handler. No remote grant/generic creation command. Permissions regenerate from app_commands.rs; tests compare registry/handler/capability and URL/bounds policy, not actual playback/cookies/login.
+
+Iframe volume/transport mixing needs a fractos protocol and its own session. It supplies no PCM for native EQ/sync; direct authorized sources/native streaming are separate work. No injection or embed-audio extraction. [Tauri capabilities](https://v2.tauri.app/security/capabilities/), [SoundCloud Widget API](https://developers.soundcloud.com/docs/api/html5-widget). See S5.

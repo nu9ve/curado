@@ -1,75 +1,69 @@
-# Registro de evolución
+# Change history
 
-## 2026-10-26 · Radio dentro de la ventana principal
+## 2026-10-26 · English docs and a bilingual welcome
 
-Por petición del usuario se sustituyen las ventanas externas por un WebView hijo integrado en radio/web. React reserva su área y actualiza bounds con layout/scroll/resize; Rust valida rectángulos. Al salir, entrar en mini o cambiar servicio se cierra y se detiene audio web. Configuración/diálogo de playlists lo ocultan temporalmente sin detener audio. Operaciones serializadas para evitar recreación después de desmontar o carreras al cambiar servicio.
+Reworked the public README around listening/mixing/first use, with reciprocal English/Spanish links, the user's development mixer capture and nu9ve.xyz credit. Added SETUP with agent prompts, prerequisite checks, installation/update steps, platform distinctions and troubleshooting. Translated technical docs and AGENTS into English while retaining Spanish maintainer communication and existing UI labels. Documentation-only work is explicitly exempt from rebuilding/reinstalling an unchanged app; required checks still apply.
 
-Tauri 2.12.5 mantiene versión y habilita feature unstable para add_child; límites en ADR-012. La capability ahora selecciona solo el webview main, sin seleccionar toda su ventana. Tray/instancia única consultan Window para seguir funcionando con hijos. Se conserva aislamiento, política de navegación y audio fuera del motor; no se usa iframe HTML ni se cambia CSP. Tests de bounds y contratos de permisos/child/recuperación main. Evidencia en STATUS; sin revisión visual ni reproducción remota real.
+Added LICENSING: MIT recommendation for commercial-fork freedom, free/donation/paid distribution options, Apache/MPL/GPL comparison and unresolved owner/contribution/brand/dependency obligations. No project license, metadata grant, price or payment setup applied. Existing dependency notices are not a complete distribution audit. Format scripts include README.es.md; 73 local links/images checked. Evidence in STATUS; no new app launch or visual/audio test.
 
-## 2026-10-26 · fractos radio y explorador web aislado
+## 2026-10-26 · Radio inside the main window
 
-El propietario confirmó que fractos usa iframes de YouTube/SoundCloud. Nueva entrada radio/web con ventanas separadas para fractos (URL HTTPS canónica verificada) y SoundCloud, reutilización al abrir y cierre explícito para detener su audio. La UI y ayuda explican que este audio queda fuera de decks, master, FX, sync y pánico. No se integran fuentes ni se modifica fractos.
+Replaced external service windows with a child WebView integrated in radio/web. React reserves/updates area for layout/scroll/resize; Rust validates bounds. Leaving, mini or service switch closes it/stops web audio. Settings/playlist dialogs hide temporarily without stopping. Serialized operations avoid recreation after teardown/switch races.
 
-Navegación por HTTPS/hosts exactos, incognito, sin popups/descargas. Cerrar al tray se limita a main. Se registran explícitamente los 26 comandos propios en AppManifest, concedidos solo a main, con rechazo adicional por label en el handler. Tests comparan registro/handler/capability y validan la política de URLs; CSP, permisos core y audio nativo sin cambios. Sin dependencias nuevas. Evidencia final y límites en STATUS; sin abrir la app ni probar reproducción/login remotos.
+Same Tauri 2.12.5, new unstable feature for add_child (ADR-012). Capability selects only main WebView, not whole window. Tray/single-instance query Window to work with children. Isolation/navigation policy and separate audio retained; no HTML iframe/local CSP change. Bounds/permissions/child/main recovery contracts tested; actual visual/remote playback unverified. STATUS records evidence.
 
-## 2026-10-26 · BPM/key, cuantizado, sync, FX e instalación local
+## 2026-10-26 · fractos radio and isolated web explorer
 
-Análisis offline acotado a 90 s (`music.rs`): BPM/offset con ataques/autocorrelación/refinamiento y key mayor/menor por FFT/chroma/perfiles. Metadata versionada por ID en settings, sin cambio de esquema; se guarda al importar/cargar y se puede corregir/reanalizar. Biblioteca muestra BPM y key americana/Camelot. Decks añaden master, sync, tempo, Q activo por defecto, loops por beats, transposición, key lock, key sync y editor de grid/key.
+Owner confirmed fractos uses YouTube/SoundCloud iframes. Initial radio/web launcher opened separate reusable windows with explicit close-to-stop; UI/help explained independent audio outside decks/master/FX/sync/panic. No media-source integration/fractos modification. This external-window approach was superseded by the integrated browser above.
 
-El renderer conserva el reloj: loops en límites de beat, seguimiento del tempo/fase y cue del follower diferido hasta el siguiente beat bajo SYNC+Q. Cambios de contexto y pánico cancelan cues en espera. Tuning se prepara en un worker con Signalsmith Stretch 0.1.3 MIT, sin FFT/C++ en callback; conserva cantidad de frames y compensa latencia. Se agrupan controles rápidos, cancelan resultados antiguos, valida el lote con tickets/revisiones y confirma al terminar el bloque, incluso al descartar. Se mantiene el transporte y el audio anterior hasta aplicar el nuevo resultado. Hay fallos/reintento explícitos.
+HTTPS exact-host policy, incognito, no popups/downloads; close-to-tray main-only. AppManifest explicitly registered 26 commands, main-only ACL plus handler label rejection. Contracts compare registry/handler/capability and URL policy. CSP/core/native audio unchanged, no new dependency. No app launch or remote playback/login test; evidence/limits in STATUS.
 
-Mixer: HP independiente, echo con divisiones de beat, interpolación del delay y smoothing por sample rate; se limpian estados diminutos para evitar denormales en FX. Delay preasignado de ocho segundos, sin reservas en callback. Se mantiene EQ básico y techo; no se presentan como DSP de mastering.
+## 2026-10-26 · BPM/key, quantize, sync, FX and local installation
 
-Nuevo instalador `desktop:install`: compilación por defecto, destino por usuario, verificación de identidad/firma/hash, staging y rollback, registro LaunchServices sin abrir/cerrar apps. Se añadió a AGENTS y documentación. Avisos MIT incluidos en bundle. Dependencia nueva exacta y motivo en ADR-014; instalación en ADR-015.
+Offline `music.rs` analyzes ≤90 s: attack/autocorrelation/refinement BPM/offset and FFT/chroma/profiles major/minor key. Versioned per-ID settings, no schema change, save on import/load, editable/reanalyzable. Library letter/Camelot BPM/key; decks add master/sync/tempo/default-Q/beat loops/transpose/key lock/key sync/grid-key editor.
 
-Evidencia y límites en STATUS: 22 tests TS, 38 Rust, probe de callback y de preparación musical. Sin revisión visual/audio físico ni precisión certificada sobre música real. Streaming y presupuesto global siguen siendo prioridades estructurales.
+Renderer retains clock: beat-boundary loops, tempo/phase following and SYNC+Q follower cue at next beat. Context/panic cancel waiting cues. Signalsmith Stretch 0.1.3 MIT worker prepares pitch, no callback FFT/C++/allocation, preserves frames/compensates latency. Coalesced requests, stale cancellation and ticket/revision validation; block-end ack also for rejection. Old audio/transport continue until result applies; explicit errors/retry.
 
-## 2026-10-26 · Ayuda contextual y transporte fiable A/B
+Mixer adds independent HP and beat echo with delay interpolation/sample-rate smoothing/denormal cleanup, eight-second preallocated delay. EQ/ceiling remain basic, not mastering DSP.
 
-Petición: ayuda fija y expandible en el footer, y diagnóstico del deck B silencioso al reactivar cues rápidamente. La captura mostraba B pausado. Dos regresiones reprodujeron el contrato anterior: `Cue` solo buscaba y no iniciaba reproducción tras pausa/EOF. Se cambió a salto + play atómico, sin modificar el transporte del otro deck. Seek/nudge conservan pausa; saltar fuera del loop lo desactiva.
+`desktop:install`: default build, per-user destination, identity/signature/hash verification, staging/rollback, LaunchServices, no automatic launch/quit. AGENTS/docs updated, MIT notices bundled, exact dependency rationale ADR-014, install ADR-015. At that session: 22 TS/38 Rust tests and callback/music probes; no physical audio/visual/real-corpus certification. Streaming/global memory remain structural priorities.
 
-Se añadieron play/pausa/cue conjuntos A+B en una sola entrada de cola y botones en el mixer; no ajustan BPM, no afectan samples ni restauran ganancias/master. Los decks muestran diagnóstico de transporte/routing y los cues muestran su tiempo inicial 0:00. Waveforms detalladas accesibles por teclado.
+## 2026-10-26 · Context help and reliable A/B transport
 
-La cola usa carga+play atómica y repeat-one mediante un solo trigger, evitando estados parciales bajo saturación. Precargas etiquetadas por revisión para descartar resultados/errores de sesiones antiguas y limitar reintentos de archivos fallidos.
+Requested fixed expandable hints and diagnosis of silent B on rapid cues. Screenshot showed B paused. Two regressions reproduced old `Cue` seeking without starting after pause/EOF. Changed to atomic jump+play per slot without interrupting other deck. Seek/nudge preserve pause; out-of-loop jumps disable loop.
 
-`ContextHelp` delega hover y foco; `hints.ts` asocia textos al identificador exacto de cada control, muestra atajos guardados y ofrece fallback de etiqueta/título. El fondo adapta el tono al deck/tema; expandir reserva altura en el footer y recoloca los avisos. Escape cierra el panel sin pánico. Sin nuevas dependencias ni permisos.
+Linked A+B play/pause/cue actions use one queue entry/mixer buttons, without BPM/sample/gain/master changes. Deck transport/routing diagnostics and 0:00 initial cue labels; keyboard-accessible detailed waveform.
 
-Pruebas de regresión: cues tras EOF, señales L/R de ambos decks con retriggers a 44.1/48/96 kHz, samples independientes, PCM compartido con posiciones/ganancias separadas, loops, límites de cola y allocator de callback. TypeScript comprueba asociación de cues/mapeos, diagnóstico y disclosure accesible. Evidencia final en STATUS. No se abrió la app, no se hizo Computer Use ni se comprobó audio físico. Las cinco entregas mayores siguen pendientes según ROADMAP.
+Queue uses atomic load+play and single-trigger repeat-one; revision-tagged prefetch ignores stale errors/results and bounds failed-file retries. `ContextHelp` delegates hover/focus, exact identifiers/current remaps and fallback labels. Deck/theme tone, reserved footer expansion/notice relocation; help Escape closes without panic. No new dependencies/permissions.
+
+Tests: EOF cue, independent L/R retriggers at 44.1/48/96 kHz, samples/transport/shared PCM, loops/queue bounds/allocator; TS exact cues/mappings/diagnostics/disclosure markup. No app launch/Computer Use/physical audio. Five major deliveries still open, later musical foundation recorded separately.
 
 ## 2026-10-25 · Base 0.1
 
-Directorio inicialmente vacío. Se creó workspace Rust con motor independiente, shell Tauri 2 y UI React/Vite/Bun. Decodificación Symphonia, CPAL, seis slots, dos decks + cuatro samples, DSP básico, controles validados/colas acotadas, reclamación fuera del callback, suavizado de parámetros y transición de transportes manuales.
+Started from empty directory: independent Rust audio workspace, Tauri 2 shell, React/Vite/Bun UI. Symphonia/CPAL, six slots (two decks/four samples), basic DSP, validated controls/bounded queues, worker reclamation, parameter smoothing/manual transport transitions.
 
-Se añadieron SQLite con esquema versionado y creación transaccional, biblioteca por referencia, playlists/favoritos, importación validada, atajos remapeables, MIDI Learn, tray/menu bar, recuperación manual de dispositivo y cola de escucha en Rust. Visual integrado a 30 FPS y helper AppKit/MetalKit con shaders y telemetría reducida.
+SQLite versioned/transactional schema, referenced library, favorites/playlists, validated import, remappable keys, MIDI Learn, tray, manual device recovery, native playback queue; 30 FPS integrated visual and AppKit/MetalKit helper with reduced telemetry.
 
-Aprendizajes: disponer de Bun/Rust/Xcode permitió generar un bundle ARM64 local pequeño. El baseline CPAL elegido no habilita PipeWire nativo ni ASIO/JACK; no trasladar al producto todas las capacidades listadas en versiones distintas. Los locks de servicios necesitan un orden explícito: snapshots liberan output antes de consultar MIDI/cola. El callback nunca debe liberar la última referencia de PCM. Streaming y un presupuesto total de memoria son la siguiente mejora estructural.
+Lessons: Bun/Rust/Xcode enabled small local ARM64 bundle; chosen CPAL baseline does not imply native PipeWire/ASIO/JACK. Services need explicit lock order; snapshots release output before MIDI/queue. Never free last PCM reference in callback. Streaming/global memory next. Session evidence in [Status](STATUS.md); release requirements in [Quality](QUALITY.md).
 
-Estado y evidencia final de la sesión: [STATUS](STATUS.md). Visión de producción: [QUALITY](QUALITY.md).
+### Coral, themes and native integration
 
-### Ampliación solicitada: coral, temas e integración nativa
+Exact `#d66154`, light/dark/system, neutral/tonal/high-contrast, presets/hex/HSV. Semantic tokens, adaptive contrast, initial cache/versioned SQLite; Canvas/Metal share accent. Geometric icon regeneration. macOS Overlay/hidden title keeps native controls.
 
-Base exacta `#d66154`, modos claro/oscuro/sistema, variaciones neutra/tonal/contraste, presets, hex y HSV. Se sustituyeron colores de interfaz por tokens semánticos, se añadieron contraste adaptativo, caché inicial y persistencia versionada en SQLite. Canvas y Metal reciben el nuevo acento. Icono regenerable por geometría con la base coral. macOS usa titlebar Overlay y título oculto, conservando controles del sistema.
+Shared atomic track cues/worker autosave, load-ack tickets, visible queue repeat and native persisted UI/keyboard/MIDI mode policy. v1→v2 preserves references/prevents ID reuse. Swift module cache moved into OUT_DIR for reproducible builds independent of global caches.
 
-Se implementaron además cues atómicos compartidos por pista con autosave fuera del callback, tickets de confirmación de cargas, repetición de cola visible y política nativa/persistente de modos para UI, teclado y MIDI. La migración SQLite v1→v2 mantiene referencias y evita reutilizar IDs borrados. Se añadió un caché de módulos Swift dentro de OUT_DIR para builds reproducibles sin depender de cachés globales.
+User stopped visual testing; later changes verified by code/build/tests. Contrast/window flags are not visual review. Bundle resource seal/ad hoc signing fixed while respecting configured identities. Desktop crate emits only rlib, avoiding huge static artifacts that exhausted disk. Final tests/probes in STATUS.
 
-El usuario pidió detener las pruebas visuales; los cambios posteriores se verifican exclusivamente con compilación y tests. Contraste matemático y flags de ventana comprobados no equivalen a revisión visual.
+## 2026-10-25 · Redesign, three-band waveforms and coordination
 
-Se corrigió también el empaquetado local: el resource seal del bundle se valida y, sin identidad de publicación, se firma ad hoc de forma reproducible al terminar `desktop:build`. Se respeta cualquier identidad configurada. El crate desktop solo genera `rlib`, evitando archivos estáticos grandes que agotaron el disco durante pruebas. Los tests finales y las medidas offline están en STATUS.
+User requested performance/coordination/style/usability review. Lowercase **curado** branding.
 
-## 2026-10-25 · Rediseño, waveforms de 3 bandas y coordinación
+Engine/services: new decoding-pass `analysis.rs` produces `[peak, low, mid, high]` at 50 bins/s using EQ cuts. SQLite v3 waveform BLOB/backfill, raw `track_waveform` IPC, no peaks in library listing. Queue prefetch at 15 s, repeat-one seek. MIDI EQ unity corrected to CC64 (previous center −2.4 dB and could not reach +6 dB). Removed duplicate queue disable.
 
-Revisión general solicitada por el usuario: rendimiento, coordinación entre actores, estilo y usabilidad. Nombre visible en minúsculas: **curado**.
+UI: continuous chrome/elevated sheet, flat sections; keyboard-shaped console with central knobs/faders/dB meters/crossfader, A/B platters/vertical pitch, stacked detail waveforms, samples/clickable keymap. Key feedback/HUD, static overview/transformed overlays/detail tiles, mini view, Settings Escape.
 
-**Motor y servicios.** Nuevo `analysis.rs`: waveform `[peak, low, mid, high]` a 50 bins/s calculada durante la decodificación con los cortes del EQ. Esquema SQLite v3 (`tracks.waveform BLOB`) con backfill al cargar pistas antiguas; comando `track_waveform` devuelve bytes crudos. `get_library` deja de enviar peaks. La cola decodifica la siguiente pista 15 s antes del final y repeat-one hace seek en vez de redecodificar. MIDI: EQ con unidad en CC 64 (antes el centro equivalía a −2,4 dB y no se alcanzaba +6 dB). Se eliminó una doble desactivación de cola en `audio_action`.
+Theme v2: five styles, type/texture/waveform controls, user color; generated Bayer textures/local Fontsource 5.3.0 fonts. Shared pixel ring/axle logo/UI/SVG/icon. Added SESSIONS S1–S10, ADR-009…012 and public README. Lessons: split static drawing/moving overlays; analysis fits decode pass; contrast tests both materials. No visual inspection during this redesign by preference.
 
-**Interfaz.** Shell con chrome continuo (sidebar + topbar + footer) y contenido en una hoja elevada; sin cards. Vista Mezcla como consola distribuida como el teclado: deck A izquierda, mixer central (perillas HI/MID/LOW/FILTER/ECHO, faders verticales, medidores LED en dB, crossfader), deck B derecha; waveforms detalladas apiladas; platos que giran con la posición del motor; pitch vertical; samples y mapa de teclado clicable. Feedback por tecla (control iluminado, keycap y HUD). Vista general de waveform pintada una vez con overlays por transform; vista detallada por tiles. Vista mini siempre encima. Escape cierra Configuración.
+### Authorized first visual review
 
-**Apariencia.** Tema v2: estilos curado, pixel, gótico, y2k y mínimo; tipografía, textura y estilo de waveform configurables; color del usuario dentro de cada estilo. Texturas dither Bayer generadas por tema. Fuentes locales Jersey 15, Pixelify Sans, Geist Mono, UnifrakturMaguntia y Michroma (Fontsource 5.3.0). Logo pixel (anillo «c» + eje) compartido entre UI, `docs/assets/logo.svg` e icono regenerado.
-
-**Documentación.** Nuevo `SESSIONS.md` con diez temas para sesiones dedicadas; ADR-009 a ADR-012; README público.
-
-Aprendizajes: separar dibujo estático de overlays móviles es la mayor mejora de coste en la UI; el análisis cabe en el pase de decodificación; contraste por estilo se prueba sobre ambos materiales (chrome y sheet). Nada de lo visual se inspeccionó en pantalla por preferencia del usuario.
-
-### Ajustes tras primera revisión visual
-
-El usuario autorizó revisar visualmente. Se revisó la interfaz en la vista previa web (`bun run dev`, sin audio) a 1100 y 1440 px. Correcciones: arrastrar perillas/faders seleccionaba texto (WebKit necesita `-webkit-user-select`; además `preventDefault` + foco manual en `pointerdown`); grano dither del chrome a 1 px por texel y opacidad 0,10 (antes 2 px y 0,28, competía con el texto); el mixer pasa a superficie lisa sin grano; perillas con tapa física, anillo LED con glow y el valor sustituye a la etiqueta solo mientras se toca (menos texto en pantalla); faders con grip; decks con plato y pitch arriba y pads/transporte a todo el ancho (antes se aplastaban a 1440 px). Pendiente: revisar en la app nativa con pistas cargadas y los estilos pixel/gótico/y2k/mínimo.
+Later authorized web-preview review at 1100/1440 px using `bun run dev`, no audio. Fixed drag text selection with `-webkit-user-select`/preventDefault/manual pointerdown focus. Chrome grain changed from 2 px/0.28 opacity to 1 px/0.10. Mixer made smooth; physical knob caps/LED glow/value-on-touch; fader grip; platter/pitch above full-width cue/transport (previously squeezed at 1440). Native app with tracks/other four styles still unreviewed.

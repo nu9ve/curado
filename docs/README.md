@@ -1,18 +1,24 @@
-# Mapa de documentación
+# Documentation map
 
-Leer **Estado → Arquitectura → Roadmap → Sesiones** para retomar el trabajo. Cada documento tiene un propósito; evitar duplicar el estado en varios lugares.
+New here? Start with the [project README](../README.md) or [Spanish welcome](../README.es.md). To install, use [Setup](SETUP.md), including a prompt you can give your agent.
 
-| Documento                       | Pregunta que resuelve                                      |
-| ------------------------------- | ---------------------------------------------------------- |
-| [STATUS](STATUS.md)             | Qué existe, qué se comprobó y qué falta ahora              |
-| [ARCHITECTURE](ARCHITECTURE.md) | Cómo se coordinan audio, UI, biblioteca, MIDI y visuales   |
-| [DECISIONS](DECISIONS.md)       | Por qué se eligió cada enfoque y cuándo reconsiderarlo     |
-| [CONTROLS](CONTROLS.md)         | Cómo escuchar, mezclar, mapear teclado/MIDI y recuperarse  |
-| [THEMES](THEMES.md)             | Lenguaje visual, estilos, fuentes, color y cabecera nativa |
-| [PLATFORMS](PLATFORMS.md)       | Dependencias, distribución y diferencias por sistema       |
-| [QUALITY](QUALITY.md)           | Qué significa «listo para producción» y qué pruebas faltan |
-| [ROADMAP](ROADMAP.md)           | Prioridades y dependencias entre funciones                 |
-| [SESSIONS](SESSIONS.md)         | Temas que merecen una sesión dedicada, con criterio de fin |
-| [CHANGELOG](CHANGELOG.md)       | Qué cambió y qué aprendimos en cada sesión                 |
+For ongoing development, read **Status → Architecture → Roadmap → Sessions**. Each document answers a different question; avoid duplicating current state everywhere.
 
-Al empezar una sesión: revisar estado, escoger una prioridad verificable y leer sus dependencias. Al terminar: registrar evidencias, actualizar limitaciones y dejar el siguiente paso específico. Estos documentos evolucionan con las implementaciones; no existe aprendizaje automático ni actualización automática del contenido.
+| Document                        | Purpose                                                            |
+| ------------------------------- | ------------------------------------------------------------------ |
+| [SETUP](SETUP.md)               | Install, update and troubleshoot with or without an agent          |
+| [STATUS](STATUS.md)             | What exists, what was verified and what remains                    |
+| [ARCHITECTURE](ARCHITECTURE.md) | Audio, UI, library, MIDI and visual contracts                      |
+| [DECISIONS](DECISIONS.md)       | Why approaches were chosen and when to reconsider                  |
+| [CONTROLS](CONTROLS.md)         | Listen, mix, map controls and recover                              |
+| [THEMES](THEMES.md)             | Visual language, styles, fonts and native header                   |
+| [PLATFORMS](PLATFORMS.md)       | Dependencies, distribution and OS differences                      |
+| [QUALITY](QUALITY.md)           | Release gates and missing evidence                                 |
+| [ROADMAP](ROADMAP.md)           | Priorities and dependencies                                        |
+| [SESSIONS](SESSIONS.md)         | Dedicated work topics and completion criteria                      |
+| [LICENSING](LICENSING.md)       | License options, paid/free distribution and unresolved obligations |
+| [CHANGELOG](CHANGELOG.md)       | Changes and lessons by session                                     |
+
+Before changing code, read [AGENTS.md](../AGENTS.md). Start a session by choosing a verifiable priority and reading its dependencies. Close it by recording evidence, limits and a specific next step. Documentation is maintained explicitly; it does not update itself.
+
+Technical documentation is in English. `README.es.md` is the Spanish entry point; the current app UI remains Spanish. Made by [nu9ve](https://nu9ve.xyz).

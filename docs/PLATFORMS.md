@@ -1,10 +1,12 @@
-# Sistemas, dependencias y distribución
+# Platforms, dependencies and distribution
+
+Start with [Setup](SETUP.md) for the install workflow and agent prompt.
 
 ## macOS / Apple Silicon
 
-Signalsmith Stretch 0.1.3 añade compilación C++ y bindgen/libclang. Xcode completo proporciona las herramientas en este Mac; si bindgen no encuentra libclang, configurar `LIBCLANG_PATH` hacia la instalación de LLVM/Xcode. Esto es requisito de build, no un permiso ni servicio en runtime.
+Bun, stable Rust, full Xcode, CLI tools and macOS SDK. Build uses `xcrun swiftc` for AppKit/MetalKit. Declared minimum: macOS 12; helper matches Rust architecture/deployment target 12. Older OS compatibility is unverified. Current local builds are native ARM64.
 
-Bun, Rust estable, Xcode completo con herramientas de línea de comandos y SDK macOS. El build usa `xcrun swiftc` para AppKit/MetalKit. Target mínimo declarado: macOS 12; el helper se compila para la misma arquitectura Rust con deployment target 12. Compatibilidad con versiones antiguas aún no verificada. La máquina actual compila ARM64 nativo.
+Signalsmith Stretch 0.1.3 requires C++ compilation and bindgen/libclang. Full Xcode supplies tools on this Mac; if bindgen cannot locate libclang, set `LIBCLANG_PATH` to the actual LLVM/Xcode library directory. These are build requirements, not runtime services/permissions.
 
 ```sh
 bun install --frozen-lockfile
@@ -12,11 +14,11 @@ bun run desktop
 bun run desktop:build
 ```
 
-Resultado: `target/release/bundle/macos/curado.app` (el nombre visible del producto es «curado», en minúsculas; el identificador `studio.curado.player` no cambió, así que datos y preferencias se conservan). El script de build firma ad hoc el contenedor local y verifica su resource seal; si existe identidad de publicación configurada, la respeta. Build local ad hoc; no está notarizado para otros equipos. Para distribuir: Developer ID, hardened runtime, helper firmado dentro del bundle, entitlements mínimos y notarización. No añadir permisos de micrófono: la app solo reproduce. No pedir Accessibility/Input Monitoring para los hotkeys enfocados actuales.
+Output: `target/release/bundle/macos/curado.app`. Lowercase product name; identifier remains `studio.curado.player`, preserving data/preferences. Build script locally signs ad hoc and verifies resource seal, respecting a configured distribution identity. This is not notarization. Public distribution needs Developer ID, hardened runtime, a signed in-bundle helper, minimum entitlements and notarization. No microphone permission: app only plays. Current focused hotkeys need neither Accessibility nor Input Monitoring.
 
-Datos: `~/Library/Application Support/studio.curado.player/curado.sqlite` y carpeta `demo/`. Caché del helper: `~/Library/Caches/studio.curado.player/curado visuals.app` (versiones anteriores dejaban `Curado Visuals.app`; puede borrarse a mano, la app no borra cachés antiguas). SQLite puede tener archivos `-wal`/`-shm`: usar backup consistente con SQLite o cerrar la app antes de copiar.
+Data: `~/Library/Application Support/studio.curado.player/curado.sqlite` and `demo/`. Helper cache: `~/Library/Caches/studio.curado.player/curado visuals.app`; older `Curado Visuals.app` caches may be removed manually, not automatically. SQLite can have `-wal`/`-shm`; use a consistent SQLite backup or quit before copying.
 
-Instalar/actualizar para el usuario, sin sudo ni lanzamiento automático:
+Per-user installation/update, without sudo or automatic launch:
 
 ```sh
 bun run desktop:install
@@ -24,19 +26,17 @@ bun run desktop:install --no-build
 bun run desktop:install --check
 ```
 
-Destino: `~/Applications/curado.app`. El script valida firma/identificador, rechaza un destino que sea symlink u otra aplicación, verifica SHA-256 del ejecutable copiado, reemplaza mediante renames con rollback y registra LaunchServices. Si esa app está abierta, pide cerrarla y no interrumpe su audio. Conserva el identificador y todos los datos de usuario. Spotlight/Raycast pueden tardar en refrescar su índice; no se considera probado su lanzamiento por completar el registro. Si sigue abierta otra instancia desde el checkout, cerrarla antes de lanzar la instalada para evitar que single-instance enfoque el proceso anterior.
+Destination: `~/Applications/curado.app`. Script validates signature/identifier, rejects symlink/other-app destinations, verifies copied executable SHA-256, stages then renames with rollback and registers LaunchServices. It refuses to interrupt an open installed app. Identifier/data remain unchanged. Spotlight/Raycast indexing may lag; registration does not prove launch. Quit any other checkout instance before launching installed app or single-instance may focus the old process. `--check` validates the bundle/intended destination without installing; it still checks running-instance safety.
 
 ## Windows
 
-Rust MSVC, Microsoft C++ Build Tools, Windows SDK, WebView2 y Bun. CPAL utiliza WASAPI; este build no habilita ASIO. midir usa WinMM. Tray disponible mediante Tauri. Crear instalador con `bun tauri build` desde Windows; `desktop:build` está orientado al bundle de Mac y usa `--bundles app`.
+Bun, Rust MSVC, Microsoft C++ Build Tools, Windows SDK and WebView2. CPAL uses WASAPI; ASIO is not enabled. midir uses WinMM; Tauri provides tray. Run `bun tauri build` on Windows for packaging; `desktop:build` uses Mac-only `--bundles app` and signing. Local installer is Mac-only.
 
-El build de Signalsmith requiere LLVM/libclang para bindgen y el compilador C++; su configuración y ejecución física en Windows siguen pendientes de CI/hardware. El instalador local actual es solo macOS.
-
-Pruebas físicas pendientes: shared audio con interfaces/USB/Bluetooth, suspensión, cambio de dispositivo, DPI y layouts de teclado. No afirmar soporte de ASIO por usar CPAL: requiere feature/SDK/build y verificación independiente.
+Signalsmith needs LLVM/libclang for bindgen and C++; its Windows configuration/execution still needs CI/hardware verification. Pending physical checks: shared USB/Bluetooth/interface audio, suspend, device changes, DPI and keyboard layouts. CPAL alone does not establish ASIO support; feature/SDK/build and separate evidence are required.
 
 ## Linux
 
-Bun, Rust, compilador C y dependencias Tauri/GTK/WebKit más ALSA. En Ubuntu 24.04:
+Bun, Rust, C/C++ tools, Tauri GTK/WebKit dependencies and ALSA. Ubuntu 24.04 example:
 
 ```sh
 sudo apt-get update
@@ -45,20 +45,18 @@ bun install --frozen-lockfile
 bun run desktop
 ```
 
-Este build usa ALSA; la integración con PipeWire/Pulse depende de la configuración del sistema. No se habilitan JACK/PipeWire nativo en CPAL 0.16. midir usa ALSA MIDI. El tray depende del escritorio/extensiones (especialmente GNOME). Wayland puede restringir global shortcuts; aquí los atajos son enfocados. Si no hay tray usable, mostrar una opción explícita para salir/cerrar es prioridad de validación, porque cerrar ventana está configurado para ocultarla si se creó tray.
+This build uses ALSA; PipeWire/Pulse compatibility depends on system configuration. CPAL 0.16 native PipeWire/JACK are not enabled. midir uses ALSA MIDI. Tray availability depends on desktop/extensions, especially GNOME. Wayland can restrict global shortcuts; these shortcuts are focused. Validate explicit exit behavior without a working indicator: close-to-hide applies if tray was created.
 
-El visual integrado funciona como UI compartida. El botón Metal solo se muestra en macOS; falta un renderer nativo multiplataforma (wgpu).
+Integrated visuals use shared UI. Metal button is macOS-only; a cross-platform native renderer (wgpu) remains pending. Multi-WebView behavior in the integrated browser also needs platform verification.
 
-## Validación cruzada
+## Cross-platform validation
 
-CI está preparada para macOS, Windows y Ubuntu. Crear el workflow no demuestra que haya corrido. Una compilación de CI tampoco valida drivers, hardware, hotplug ni tray. Registrar ejecuciones y matriz de hardware en STATUS/QUALITY.
+CI is configured for macOS, Windows and Ubuntu. A workflow file does not prove execution; a CI build does not validate drivers, hotplug, hardware or tray. Record runs/hardware matrix in STATUS/QUALITY.
 
-Referencia de requisitos generales: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). La aplicación no instala drivers ni servicios al sistema.
+General requirements: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). App does not install drivers/system services. Tauri's integrated child WebView currently requires its `unstable` feature; see ADR-012 before upgrades.
 
-## Iconos
+## Icons and fonts
 
-`scripts/icon.py` genera el icono de 1024 px y `docs/assets/logo.svg` desde la misma geometría que `src/components/Logo.tsx` (anillo pixel en «c» con eje, dither coral → ámbar sobre squircle oscuro). Después `bun tauri icon <png>` regenera `src-tauri/icons` para macOS, Windows, Linux, iOS y Android. Sin dependencias externas.
+`scripts/icon.py` generates 1024 px icon and `docs/assets/logo.svg` from the same geometry as `src/components/Logo.tsx`: pixel c-ring/axle, coral-to-amber dither, dark squircle. `bun tauri icon <png>` regenerates `src-tauri/icons` for supported targets, without external image-generation dependencies.
 
-## Fuentes
-
-Las fuentes viajan dentro del bundle (`@fontsource/*` 5.3.0, latín, OFL 1.1). No se cargan fuentes de red. Al distribuir, incluir los avisos de licencia de cada familia.
+Fonts are bundled (`@fontsource/*` 5.3.0, Latin, OFL 1.1), never fetched at runtime. Include each family's exact notices when distributing. Signalsmith notices already live in `licenses/`; this is not a complete dependency/font audit. See [Licensing](LICENSING.md).

@@ -1,96 +1,88 @@
-# Uso y controles
+# Using curado
 
-## Primera sesión
+The current UI labels are Spanish. This guide explains them in English and preserves labels you need to find on screen. For installation, see [Setup](SETUP.md).
 
-1. Abrir `target/release/bundle/macos/curado.app`.
-2. Elegir **sesión de prueba** (abajo en la barra lateral): genera dos tracks de 32 segundos y cuatro samples locales en el directorio de datos, registra todo y carga los seis slots. No descarga música.
-3. Pulsar Play en Reproductor. Para tu música, usar **Importar música** o **Carpeta**.
-4. Seleccionar una fila y cargar en A/B. Doble clic carga A; después Play. La carga detiene/reinicia solo el slot de destino.
-5. Crear playlist con + lateral (doble clic sobre su nombre para renombrar), seleccionar pista y usar «Añadir a playlist». «Escuchar selección» recorre las pistas filtradas en orden, desde la primera. El selector permite no repetir, repetir todo o repetir pista.
-6. Cambiar a Mezcla para acceder a la consola. Seleccionar una pista y pulsar + en un pad para asignarla como sample.
-7. En reproductor, «Metal» (solo macOS) abre un paisaje nativo; el botón del ojo pausa el visual integrado.
-8. El botón de imagen en imagen de la topbar abre la **vista mini** siempre encima; el botón de expandir vuelve a la vista completa con el tamaño anterior.
+## First session
 
-## Consola de mezcla
+1. Open your installed `~/Applications/curado.app` or the freshly built `target/release/bundle/macos/curado.app` on macOS.
+2. Choose **sesión de prueba** near the bottom of the sidebar. It generates two 32-second tracks and four samples in the app data directory, registers them and loads all six slots. No music is downloaded.
+3. Press Play in **Reproductor**. Use **Importar música** or **Carpeta** for your own files.
+4. Select a row and load A/B. Double-click loads A, then press Play. Loading stops/resets only the destination slot.
+5. Create a playlist with sidebar +; double-click its name to rename. Select a track and use “Añadir a playlist.” “Escuchar selección” plays filtered tracks in order from the first, with repeat off/all/one.
+6. Switch to **Mezcla** for the console. Select a track and press + on a sample pad to assign it.
+7. Player's **Metal** button (macOS only) opens a native landscape; the eye button pauses the integrated visual.
+8. The topbar picture-in-picture button enters the always-on-top **mini view**; expand restores full view and previous size.
 
-La vista Mezcla se distribuye como el teclado: **deck A a la izquierda, deck B a la derecha, mixer al centro, samples abajo**.
+## Mixing console
 
-- Arriba, dos waveforms detalladas (A y B) con el playhead fijo al centro y 8 s visibles; clic para buscar relativo al centro. Graves en azul, medios ámbar, agudos blanco (o RGB/mono según Apariencia).
-- Cada deck: título y tiempo restante, waveform completa con cues numerados y loop, **plato** que gira con la posición real (clic = play/pausa), tres hot cues, transporte (play, cue, nudge −/+), loop/IN/OUT y **pitch vertical** en el borde exterior (±50 %, doble clic vuelve a 0).
-- Mixer: por canal HI/MID/LOW (unidad al centro), FILTER (paso bajo, OFF a la derecha), ECHO, medidor LED en dB y fader de volumen vertical; master vertical con medidor, botón de silencio y crossfader horizontal con sus teclas ← ↓ →.
-- Mapa del teclado: muestra qué tecla controla qué zona (A coral, B complementario, samples ámbar, mixer neutro). Las teclas se iluminan al pulsarlas y se pueden clicar.
+Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 
-El mixer incluye **A + B**: reproducir ambos, pausar ambos y disparar el primer hot cue de ambos. Cada botón envía una sola acción; ambos transportes cambian antes de la primera muestra del mismo bloque de audio. Cada pista conserva su propio cue y velocidad: esto no ajusta BPM ni alinea beats. Los samples no se ven afectados y los controles no cambian el crossfader ni restauran un master a cero.
+- Two detailed waveforms show 8 s with a centered playhead; click to seek relative to center. Bass is blue, mids amber, highs white; RGB/mono alternatives are in Appearance.
+- Each deck has title/remaining time, full waveform with numbered cues/loop, a platter rotating with engine position (click toggles play), three hot cues, transport, nudge, loop/IN/OUT and an outer vertical pitch control (±50%, double-click resets).
+- Per-channel HI/MID/LOW (unity at center), FILTER (LP; rightmost is off), ECHO, dB LED meter and vertical volume fader. Vertical master/meter, panic and horizontal crossfader with ← ↓ → controls. Additional HP and beat-echo controls are described below.
+- Clickable keyboard map: A coral, B complementary, samples amber, mixer neutral; keys illuminate on input.
 
-El encabezado de cada deck distingue **En pausa**, **Fin de pista**, **Reproduciendo**, **Master a cero**, **Canal a cero**, **Fuera del crossfader** y **Error de salida**, según el snapshot. «Reproduciendo» describe el transporte, no garantiza que el archivo tenga señal audible. Los medidores de canal se toman antes del crossfader/master.
+Mixer **A + B** controls play both, pause both or trigger both first cues. One action changes A/B before the same block's first sample. Each retains its own cue/rate; linked transport alone does not set BPM or align beats. Samples, crossfader and a zero master are unaffected.
 
-Perillas y faders: arrastrar vertical (Shift = fino), rueda, flechas (Shift = fino, RePág/AvPág = grueso), Inicio = valor por defecto, doble clic = restaurar. Mientras arrastras, el control muestra tu valor local y después vuelve a seguir al motor.
+Deck diagnostics distinguish paused, EOF, playing, zero master/channel, outside crossfader and output error. “Reproduciendo” describes transport, not guaranteed audible signal. Channel meters are before crossfader/master.
 
-Cada atajo de teclado ilumina el control correspondiente y muestra un **HUD** con la tecla y la acción (p. ej. «A · Hot cue 2»). Si el modo actual bloquea la acción, el HUD lo dice («no disponible») y no se envía nada al motor.
+Knobs/faders: vertical drag (Shift = fine), wheel, arrows (Shift = fine; Page Up/Down = coarse), Home = default, double-click = reset. Dragging displays local input until control returns to engine snapshots. Keyboard feedback illuminates the control and shows a key/action HUD; blocked mode actions show “no disponible” and send nothing.
 
-## Teclado por defecto
+## Default keyboard
 
-| Acción                         | Deck A        | Deck B        |
-| ------------------------------ | ------------- | ------------- |
-| Play / pausa                   | Q, Espacio    | P             |
-| Volver al primer cue           | A             | L             |
-| Hot cues 1/2/3                 | 1 / 2 / 3     | 8 / 9 / 0     |
-| Guardar cue en posición actual | Shift + 1/2/3 | Shift + 8/9/0 |
-| Loop on/off                    | W             | O             |
-| Loop IN                        | E             | I             |
-| Loop OUT                       | R             | U             |
-| Nudge −50/+50 ms               | D / F         | J / K         |
+| Action                   | A             | B             |
+| ------------------------ | ------------- | ------------- |
+| Play/pause               | Q, Space      | P             |
+| First cue and play       | A             | L             |
+| Hot cues 1/2/3           | 1 / 2 / 3     | 8 / 9 / 0     |
+| Save at current position | Shift + 1/2/3 | Shift + 8/9/0 |
+| Loop on/off              | W             | O             |
+| Loop IN                  | E             | I             |
+| Loop OUT                 | R             | U             |
+| Nudge −50/+50 ms         | D / F         | J / K         |
 
-| General                                 | Teclas        |
-| --------------------------------------- | ------------- |
-| Samples 1–4                             | Z / X / C / V |
-| Crossfader izquierda / centro / derecha | ← / ↓ / →     |
-| Detener decks y bajar master a cero     | ESC           |
+Samples 1–4: `Z / X / C / V`. Crossfader left/center/right: `← / ↓ / →`. Stop native decks and zero master: `Esc`.
 
-Un **hot cue salta y reproduce**, incluso desde pausa o fin de pista; repetirlo no alterna pausa. Los tres cues empiezan en 0:00 y muestran su tiempo, incluso antes de guardar uno. Shift + clic en un hot cue guarda posición sin iniciar reproducción. Clic en waveform busca conservando pausa/reproducción; las flechas también buscan al enfocar la waveform (Shift = paso fino). Un salto de cue, seek o nudge fuera del tramo de loop lo desactiva; dentro lo conserva. Con BPM conocido, Loop usa la longitud elegida en beats; sin grid conserva el fallback de hasta cuatro segundos. Q alinea inicio/final y evita loops parciales de cola. Nudge desplaza la posición, no emula la inercia de un jog.
+A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. All three start at 0:00 and display their time before saving. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries and prevents partial tail loops. Nudge changes position, not jog inertia.
 
-## BPM, tonalidad y mezcla armónica
+Hotkeys use physical codes while the local window is focused. Typing in inputs or moving sliders does not trigger them. Space/Enter on buttons retain accessible activation. **Configuración → Teclado** remaps and detects conflicts. Player disables B/sample hotkeys. After panic, restore master and resume playback yourself. Web content has separate focus and audio.
 
-Al importar se estiman BPM, offset de beat y tonalidad. La biblioteca muestra BPM original y notación americana (C, C♯, Am…) junto a Camelot. Las pistas antiguas se analizan al cargar; abre **beatgrid / análisis** para corregir BPM (incluye ×2/÷2), marcar «beat aquí», elegir tonalidad o reanalizar. Reanalizar reemplaza correcciones manuales; guardar no modifica el archivo original. La periodicidad mostrada describe el análisis, no un porcentaje de exactitud. Hay música sin un BPM/key global válido.
+## BPM, key and harmonic mixing
 
-- **MASTER** elige la referencia. Activa **SYNC** en el otro deck para igualar tempo y fase. No inicia reproducción. Ajusta el BPM desde el master; mover manualmente la velocidad del follower desactiva su sync. El rango de velocidad es 0,5×–1,5× y el campo de tempo absoluto admite 40–300 BPM dentro de ese rango.
-- **Q** empieza activo. Cues/IN/OUT y loops usan el beatgrid; el selector crea 1/2/4/8/16 beats. Cerca del final recoloca un loop para conservar beats completos; no crea uno si no cabe. Con SYNC+Q, el cue del seguidor espera al siguiente beat del master y muestra «en espera». Pánico o pausa conjunta cancelan ese cue; nunca debe arrancar después del silencio total.
-- **Key lock** empieza activo. Los botones −/+ transponen semitonos sin cambiar BPM; el centro vuelve a 0. El tono mostrado corresponde al ajuste aplicado; sin key lock incluye cents debidos a varispeed. **Key sync** iguala la tónica del master o su relativa si difieren los modos mayor/menor; requiere key lock en el master y no convierte escalas menores en mayores. Es puntual, no un seguimiento permanente.
-- Los ajustes de tempo/key que necesiten procesamiento muestran **preparando** y conservan el audio anterior hasta terminar. Se puede seguir usando play, cues y mixer; cambiar la petición cancela la anterior. Si falla, aparece reintento. Esta primera implementación prepara clips completos, por lo que el ajuste puede tardar y consumir memoria adicional.
-- El mixer añade **HP** (paso alto independiente de LP) y **ECHO · BEATS** (0,25/0,5/0,75/1/2). Echo sigue el BPM de salida; sin análisis usa 120 BPM. Cambiar su división suaviza el tiempo, con posible barrido de tono en las repeticiones.
+Import estimates BPM, beat offset and key. Library shows original BPM, standard letter notation (C, C♯, Am…) and Camelot. Older tracks analyze on load. Open **beatgrid / análisis** to edit BPM (×2/÷2), mark “beat aquí,” select key or reanalyze. Reanalysis replaces manual corrections; saving never edits original files. Periodicity is analysis evidence, not an accuracy percentage; some music has no useful global BPM/key.
 
-Al cargar otra pista se reinician tempo/transposición/key lock de ese deck y su sync; se conservan los FX. Cargar el master desactiva el seguimiento del otro deck. Cambiar a player cancela sync/cues pendientes y devuelve el master a A.
+- **MASTER** selects reference; **SYNC** on the other deck matches tempo/phase without starting it. Set BPM on master. Manually moving follower speed disables sync. Rate range is 0.5×–1.5×; absolute tempo accepts 40–300 BPM within that rate range.
+- **Q** starts enabled. Cues/IN/OUT and loops use the grid; sizes are 1/2/4/8/16 beats. Near EOF, loops move to keep full beats or refuse if none fit. With SYNC+Q, follower cue waits for next master beat and shows “en espera.” Panic/linked pause cancel it; silence must not be followed by a deferred restart.
+- **Key lock** starts enabled. −/+ transpose semitones without BPM changes; center resets to 0. Displayed key follows applied tuning; without key lock, varispeed contributes cents. **Key sync** matches master tonic or relative key if modes differ, requires master key lock and does not turn minor into major. It is a one-time adjustment, not continuous following.
+- Tempo/key changes requiring preparation display **preparando** and keep previous audio until ready. Play/cues/mixer remain usable. New requests cancel old ones; failure offers retry. Full-clip preparation takes time and additional memory.
+- **HP** is independent of LP. **ECHO · BEATS** offers 0.25/0.5/0.75/1/2 beats using output BPM, or 120 BPM without analysis. Smoothed delay-time changes may sweep the repeats' pitch.
 
-La estimación necesita validación en música real. Revisa el grid antes de mezclar; una pista con tempo variable no queda sincronizada por un único BPM. Los loops todavía no tienen crossfade y transposiciones extremas pueden alterar transitorios/timbre.
+Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music. Loops still lack crossfade; extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
 
-## Ayuda contextual en el footer
+## Context footer
 
-La franja inferior permanece fuera del scroll del contenido. Al pasar el cursor o enfocar un control con Tab muestra su nombre, función y atajos guardados. **Más info** expande detalles y consejos dentro del mismo footer; el contenido principal cede altura y los avisos se recolocan. El fondo usa el tono del deck o el tono general, respetando el tema. Escape dentro de la ayuda expandida la cierra y devuelve el foco al botón, sin enviar pánico.
+The footer stays outside content scroll. Hover or Tab-focus a control to see name/function/current shortcuts. **Más info** expands tips in the footer, reserving sheet height and moving notices. Tone follows deck/theme. Escape inside expanded help closes it and returns focus to its button without panic.
 
-La ayuda conserva el último control al entrar en su propio panel para poder leerlo. Las acciones de audio se identifican mediante `data-action` (slot/tipo/valor), no por texto parecido; los controles genéricos usan su etiqueta/título y un texto de base. No hay generación automática de consejos: editar `src/lib/hints.ts` para ampliar o corregir textos y `data-help` para asociar otras secciones. La vista mini conserva su tamaño y no incluye esta franja.
-
-Los atajos se activan con la ventana enfocada, se basan en códigos físicos y no se ejecutan al escribir en inputs o mover sliders. Space/Enter sobre un botón conservan su activación accesible. Las etiquetas muestran el mapeo guardado; Configuración → Teclado permite reasignar y detecta conflictos. Player desactiva hotkeys del deck B y samples. Pánico requiere después subir master y reanudar reproducción.
+Help preserves the previous control while entering the help panel. Exact `data-action` slot/type/value identifies audio actions; generic controls use label/title and fallback text. Tips are maintained in `src/lib/hints.ts`, associated through `data-help`, not automatically generated. Mini view omits the footer.
 
 ## MIDI Learn
 
-Configuración → MIDI → seleccionar puerto → elegir acción → Aprender → pulsar nota o mover CC. Se guarda dispositivo, canal, tipo y número; aprender otra acción sobre el mismo control sustituye la anterior. La conexión es manual en cada arranque. Los mapeos persisten. Los cues se guardan por pista y se comparten si la cargas en ambos decks.
+**Configuración → MIDI**: choose port/action, **Aprender**, then press a note or move CC. Device/channel/type/number persist; learning the same control replaces its previous action. Connection is manual each launch. Track cues are shared across decks holding the same track.
 
-Admite Note On con velocity >0 y CC absolutos 0–127; en EQ, CC 64 equivale a ganancia unitaria. No admite todavía encoders relativos, Clock, SysEx, feedback LED ni reconexión automática. Un mapeo CC hacia botón dispara cada mensaje ≥64; para botones preferir Note On. En player las acciones de reproducción de B y samples también se bloquean desde MIDI; cambiar a Mezcla para utilizarlas.
+Supports Note On velocity >0 and absolute CC 0–127; EQ unity is CC 64. No relative encoders, Clock, SysEx, LED feedback or automatic reconnect yet. A CC-to-button mapping triggers on every value ≥64; prefer notes for buttons. Player also blocks B/sample playback through MIDI.
 
-## Radio y servicios web
+## Radio and web services
 
-**radio / web** en la barra lateral muestra fractos radio dentro de curado. Los botones fractos/SoundCloud cambian el servicio del navegador integrado; requieren internet y el escritorio nativo. La navegación está limitada a dominios del servicio/widgets, en sesión incognito, sin popups/descargas; algunos logins/enlaces pueden quedar bloqueados. Compatibilidad de players pendiente de comprobar.
+Sidebar **radio / web** shows fractos inside curado; fractos/SoundCloud buttons switch the integrated browser. Desktop and internet required. Exact service/widget domains only, incognito, no popups/downloads; some logins/links can be blocked. Actual player compatibility remains unverified.
 
-El audio web se controla desde cada player: no responde al master, crossfader, FX, sync ni Escape de los decks locales. **detener audio web**, cambiar servicio, salir de radio/web o entrar a mini cierra el navegador y detiene su reproducción. Al volver se carga una sesión nueva. Configuración y el diálogo de playlists lo ocultan temporalmente, conservando audio. Los decks y la cola locales siguen su estado; al enfocar el contenido web los atajos locales no reciben sus teclas.
+Players control their own web audio, outside local master/crossfader/FX/sync/Escape. **detener audio web**, switching service, leaving radio/web or entering mini closes the browser and stops it. Returning starts a new session. Settings/playlist dialogs hide it temporarily while audio continues. Local decks/queue retain their state; web focus does not deliver keys to local hotkeys.
 
-## Audio y segundo plano
+## Audio and background behavior
 
-Configuración → Audio muestra backend, sample rate, callbacks y muestras recortadas al techo. Un contador de recorte creciente indica exceso de nivel; bajar ganancia/master. Cambiar salida/buffer descarga los seis slots. Buffer automático es el punto inicial; probar 256/512 solo con mediciones. Bluetooth agrega latencia que esta app no elimina.
+**Configuración → Audio** shows backend/sample rate/callbacks/clipped samples. A growing clipping count indicates excess level; lower channel/master. Output/buffer changes unload all six slots. Start with automatic buffer; test 256/512 only with measurements. Bluetooth adds latency the app cannot remove.
 
-Cerrar ventana la oculta si existe tray/menu bar. Usar el icono de curado para mostrarla, play/pausa A, silenciar o salir. La reproducción no sobrevive a salir del proceso ni a suspender el sistema. No hay daemon ni servicio instalado.
+Closing main hides it if tray/menu bar exists. Tray can show, play/pause A, silence native audio or quit. Playback does not survive process exit/system suspend; no daemon/service is installed. If disconnect reports an error, choose an available output and apply/recover. Reopening UI does not reconstruct the engine. Moved files currently need reimporting.
 
-Si desconectas la interfaz y se reporta error, elegir una salida disponible y aplicar/recuperar audio. Reabrir la UI no reconstruye el motor. Los originales permanecen en sus rutas; si se movieron, reimportarlos.
+## Appearance
 
-## Apariencia
-
-Configuración → Apariencia: estilo (curado, pixel, gótico, y2k, mínimo), claro/oscuro/sistema, variación neutra/tonal/contraste, tipografía, textura (dither/suave/plano), estilo de waveform y color por presets, selector, hex o HSV. El valor inicial es estilo curado con `#d66154`. Se guarda automáticamente; Escape cierra Configuración. La cabecera de macOS integra controles nativos y zona de arrastre sin franja de título separada. Ver [THEMES](THEMES.md).
+**Configuración → Apariencia** offers curado/pixel/gothic/y2k/minimal styles, light/dark/system, neutral/tonal/high contrast, typography, dither/soft/flat texture, waveform and preset/picker/hex/HSV color. Defaults: curado, `#d66154`. Saves automatically; Escape closes Settings. macOS integrates native header controls/drag area without a separate title strip. See [Themes](THEMES.md).

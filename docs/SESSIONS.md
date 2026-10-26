@@ -1,71 +1,69 @@
-# Sesiones dedicadas
+# Dedicated sessions
 
-Temas que no caben como «un cambio más»: cada uno merece una sesión propia con su objetivo, su evidencia y su cierre. Ordenados por prioridad sugerida. Al empezar uno, copiar su bloque a STATUS como «en curso»; al terminar, moverlo al CHANGELOG con la evidencia.
+Topics large enough to deserve a separate objective, evidence and closure, in suggested priority order. On starting one, mark its scope in STATUS as in progress; on completion record evidence in CHANGELOG. Format: context, scope, done when, risks.
 
-Formato: **contexto** (por qué ahora), **alcance** (qué entra y qué no), **hecho cuando** (criterio verificable), **riesgos**.
+## S1 · Streaming and global memory budget (P0)
 
-## S1 · Streaming y presupuesto global de memoria (P0)
+- **Context:** preloaded PCM limits a track to ~4:22, up to 6 ×96 MiB plus queue prefetch; the most visible structural player limitation.
+- **Scope:** incremental per-deck decode into preallocated rings, bounded seek, cue/loop prefetch, cancellation/decode timeouts. Keep preload for samples. Waveform already computes in the decoding pass without retaining full PCM.
+- **Done when:** a 60-minute track plays/seeks/loops without callback allocations (allocator test), bounded measured total memory and a slow-disk corpus.
+- **Risks:** distant seeks in unindexed codecs, cue latency and queue prefetch interaction.
 
-- **Contexto**: PCM precargado limita a ~4:22 por pista y hasta 6 × 96 MiB residentes, más un clip de prefetch de la cola. Es el límite estructural más visible para un reproductor.
-- **Alcance**: decodificación incremental por deck con ring preasignado, seek acotado, prefetch alrededor de cues/loops, cancelación y timeouts de decodificación. Mantener precarga para samples. La waveform ya se calcula en el mismo recorrido y no depende del PCM residente.
-- **Hecho cuando**: pista de 60 min reproduce, busca y hace loops sin alloc en el callback (test de allocator), memoria total acotada y medida, corpus de disco lento.
-- **Riesgos**: seeks lejanos con codecs sin índice; latencia de cue; interacción con el prefetch de la cola.
+## S2 · Position clock and smooth playhead (P0/UX)
 
-## S2 · Reloj de posición y playhead fluido (P0/UX)
+- **Context:** 20 Hz telemetry moves waveform/platters/playhead in 50 ms steps; UI must not invent progress.
+- **Scope:** decide between 60 Hz position-only lightweight telemetry, or callback timestamp/rate snapshots with bounded extrapolation corrected every snapshot. Record ADR; UI must never lead engine by more than one interval.
+- **Done when:** 60 FPS detail/platter without measurable drift (extrapolated versus snapshot test), measured IPC cost.
+- **Risks:** violating invariant 2 with unbounded extrapolation; WebView load.
 
-- **Contexto**: la telemetría a 20 Hz mueve playhead, platos y waveform detallada en saltos de 50 ms. La regla vigente prohíbe inventar avance con timers.
-- **Alcance**: decidir entre (a) telemetría 60 Hz solo de posiciones (struct pequeño, sin JSON grande) o (b) snapshot con `timestamp` del callback + rate para extrapolar dentro de un intervalo acotado y corregido por cada snapshot. Documentar la decisión como ADR; la UI nunca debe adelantarse al motor más de un intervalo.
-- **Hecho cuando**: waveform detallada y plato a 60 FPS sin deriva medible respecto al motor (test que compara posición extrapolada vs snapshot), coste de IPC medido.
-- **Riesgos**: romper el invariante 2 si se extrapola sin acotar; carga del WebView.
+## S3 · Audio quality: resampler, EQ and limiter (P0)
 
-## S3 · Calidad de audio: resampler, EQ y limitador (P0)
+- **Context:** linear interpolation, one-pole EQ and ±.98 ceiling.
+- **Scope:** bandlimited sinc/polyphase resampler, DJ biquad EQ with full kill, bipolar HP/LP, loop-boundary crossfade, actual limiter. Review automation/smoothing, denormals, latency, bypass and callback budget (invariant 6).
+- **Done when:** aliasing/discontinuity tests, new offline P99 probe, no callback allocation.
 
-- **Contexto**: interpolación lineal, EQ de un polo y techo de ±0.98.
-- **Alcance**: resampler bandlimited (sinc/polyphase), EQ biquad tipo DJ (kill a −∞), filtro bipolar HP/LP, crossfade en límites de loop, limitador real. Revisar smoothing, denormales, latencia, bypass y presupuesto por callback (invariante 6).
-- **Hecho cuando**: tests de aliasing y discontinuidad, probe offline con nuevos P99, sin alloc en callback.
+## S4 · Beatgrid, BPM, key and sync (P1 mixing)
 
-## S4 · Beatgrid, BPM, tonalidad y sync (P1 mezcla)
+**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. Quality is not complete: real corpus, listening and discontinuity-free loops remain.
 
-**Base implementada el 2026-10-26**: análisis offline, grid editable, loops cuantizados, sync nativo, tonalidad americana/Camelot y transposición/key lock preparados en worker. No se cierra la sesión de calidad: faltan corpus real, validación auditiva y loops sin discontinuidades.
+- **Context:** three-band waveform exists; rhythmic structure needs validation/refinement.
+- **Scope:** offline BPM/onsets in decode worker near `analysis.rs`, persistent grid metadata (currently versioned settings in SQLite, see ARCHITECTURE), visible beat markers, quantized loops/tempo sync. Extend initial key lock to incremental streaming and validate quality.
+- **Done when:** known-BPM corpus within ±0.1 BPM; 1/2/4/8-beat loops without discontinuity.
 
-- **Contexto**: la waveform de 3 bandas ya existe; falta estructura rítmica.
-- **Alcance**: análisis offline de BPM/onsets en el worker de decodificación (junto a `analysis.rs`), beatgrid persistida en SQLite, marcadores de beat en la waveform, loops cuantizados y sync de tempo. La preparación inicial de key lock ya existe; llevarla a streaming incremental y validar su calidad sigue pendiente.
-- **Hecho cuando**: corpus con BPM conocido dentro de ±0.1 BPM; loops de 1/2/4/8 beats sin discontinuidad.
+## S5 · Web explorer: SoundCloud/fractos radio (P2)
 
-## S5 · Explorador web (SoundCloud, radio de fractos) (P2)
+**Foundation implemented 2026-10-26:** native browser inside main, replacing external windows; closes on leaving/switching; WebView-scoped ACL and URL/bounds tests. Confirmed fractos HTTPS URL returns HTTP 200. Real WebView players remain unverified; no native mixing.
 
-**Base implementada el 2026-10-26**: navegador nativo integrado en main (sustituye las ventanas externas), cierre al salir/cambiar servicio, ACL por webview y pruebas de política/bounds. URL de fractos confirmada y HTTP 200 por HTTPS. Pendiente comprobar los players en el WebView real; no hay mezcla nativa.
+- **Context:** explore external services without leaving the app.
+- **Scope:** isolated child WebView with exact-domain policy, no native IPC/files/commands. Capability selects only the `main` WebView, not its entire window. WebKit audio does not enter engine/mixer/recording. See ADR-012.
+- **Done when:** contract tests deny remote permissions, preserve local CSP and restrict navigation; real player compatibility needs separate platform evidence.
+- **Next:** validate embeds/cookies/login under incognito without popups. Now-playing/transport/volume require a protocol with fractos, whose maintainer confirms YouTube/SoundCloud iframes. Widgets provide no raw PCM source for native decks.
+- **Risks:** provider terms, third-party cookies and confusion over audio ownership.
 
-- **Contexto**: explorar servicios externos desde la app sin abrir el navegador.
-- **Alcance**: WebView hijo aislado con lista blanca de dominios, **sin** capacidades IPC (la capability selecciona solo el webview `main`, no la ventana completa), sin acceso a archivos ni comandos. El audio de esos servicios sale por WebKit, **no** por el motor ni el mixer; no se mezcla ni se graba. Ver ADR-012.
-- **Hecho cuando**: test de contrato que verifica que la ventana remota no tiene permisos, CSP de la ventana principal intacta, navegación bloqueada fuera de la lista blanca.
-- **Siguiente alcance**: validar cookies/reproducción de embeds y compatibilidad de login bajo incognito sin popups; ahora suena y control de volumen/transporte requieren un protocolo con fractos (el usuario lo administra y usa iframes). No hay acceso al PCM a través de sus widgets.
-- **Riesgos**: términos de uso de cada servicio; cookies de terceros; confundir al usuario sobre qué suena por el motor.
+## S6 · Alternate views (P1 UX)
 
-## S6 · Vistas alternas (P1 UX)
+- **Context:** always-on-top 460×132 mini exists; other variants do not.
+- **Scope:** compact library/player, focus/stage decks/waveform fullscreen, floating visual, per-view size/position and shortcut.
+- **Done when:** transport/queue/samples/focus/keyboard survive changes; size restoration covered by contracts.
 
-- **Contexto**: ya existe la vista mini siempre encima (460×132). Faltan variantes.
-- **Alcance**: vista compacta (biblioteca + reproductor sin visual), modo foco/escenario (solo decks y waveform a pantalla completa), ventana flotante de visual, persistencia del tamaño/posición por vista, atajo para alternar.
-- **Hecho cuando**: cada vista conserva transporte, foco y teclado (invariante de cambios de modo); restauración de tamaño probada por contrato.
+## S7 · MIDI feedback in UI (P1)
 
-## S7 · Feedback de MIDI y estado en la UI (P1)
+- **Context:** keyboard actions illuminate controls/HUD; native MIDI actions do not.
+- **Scope:** bounded/coalesced `input:action` worker event reusing `feedback.ts`, controller LEDs and relative encoders.
+- **Done when:** real mapped controller messages update UI without harming MIDI→engine latency.
 
-- **Contexto**: las teclas ya iluminan controles y muestran HUD. Las acciones MIDI no, porque ocurren en Rust.
-- **Alcance**: evento ligero `input:action` emitido por el worker MIDI (acotado, coalescido) que reutiliza `feedback.ts`; feedback LED hacia el controlador; encoders relativos.
-- **Hecho cuando**: con controlador real, cada mensaje mapeado se refleja en la UI sin afectar la latencia MIDI→motor.
+## S8 · macOS template tray icon (P1 polish)
 
-## S8 · Tray de macOS con icono plantilla (P1 pulido)
+- **Context:** menu bar uses colored app icon.
+- **Scope:** monochrome `icon_as_template`, playback/now-playing menu state.
+- **Done when:** correct light/dark appearance; requires explicit authorization for visual validation.
 
-- **Contexto**: la barra de menús usa el icono a color de la app.
-- **Alcance**: icono monocromo `icon_as_template`, estado de reproducción en el menú, «ahora suena».
-- **Hecho cuando**: icono correcto en claro/oscuro (requiere validación visual explícita del usuario).
+## S9 · Accessibility and visual audit (P1)
 
-## S9 · Accesibilidad y auditoría visual (P1)
+- **Context:** palette contrast is mathematically tested across styles/colors/modes/variants; full visual audit remains unavailable by preference. See STATUS for the limited earlier web-preview review.
+- **Scope:** modal focus trap, knob/fader screen-reader behavior, text scaling and all-five-style visual review when authorized.
 
-- **Contexto**: contraste matemático probado en 5 estilos × 9 colores × modos × variantes; sin revisión visual por preferencia del usuario.
-- **Alcance**: foco atrapado en modales, lector de pantalla para perillas/faders, escalado de texto, revisión visual de los 5 estilos cuando el usuario lo autorice.
+## S10 · Distribution and executed CI (P0)
 
-## S10 · Distribución y CI real (P0)
-
-- **Contexto**: CI preparada, sin ejecución verificada; build local ad hoc.
-- **Alcance**: correr CI en los tres OS, helper Metal firmado dentro del bundle, notarización, licencias/notices (incluidas las fuentes OFL), licencia del repositorio.
+- **Context:** CI configured but execution unverified; local ad hoc bundle.
+- **Scope:** run all three OS jobs, signed in-bundle Metal helper, notarization, licenses/notices including font OFL, and repository license. See [Licensing](LICENSING.md); recommendation is not an applied license.

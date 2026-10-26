@@ -1,72 +1,63 @@
-# Apariencia, estilos y ventana nativa
+# Appearance, styles and native window
 
-## Lenguaje visual
+## Visual language
 
-curado mezcla dos materiales:
+curado combines two materials:
 
-- **Chrome**: sidebar, topbar y footer son una sola superficie continua. Lleva un gradiente suave con brillo del color principal (arriba a la izquierda) y del color del deck B (abajo a la derecha), y encima un grano de dither ordenado. No hay bordes entre sus partes.
-- **Sheet**: el contenido vive en una hoja elevada, lisa, con radio, sombra y un filo de luz. La diferencia de material (grano vs liso) y de elevación separa navegación y contenido sin tarjetas ni bordes.
+- **Chrome:** sidebar/topbar/footer form a continuous surface, soft gradient with main-color glow top-left and B-color glow bottom-right, plus ordered dither grain. No borders between them.
+- **Sheet:** smooth elevated content with radius, shadow and a light edge. Grain versus smoothness and elevation separate navigation/content without cards/borders.
 
-Dentro de la hoja se evita el «todo es una card»: secciones planas, separación por espacio y tipografía, y superficies de otro material solo donde tienen sentido (el mixer usa material chrome, como hardware en el centro de la consola).
+Inside the sheet, use flat sections, spacing and typography instead of making everything a card. Distinct material is reserved for meaningful surfaces, such as mixer hardware. Pixel logo/keycaps/labels/dither coexist with soft gradients on backgrounds, primary buttons, platters and progress, from accent to each style's `--gradient-end`. Later visual refinement made the mixer smooth rather than grainy; see CHANGELOG.
 
-Detalles pixel y gradientes suaves conviven: el logo, los keycaps, las etiquetas y el dither son pixel; fondos, botones primarios, platos y barras de progreso usan gradientes del color principal al `--gradient-end` de cada estilo.
+## Settings
 
-## Configuración
+**Configuración → Apariencia**:
 
-Configuración → **Apariencia**:
+| Setting    | Options                                     | Notes                                                              |
+| ---------- | ------------------------------------------- | ------------------------------------------------------------------ |
+| Style      | curado, pixel, gothic, y2k, minimal         | Default material/radii/type/texture; current UI uses Spanish names |
+| Base color | Presets, picker, hex, HSV                   | User-owned; style suggests but does not force a color              |
+| Scheme     | Dark, light, system                         | Follows OS when selected                                           |
+| Variant    | Neutral, tonal, high contrast               | Tonal tints surfaces; contrast reinforces text/edges               |
+| Typography | Style default, display, pixel, mono, system | `auto` follows style                                               |
+| Texture    | Style default, dither, soft gradients, flat | `auto` follows style                                               |
+| Waveform   | Three-band, frequency RGB, mono accent      | Style colors adapt to light mode                                   |
 
-| Ajuste     | Opciones                                                           | Notas                                                      |
-| ---------- | ------------------------------------------------------------------ | ---------------------------------------------------------- |
-| Estilo     | curado, pixel, gótico, y2k, mínimo                                 | Materiales, radios, tipografía y textura por defecto       |
-| Color base | presets, selector, hex, HSV                                        | Siempre del usuario; cada estilo sugiere uno sin imponerlo |
-| Esquema    | oscuro, claro, sistema                                             |                                                            |
-| Variación  | neutra, tonal, contraste alto                                      | Tonal tiñe superficies; contraste refuerza texto y filos   |
-| Tipografía | del estilo, display, pixel, mono, sistema                          | `auto` usa la del estilo                                   |
-| Textura    | del estilo, dither, gradientes suaves, plano                       | `auto` usa la del estilo                                   |
-| Waveform   | 3 bandas (graves/medios/agudos), RGB por frecuencia, mono (acento) | Colores por estilo; se adaptan a modo claro                |
+Defaults: **curado**, **#d66154**, dark, neutral, style typography/texture, three-band waveform. Reset restores these exact values.
 
-Valores iniciales: estilo **curado**, color **#d66154**, oscuro, neutra, tipografía y textura del estilo, waveform de 3 bandas. «Restaurar» vuelve exactamente a esos valores.
+| Style   | Display            | UI            | Texture | Character                                       |
+| ------- | ------------------ | ------------- | ------- | ----------------------------------------------- |
+| curado  | Jersey 15          | System        | Dither  | Warm coral→amber, pixel details                 |
+| pixel   | Jersey 15          | Pixelify Sans | Dither  | Zero radius, 2 px edges, stepped shadows, no AA |
+| gothic  | UnifrakturMaguntia | System        | Soft    | Deep black, vignette, crimson glow, thin edges  |
+| y2k     | Michroma           | System        | Soft    | Chrome, diagonal shine, reflective pill buttons |
+| minimal | System             | System        | Flat    | Essential color, no glow/grain                  |
 
-### Estilos
+Small labels use Pixelify Sans and numbers Geist Mono except with system typography.
 
-| Estilo | Display            | UI            | Textura | Carácter                                            |
-| ------ | ------------------ | ------------- | ------- | --------------------------------------------------- |
-| curado | Jersey 15          | sistema       | dither  | Cálido, gradiente coral → ámbar, detalles pixel     |
-| pixel  | Jersey 15          | Pixelify Sans | dither  | Radio 0, bordes de 2 px, sombras en escalón, sin AA |
-| gótico | UnifrakturMaguntia | sistema       | suave   | Negro profundo, viñeta, glow carmesí, filos finos   |
-| y2k    | Michroma           | sistema       | suave   | Cromo, brillo diagonal, botones píldora con reflejo |
-| mínimo | sistema            | sistema       | plano   | Sin glow ni grano; solo color esencial              |
+## Implementation
 
-Etiquetas pequeñas usan Pixelify Sans y los números Geist Mono en todos los estilos salvo tipografía «sistema».
+- `src/lib/theme.ts`: RGB/HSV math, v1→v2 validation, `STYLES` seeds, `resolved()` and pure `palette()`. All colors originate here.
+- `src/lib/theme-store.ts`: local cache, OS preference, tokens and `data-style`, `data-typography`, `data-texture`, `data-theme`; dither generation; SQLite save with 180 ms debounce.
+- `src/lib/dither.ts`: 8×8 Bayer matrix; tiny theme-colored data-URL PNGs for X/Y gradients, grain and 50% fill. CSS scales with `image-rendering: pixelated`. Regenerate only if accent/secondary/text changes.
+- `src/styles.css`: structural `:root` fonts/radii/texture fallbacks, then generated palette block from `scripts/sync-theme.ts`, then style/type/texture rules.
+- `src/components/ThemePanel.tsx`: style previews with their own palette, typography/texture/waveform selectors and color controls.
+- `src-tauri/src/preferences.rs`: Theme v2, v1 row defaults, enum/hex validation.
 
-## Implementación
+Add color tokens in `palette()`, never arbitrary component hex. Intentional constants: presets, style seeds and waveform bands. Declare structural variables in CSS; set component `--t`, `--p`, `--turn`, `--art-*`, `--zone` inline. Integration tests check every `var()` has a source. Fonts are local Fontsource/OFL; CSP disallows remote fonts (ADR-009).
 
-- `src/lib/theme.ts`: matemática RGB/HSV, validación v1→v2, `STYLES` (semillas por estilo), `resolved()` y `palette()` pura. Todo color sale de aquí.
-- `src/lib/theme-store.ts`: caché local, preferencia del OS, aplica tokens y atributos `data-style`, `data-typography`, `data-texture`, `data-theme`; genera texturas dither; persiste en SQLite con debounce de 180 ms.
-- `src/lib/dither.ts`: matriz Bayer 8×8; produce PNG diminutos (data URL) por color del tema: degradados X/Y, grano y 50 %. CSS los escala con `image-rendering: pixelated`. Solo se regeneran si cambian acento, secundario o texto.
-- `src/styles.css`: primer bloque `:root` estructural (fuentes, radios, variables de textura con fallback `none`); segundo bloque generado por `scripts/sync-theme.ts` desde `palette(DEFAULT_THEME)`; después reglas por `data-style`/`data-typography`/`data-texture`.
-- `src/components/ThemePanel.tsx`: tarjetas de estilo con su propia paleta, selects de tipografía/textura/waveform, color.
-- `src-tauri/src/preferences.rs`: `Theme` v2 con valores por defecto para filas v1; valida enumeraciones y hex.
+## Animation and interaction
 
-Reglas:
+Web Animations light `data-action` controls/`data-key` keycaps without React rendering. HUD shows key/action, e.g. “A · Hot cue 2”; mode-blocked keys show unavailable. Mode indicator slides, play breathes, platters follow engine position and views enter softly. `prefers-reduced-motion` disables animation/transitions.
 
-- Añadir colores como tokens en `palette()`, nunca hex en componentes. Constantes intencionales: presets, semillas de estilo, colores de bandas de waveform.
-- Variables estructurales (fuentes, radios, texturas) se declaran en CSS; las de componentes (`--t`, `--p`, `--turn`, `--art-*`, `--zone`) se fijan inline. El test de integración comprueba que cada `var()` exista en una de esas fuentes.
-- Las fuentes son locales (Fontsource, OFL). La CSP no permite fuentes remotas. Ver ADR-009.
+## macOS header
 
-## Animación e interacción
+`tauri.macos.conf.json`: `titleBarStyle: Overlay`, `hiddenTitle: true`, native controls at (18, 22). Lowercase brand sits right of controls, aligned with topbar. Brand/topbar form drag region; no HTML replica titlebar/buttons. Windows/Linux keep native decorations.
 
-- Teclas: cada acción ilumina el control asociado (`data-action`) y su keycap (`data-key`) con Web Animations, sin render de React; además un HUD muestra la tecla y la acción («A · Hot cue 2»). Las teclas bloqueadas por modo aparecen como «no disponible».
-- Selector de modo con indicador deslizante, play con «respiración», platos que giran según la posición del motor, entrada suave de vistas.
-- `prefers-reduced-motion` desactiva animaciones y transiciones.
+Mini view uses narrowly allowed `setSize`, `setMinSize`, `setAlwaysOnTop`, remembers/restores previous size.
 
-## Cabecera macOS
+## Evidence and limits
 
-`tauri.macos.conf.json` usa `titleBarStyle: Overlay`, `hiddenTitle: true` y controles nativos en (18, 22). La marca «curado» se dibuja a la derecha de los controles, alineada con la topbar; esa zona y la topbar son región de arrastre. No se replica la barra de título en HTML. Windows/Linux conservan decoraciones nativas.
+Pure tests cover 5 styles ×10 colors ×3 modes ×3 variants ×light/dark OS. Chrome/sheet text-accent contrast ≥4.5:1; primary/secondary >7:1 / ≥7:1, muted >4.5:1; visible highs in light waveforms; valid hex and v1→v2 migration.
 
-Vista mini: botón en la topbar. Usa `setSize`, `setMinSize` y `setAlwaysOnTop` (permisos acotados en `capabilities/default.json`), recuerda el tamaño anterior y lo restaura al salir.
-
-## Evidencia y límites
-
-- Tests puros: 5 estilos × 10 colores × 3 modos × 3 variantes × OS claro/oscuro. Para chrome y sheet: acento de texto ≥ 4.5:1, texto > 7:1, secundario ≥ 7:1, atenuado > 4.5:1; agudos de la waveform visibles en modo claro; tokens hex válidos; migración v1→v2.
-- Contraste matemático no es una auditoría completa. **Ningún estilo nuevo se ha revisado visualmente**: el usuario pidió verificar sin Computer Use ni pruebas visuales. `color-mix()` y unidades de contenedor requieren WebKit de Safari 16+; en macOS 12 con Safari 15 sin actualizar algunos fondos caerían a su valor sin mezcla.
+Math is not a full visual audit. A later authorized web-preview review covered curado at 1100/1440 px without native audio; native loaded decks and other styles remain unreviewed. Current preference prohibits further Computer Use/visual tests without explicit instruction. `color-mix()` and container units need Safari 16+ WebKit; macOS 12 with unupdated Safari 15 may fall back to unmixed backgrounds. Existing README imagery is a development capture, not evidence of current visual verification.

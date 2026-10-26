@@ -1,121 +1,128 @@
-# Estado de curado
+# curado status
 
-Actualizado: **2026-10-26** (America/Hermosillo). Versión **0.1.0** con BPM/key estimados, beatgrid editable, sync, cuantizado y transposición preparada fuera del callback. Base funcional de pruebas locales; no se ha completado la matriz de producción de QUALITY.
+Updated **2026-10-26**, America/Hermosillo. Version **0.1.0**: local testing foundation with estimated BPM/key, editable beatgrid, sync/quantize, worker-prepared transposition and an integrated isolated web browser. The production matrix in QUALITY is incomplete.
 
-## Para retomar
+## Resume here
 
-1. Leer este documento, ARCHITECTURE, ROADMAP y [SESSIONS](SESSIONS.md).
-2. Preferencia: **sin Computer Use** salvo instrucción explícita. El 2026-10-25 el usuario autorizó una revisión visual: se hizo en la vista previa web (sin audio, sin pistas) del estilo curado en mezcla y reproductor. La app nativa con pistas reales y los otros cuatro estilos siguen sin revisión visual.
-3. Nombre siempre en minúsculas: **curado**. Color inicial exacto **#d66154**, estilo **curado**.
-4. Siguiente prioridad estructural: S1 streaming con presupuesto de memoria. Siguiente prioridad de experiencia: S2 reloj de posición (playhead/platos a 60 FPS sin violar el invariante 2).
+1. Read this document, ARCHITECTURE, ROADMAP and [Sessions](SESSIONS.md). Installation starts in [Setup](SETUP.md).
+2. **No Computer Use/visual app testing** without explicit authorization. An authorized 2026-10-25 review covered only curado-style web preview at 1100/1440 px, no audio/tracks. Loaded native decks and other styles remain unreviewed.
+3. Always lowercase **curado**; exact initial color **#d66154**, style **curado**. Technical docs are English; [README.es.md](../README.es.md) is the Spanish welcome. App UI remains Spanish; maintainer communication stays Spanish.
+4. Next structural priority: S1 streaming/global memory. Next UX priority: S2 native position clock for smooth playheads/platters without breaking invariant 2.
 
-## Sesión navegador integrado · 2026-10-26
+## Documentation session · 2026-10-26
 
-La vista **radio / web** ahora contiene un WebView nativo hijo de la ventana principal, con fractos radio seleccionado inicialmente. Sustituye las ventanas externas descritas en la sesión previa. Conserva sidebar/topbar/footer; sigue el rectángulo reservado por React con ResizeObserver y resize/scroll. Configuración y el diálogo de playlists ocultan el navegador para no quedar debajo; el audio continúa mientras esos diálogos están abiertos. Salir de la vista, entrar a mini, detener audio o cambiar de servicio cierra el WebView y detiene su reproducción; se abre una nueva sesión al volver.
+English technical docs and AGENTS, friendly English README and reciprocal Spanish README, user-supplied mixer development capture, nu9ve.xyz credit, linked agent-assisted setup/troubleshooting. No new screenshot capture, app launch, visual/audio test or native behavior change. Documentation-only sessions need not rebuild/reinstall an unchanged app; required automated checks still run.
 
-La capability se limita por **webviews: [main]**, sin selección por ventana: un permiso aplicado a la ventana main incluiría a sus hijos. Sigue la validación de label por comando, las URLs fijas/hosts exactos, incognito y el bloqueo de popups/descargas. Tray e instancia única usan Window en lugar de WebviewWindow, que deja de representar main mientras hay hijos. No hay permisos genéricos para crear WebViews desde JS ni cambios de CSP.
+[Licensing](LICENSING.md) recommends MIT for the maintainer's stated maximum freedom/commercial-fork preference and explains free downloads, donations and paid editions. **No project license applied.** Owner/year, explicit choice, contribution/brand/asset rules and full dependency notices/source obligations remain unresolved. Signalsmith MIT notices exist; Symphonia declares MPL-2.0; exact font notices/full locked-tree audit remain release work. No price/payment provider selected.
 
-Tauri 2.12.5 ya resuelto requiere la feature `unstable` para `Window::add_child`; se habilita sin actualizar dependencias/lockfiles. ADR-012 registra el motivo y el límite de estabilidad. Audio web fuera del mixer nativo, sin inyección de scripts. Implementación y pruebas por código; sin abrir la app ni validar aspecto, foco real, cookies/login o reproducción remota. Evidencia: `bun run check` **24 tests TS**, `cargo test --workspace --locked` **42 Rust** (27 motor + 15 app), clippy con -D warnings, formato y diff check correctos. Build frontend y `.app` ARM64 **13,48 MiB** correctos, firma ad hoc verificada; no notarizada. Instalación/registro correctos en `/Users/nu9ve/Applications/curado.app`, ejecutable SHA-256 `6244aa4761012a314267bce70b140fc43bae827a5aeebdecbb8538d14c685182`. No se abrió ni se validó lanzamiento/indexación Spotlight/Raycast.
+Verification: `bun run check` **24 TS tests /11,574 assertions**, `cargo test --workspace --locked` **42 Rust tests** (27 engine +15 app), `bun run build`, cargo fmt/clippy with -D warnings and documentation formatting/diff checks passed. A local link/image check passed **73 references across 16 Markdown files**. Format scripts now include README.es.md. No native rebuild/reinstall was needed; the installed binary below remains the latest app build.
 
-## Sesión radio/web previa · 2026-10-26
+## Integrated browser session · 2026-10-26
 
-Implementado lanzador **radio / web** con ventanas aisladas para `https://www.fractos.app/es/radio` y SoundCloud Discover. HTTP público: fractos redirige a www por HTTPS y responde 200. El propietario confirma iframes de YouTube/SoundCloud: no hay fuente PCM ni mezcla nativa. Cambiar vista conserva los decks/cola. Cerrar una ventana remota la destruye; la UI puede cerrar ambas para detener el audio web. Master, FX, sync y pánico siguen controlando solo audio local.
+**radio / web** contains a native child WebView in main, initially fractos, replacing the external-window implementation below. Sidebar/topbar/footer stay local. React reserves bounds with ResizeObserver/resize/scroll. Settings/playlist dialogs hide it temporarily while audio continues. Leaving the view, entering mini, stopping or switching service closes it/stops web playback; returning opens a new session.
 
-URLs fijas, política HTTPS por hosts exactos (widgets incluidos), incognito, popups/descargas denegados. Manifiesto explícito de 26 comandos; ACL solo main y defensa adicional por label, sin permisos remotos ni cambios CSP/core. Pruebas: **24 tests TS y 41 Rust** (27 motor + 14 app); clippy limpio. `bun run build` (vía desktop:build), `bun run format:check`, `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings` y `git diff --check`: correctos. `.app` ARM64 de **13,44 MiB**, firma ad hoc verificada; no notarizada.
+Capability uses **webviews: [main]**, not window selection (which would include children). Handler label validation, fixed URLs/exact-host policy, incognito and popup/download blocking remain. Tray/single-instance use Window rather than WebviewWindow, which no longer represents main with children. No generic JS WebView creation permission or local CSP change.
 
-`bun run desktop:install --no-build`: instalada y registrada en `/Users/nu9ve/Applications/curado.app`, SHA-256 del ejecutable `0996a7b8750239d93a3c1114133c9be6130c0b51ace2f13d09f0d26279a7d178`. No se abrió; lanzamiento e indexación Spotlight/Raycast pendientes de comprobar.
+Resolved Tauri 2.12.5 enables `unstable` for `Window::add_child`, with no dependency/lockfile update (ADR-012). Audio stays outside native mixer, no script injection. Code/contracts only; actual layout/focus/cookies/login/playback unverified.
 
-**Pendiente de comprobar**: reproducción real de embeds, cookies/login y navegación en WebView de cada OS. No se abrió la app ni se hizo revisión visual/audio. Un HTTP 200 y tests de política no validan compatibilidad de players. Login por popups/hosts externos bloqueado; sesión no persistente. Siguiente integración posible: transporte/volumen vía protocolo con fractos y APIs de widgets; EQ/BPM/key/sync nativos requieren fuentes directas autorizadas y streaming. Ver ADR-012/S5.
+Evidence: `bun run check` **24 TS tests**; `cargo test --workspace --locked` **42 Rust** (27 engine +15 app); clippy -D warnings, formatting/diff checks passed. Frontend and ARM64 `.app` **13.48 MiB**, verified ad hoc signature, not notarized. Installed/registered `/Users/nu9ve/Applications/curado.app`; executable SHA-256 `6244aa4761012a314267bce70b140fc43bae827a5aeebdecbb8538d14c685182`. Not launched; Spotlight/Raycast launch/indexing unverified.
 
-## Sesión musical · 2026-10-26
+## Previous web-launcher session · 2026-10-26
 
-Implementados análisis de BPM/offset y tonalidad mayor/menor, notación americana/Camelot en biblioteca/decks y editor de BPM/offset/key con reanálisis. Nuevas importaciones analizan hasta 90 s; pistas anteriores se analizan al cargar. Metadata versionada en settings por ID; las correcciones manuales se conservan, sin migración ni modificación de archivos musicales.
+Historical implementation, superseded by integrated browser above. Fixed fractos URL `https://www.fractos.app/es/radio`: public HTTP redirects to www/HTTPS and returns 200. Owner confirmed YouTube/SoundCloud iframes, no PCM/native mixing. Separate service windows reused/closed explicitly, preserving local decks/queue; native master/FX/sync/panic affected local audio only.
 
-Q está activo por defecto. Loops de 1/2/4/8/16 beats se alinean al grid y evitan colas parciales; sin grid se conserva el loop en segundos. Sync nativo sigue BPM/fase del master. Un cue del follower con SYNC+Q espera al siguiente beat, se ejecuta por muestra y se cancela con pánico/pausa conjunta/cambios de contexto. Transposición ±12 semitonos, key lock y key sync puntual (tónica o relativa) usan PCM preparado en worker con Signalsmith Stretch 0.1.3 MIT; el audio anterior continúa hasta estar listo. Se validan tickets/revisiones y se confirma la aplicación o descarte del lote. Nuevos FX: HP y echo en beats con smoothing y delay preasignado de 8 s por slot.
+Fixed URLs/exact HTTPS hosts including widgets, incognito, popup/download blocking; explicit 26-command AppManifest/main-only ACL and handler label guard. CSP/core unchanged. **24 TS /41 Rust** (27 engine +14 app), clippy/format/diff/frontend/native build passed. ARM64 **13.44 MiB**, ad hoc verified. Installed/registered SHA-256 `0996a7b8750239d93a3c1114133c9be6130c0b51ace2f13d09f0d26279a7d178`, not launched.
 
-`bun run desktop:install` compila e instala en `~/Applications/curado.app`; `--no-build` reutiliza el bundle verificado y `--check` comprueba sin instalar. El script valida identidad/firma/hash, reemplaza con rollback y registra LaunchServices. AGENTS incorpora su ejecución al cierre. No abre la app ni fuerza el cierre de la instalada. La indexación de Spotlight/Raycast y el lanzamiento desde esos programas no se consideran probados por registrar el bundle.
+HTTP 200/policy tests did not validate player/login/cookies on any real WebView. Popups/external auth blocked, session temporary. Next potential integration is iframe transport/volume protocol with fractos; native EQ/BPM/key/sync needs direct authorized sources/streaming.
 
-### Evidencia de esta sesión
+## Musical session · 2026-10-26
 
-- `bun run check`: **22 tests**, incluidos los 24 códigos Camelot/transposición y rollback real del instalador en un directorio temporal.
-- `cargo test --workspace --locked`: **38 tests** (27 motor + 11 app): clicks de 90/120/124/150 BPM dentro de ±0,1 BPM y offset a ±20 ms; triadas mayores/menores en las 12 raíces; sync tempo/fase con loop; cue diferido y cancelación por pánico; transposición de 220→440 Hz, key lock a 1,25×, stereo y longitud preservados; tuning obsoleto/reintento/recarga del mismo ID; HP, delay rítmico, metadata SQLite y allocator ampliado a nuevos comandos.
-- Build frontend y `.app` ARM64 correctos, firma ad hoc verificada; avisos MIT del wrapper, Stretch y Linear incluidos en recursos. CPP/libclang se usan en build; CPP/FFT no entran al callback. Sin nuevos permisos Tauri/CSP.
-- `bun run desktop:install --no-build`: **instalada y registrada** en `/Users/nu9ve/Applications/curado.app`. SHA-256 del ejecutable: `c1bd4b0d85e532f13b375f29a32f433c642509473a600bc899490de975f7cd68`. Bundle de 13,31 MiB; no se abrió. Registro/copia verificados, lanzamiento e indexación desde Raycast/Spotlight pendientes del usuario.
-- Probe offline con seis fuentes/FX: P50 **36,67 µs**, P95 **39,38 µs**, P99 **51,29 µs**, máximo **147,25 µs** de 5333,33 µs; cero recortes. No borra el outlier histórico de la sesión anterior ni valida salida física.
-- Probe musical sintético (30 s/48 kHz): análisis **22,76 ms**, preparación (rate 1,25× y +2 semitonos) **457,12 ms**, BPM estimado **119,943** para 120, 1.440.000 frames conservados y 23.040.000 bytes de PCM entre fuente/resultado. No es RSS total ni latencia DAC. Ver `music:probe` y `musical-probe-2026-10-26.json`.
+Offline BPM/offset/major-minor key, library/deck letter/Camelot notation, editable BPM/offset/key/reanalysis. New imports analyze ≤90 s; older tracks analyze on load. Versioned per-ID settings preserve manual corrections without schema migration/original music edits.
 
-**Límites vigentes:** no se ha escuchado/inspeccionado esta entrega ni validado con corpus real/controlador. El análisis es heurístico, no detecta tempo variable/downbeats/modulaciones; los indicadores no son probabilidades calibradas. Loops sin crossfade. Key lock/transposición preparan clips completos: pueden tardar segundos y añadir hasta 192 MiB de fuentes + 192 MiB de resultados, además de los clips existentes; falta presupuesto global. El límite de 96 MiB por archivo sigue vigente. No hay timestretch continuo para pistas largas, recuperación automática ni matriz de producción completa.
+Default Q; 1/2/4/8/16-beat loops align grid/avoid partial tails; seconds fallback without grid. Native master BPM/phase sync. SYNC+Q follower cues execute per sample at next beat and cancel on panic/linked pause/context changes. ±12-semitone pitch, key lock and one-shot tonic/relative key sync use Signalsmith Stretch 0.1.3 MIT worker-prepared PCM. Previous audio continues until ready, validated ticket/revision batches acknowledge application/rejection. HP and smoothed beat echo with preallocated 8 s delay per slot.
 
-## Implementado
+`desktop:install` default build/install to `~/Applications/curado.app`, `--no-build` reuses verified bundle, `--check` validates without installing. Identity/signature/hash, staged replacement/rollback and LaunchServices, without launch/forced quit. Indexing/launcher behavior remains distinct from registration.
 
-| Área                | Estado y alcance                                                                                                                        |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Stack               | Bun + React/TS/Vite + Tauri 2; crate de audio Rust independiente                                                                        |
-| Reproducción        | CPAL, Symphonia, mono/estéreo, 2 decks y 4 one shots, seek, fin de pista                                                                |
-| Mezcla              | Equal power, master, EQ básico, LP/HP, echo en beats, tempo, nudge, loops IN/OUT                                                        |
-| Waveforms           | Análisis offline 3 bandas a 50 bins/s en la decodificación, BLOB SQLite v3, IPC binario, vista general + detallada (8 s)                |
-| Cues                | Tres por track, estado atómico compartido entre decks, autosave SQLite y restauración al cargar                                         |
-| Biblioteca          | Archivos/carpetas, metadatos, búsqueda, favoritos, playlists; listado sin peaks (escala con bibliotecas grandes)                        |
-| Cola                | Worker Rust, avance nativo, repeat off/one/all; **prefetch** 15 s antes del final; repeat-one sin redecodificar; sin gapless            |
-| Modos               | Player/mix persistentes, política nativa compartida por UI/teclado/MIDI                                                                 |
-| Entrada             | Atajos físicos remapeables con **feedback visual** (control, keycap y HUD), mapa de teclado clicable, MIDI Learn (EQ unitario en CC 64) |
-| UI                  | Chrome continuo + sheet elevada; consola A · mixer · B con platos, perillas, faders verticales y medidores LED en dB                    |
-| Vistas              | Completa y **mini siempre encima** (460×132) con restauración de tamaño                                                                 |
-| Apariencia          | Estilos curado/pixel/gótico/y2k/mínimo, claro/oscuro/sistema, variaciones, tipografía, textura (dither/suave/plano), waveform           |
-| Marca               | Nombre en minúsculas; logo pixel (anillo «c» + eje) en UI, SVG y set de iconos regenerado por geometría                                 |
-| OS                  | Tray/menu bar, cerrar para ocultar si hay tray, recuperar dispositivo/buffer manualmente                                                |
-| Datos               | SQLite WAL, esquema v3, migraciones v1→v2→v3 probadas, IDs estables, originales conservados                                             |
-| Ayuda               | Footer fijo con hover/foco, función, atajos remapeados y detalles expandibles; diagnóstico de transporte/routing por deck               |
-| Transporte conjunto | Play/pausa/cue A+B en un único comando; carga+play de cola atómica; precarga con revisión y fallo acotado                               |
+### Evidence
 
-## Sesión previa · footer y transporte A/B
+- **22 TS tests** including 24 Camelot keys/transposition and installer rollback in a temporary directory.
+- **38 Rust tests** (27 engine +11 app): 90/120/124/150 BPM clicks within ±0.1 BPM, offsets ±20 ms; major/minor triads across 12 roots; sync tempo/phase/loop/deferred cue/panic; 220→440 Hz transpose; key lock at 1.25×; stereo/frame count; stale tuning/retry/same-ID reload; HP/beat delay/SQLite/allocator new-command coverage.
+- Frontend/ARM64 app/ad hoc signature passed. Wrapper/Stretch/Linear MIT notices bundled. C++/libclang build only; no callback C++/FFT/new permissions/CSP.
+- Installed **13.31 MiB** app, executable `c1bd4b0d85e532f13b375f29a32f433c642509473a600bc899490de975f7cd68`, not launched. Superseded by browser build above.
+- Offline six-source/FX probe: P50 **36.67 µs**, P95 **39.38 µs**, P99 **51.29 µs**, max **147.25 µs** against 5333.33 µs budget; zero clipping. Does not erase historical outlier or validate physical output.
+- Synthetic music probe, 30 s/48 kHz: analysis **22.76 ms**, preparation at 1.25×/+2 semitones **457.12 ms**, estimated **119.943 BPM** for 120, 1,440,000 frames preserved, **23,040,000 PCM bytes** source+result. Not total RSS/DAC latency. See [musical probe](musical-probe-2026-10-26.json), `music:probe`.
 
-El caso reportado (B en silencio al pulsar cue mientras A suena) se reprodujo por código: el cue anterior cambiaba posición sin iniciar un deck pausado/terminado. Las regresiones fallaron antes del cambio. Ahora salto + play son un único comando por slot, sin alternar ni modificar el otro deck. No se constató una carrera por compartir el dispositivo de salida: ambos decks ya se suman en el renderer y conservan posición, reproducción y ganancias independientes.
+Limits: no real-music/controller/listening verification. Heuristics do not detect variable tempo/downbeats/modulations; indicators not calibrated probabilities. No loop crossfade. Full-clip tuning can take seconds and add up to 192 MiB originals +192 MiB results beyond existing clips, without global budget. 96 MiB per-file cap remains. No long-track continuous timestretch/automatic recovery/complete production matrix.
 
-Se añadieron acciones A+B en el mismo límite de bloque, pruebas a 44.1/48/96 kHz con señales separadas L/R y samples en marcha, y cobertura del límite de 64 comandos. La carga+play de la cola ya no puede aceptarse a medias si solo queda una entrada libre. Las precargas se identifican por revisión de sesión; resultados/errores antiguos no alteran una cola nueva, y un fallo no se reintenta a 20 Hz (hay un último intento al avanzar y se reinicia la política al iniciar otra cola).
+## Implemented
 
-El footer resuelve acciones exactas y mapeos actuales; controles genéricos tienen fallback de etiqueta/título. Expande dentro del chrome sin tapar la hoja; Escape desde la ayuda no envía pánico. La vista mini no cambia. La implementación y el markup se verifican automáticamente; **el nuevo footer y sus estados no se han inspeccionado visualmente ni escuchado en hardware**.
+| Area             | Scope                                                                                              |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| Stack            | Bun/React/TS/Vite/Tauri 2; independent Rust engine                                                 |
+| Playback         | CPAL/Symphonia, mono/stereo, two decks/four one-shots, seek/EOF                                    |
+| Mixer            | Equal-power, master, basic EQ, LP/HP, beat echo, tempo/nudge/IN-OUT loops                          |
+| Musical control  | Estimated BPM/key, editable grid, beat loops, native sync, prepared pitch/key lock                 |
+| Waveforms        | Decode-time offline 3-band 50 bins/s, schema-v3 BLOB/binary IPC, overview/detail 8 s               |
+| Cues             | Three per track, shared atomics, SQLite autosave/restore                                           |
+| Library          | Referenced files/folders, metadata/search/favorites/playlists; peak-free listings                  |
+| Queue            | Rust worker, native advance/repeat off-one-all, 15 s prefetch, repeat-one seek; not gapless        |
+| Modes            | Persisted player/mix, shared UI/keyboard/MIDI native policy                                        |
+| Input            | Remappable physical keys/animated control-keycap-HUD, clickable keymap, MIDI Learn (EQ unity CC64) |
+| UI               | Continuous chrome/elevated sheet, A-mixer-B console, platters/knobs/faders/dB LEDs                 |
+| Views            | Full and always-on-top 460×132 mini with size restoration                                          |
+| Appearance       | Five styles, light/dark/system, HSV/user accent, variants/type/texture/waveforms                   |
+| Brand            | Lowercase name, shared pixel c-ring/axle SVG/UI/geometric icon                                     |
+| OS               | Tray/menu, main close-to-hide when tray exists, manual output/buffer recovery                      |
+| Data             | SQLite WAL v3, tested migrations v1→v2→v3, stable IDs/originals preserved                          |
+| Help             | Fixed hover/focus footer, exact remaps/details/deck transport-routing diagnostics                  |
+| Linked transport | One-command A+B play/pause/cue; atomic queue load+play, revisioned bounded prefetch failures       |
+| Web              | Isolated internal service browser; independent audio, real player compatibility pending            |
+| Setup            | Verified Mac local installer; linked agent/manual instructions; no auto-launch                     |
 
-Al terminar esa sesión seguían pendientes las cinco entregas mayores. La sesión musical posterior implementa una base de la entrega 5; streaming, importación cancelable, reloj fluido, sesión, DSP avanzado, recuperación y validación de producción siguen pendientes.
+## Previous footer/A-B transport session
 
-### Evidencia de esa sesión · 2026-10-26
+Reported B silence reproduced in code: old cue moved position but did not start a paused/ended slot. Regressions failed before fix. Jump+play now one command per slot without affecting the other. No device-sharing race was established: both decks already sum in renderer with independent positions/playback/gains.
 
-- `bun run check`: **20 tests TypeScript**, 11.459 assertions, sin fallos. Incluye ayuda por acción/cue exactos, remapeos, diagnósticos, modo y markup de expansión accesible.
-- `cargo test --workspace --locked`: **26 tests Rust** (16 motor + 10 app), sin fallos. Incluye allocator con A/B + sample, cues conjuntos, carga+play, EOF, PCM compartido y precargas obsoletas/fallidas.
-- `cargo clippy --workspace --all-targets --locked -- -D warnings`, `bun run format:check` (incluye `cargo fmt --all -- --check`) y `git diff --check`: correctos.
-- `bun run build` (también ejecutado por `desktop:build`): JS **329,87 KB / 104,76 KB gzip**, CSS **51,08 KB**. Sin nuevas dependencias ni permisos.
-- `bun run desktop:build`: `.app` ARM64 de **13,10 MiB**, firma ad hoc y verificación local correctas; sin abrir la app. No notarizada.
-- `bun run probe`: dos corridas conservadas en [render-probe-2026-10-26.json](render-probe-2026-10-26.json). Tras terminar el build: P50 **16,75 µs**, P95 **18,21 µs**, P99 **63,37 µs**, máximo **52.988,25 µs**, cero recortes. **El máximo excede el presupuesto de 5333,33 µs**. No se conoce la causa del outlier y el host no estaba aislado; la medición es tiempo de pared, no prueba de dropouts físicos ni garantía de continuidad. Queda pendiente medir scheduling/carga y salida real según QUALITY.
+Linked block-boundary actions tested with separate L/R signals at 44.1/48/96 kHz, running samples and 64-command bound. Queue load+play cannot partially accept one of two actions. Prefetch revision rejects old session outcomes; failed prefetch does not retry at 20 Hz (one final advance attempt, reset with new queue).
 
-## Evidencia automatizada · baseline 2026-10-25
+Footer uses exact actions/current remaps, generic label/title fallback; expansion reserves sheet height, help Escape does not panic, mini unchanged. Markup/code verification only, no visual/listening evidence. Five major deliveries remained open; later musical foundation completes neither streaming/session/recovery nor production gates.
 
-- `bun run check`: **15 tests TypeScript** en 4 archivos, 11.404 assertions: paleta en 5 estilos × 10 colores × modos × variantes con contraste sobre chrome y sheet, migración de tema v1→v2, tokens/variables CSS, permisos de ventana exactos, política de modo del teclado, formato binario de waveform, matriz Bayer y geometría del logo.
-- `cargo test --workspace`: **19 tests Rust** (10 motor + 9 app): allocator sin alloc/dealloc en render, análisis de bandas (60 Hz → graves, 9 kHz → agudos, 50 bins/s a 44.1 y 48 kHz), migración v1→v3 con backfill sin sobrescritura, prefetch de cola, repeat-one por seek, tema v1→v2 en Rust.
-- `cargo clippy --workspace --all-targets -- -D warnings`: limpio. `cargo fmt --all -- --check` y `bun run format:check`: limpios.
-- `bun run build`: tipos y frontend de producción (JS 318 KB, 101 KB gzip; CSS 48 KB; fuentes woff2 ~120 KB).
-- `bun run desktop:build`: `target/release/bundle/macos/curado.app` ARM64 de **13,09 MiB**, firma ad hoc y `codesign --verify --deep --strict` correctos. `CFBundleName` = curado, identificador sin cambios.
-- Probe offline (render sin cambios): P50 **16,75 µs**, P95 **17,38 µs**, P99 **18,12 µs**, máximo **101,46 µs** de un presupuesto de 5333 µs; cero recortes. Ver `render-probe.json`.
+### Evidence · 2026-10-26
 
-**No verificado**: aspecto de los estilos pixel/gótico/y2k/mínimo y del modo claro, legibilidad real de las waveforms, comportamiento de la vista mini en pantalla, rendimiento del WebView con la consola a 20 Hz, decodificación+análisis con archivos largos reales. CI de tres OS configurada pero sin ejecución verificada.
+- **20 TS tests**, 11,459 assertions: exact action/cue/remaps/diagnostics/mode/accessibility markup.
+- **26 Rust tests** (16 engine +10 app): allocator with A/B+sample, linked cues/load+play/EOF/shared PCM/stale-failed prefetch.
+- Clippy, format (including cargo fmt), diff passed. Frontend **329.87 KB JS /104.76 KB gzip**, **51.08 KB CSS**. No new dependencies/permissions.
+- ARM64 app **13.10 MiB**, ad hoc/signature passed, no launch/notarization.
+- Two offline runs in [render-probe-2026-10-26.json](render-probe-2026-10-26.json). After build: P50 **16.75 µs**, P95 **18.21 µs**, P99 **63.37 µs**, max **52,988.25 µs**, zero clipping. **Max exceeds 5333.33 µs callback budget.** Cause unknown, host not isolated, wall-time measurement. Not proof of physical dropouts or continuity. Scheduling/load/physical output measurements remain per QUALITY.
 
-## Cambios con efecto para el usuario
+## Automated baseline · 2026-10-25
 
-- Hot cues (incluido el botón CUE) ahora saltan **y reproducen**, también desde pausa/EOF; Shift + cue guarda sin iniciar. Seek conserva pausa. Cualquier salto fuera de un loop lo desactiva. Los pads muestran 0:00 como posición inicial en lugar de un guion.
-- Bases de datos existentes migran a v3 al abrir; una versión anterior de la app ya **no** podrá abrir esa base (rechaza versiones futuras sin modificarla). Hacer copia si se necesita volver atrás.
-- Pistas importadas antes de v3 muestran waveform plana hasta su primera carga en un deck, que la calcula y guarda.
-- La app se llama `curado.app`. Salir por completo de la instancia anterior antes de abrir la nueva; la caché antigua `Curado Visuals.app` puede borrarse a mano.
+- **15 TS tests**, 4 files, 11,404 assertions: palette 5 styles ×10 colors ×modes/variants/chrome/sheet; v1→v2 theme, tokens/CSS, exact window permissions, keyboard mode, waveform binary, Bayer/logo.
+- **19 Rust tests** (10 engine +9 app): allocator, 60 Hz/9 kHz bands and 50 bins/s at 44.1/48 kHz, v1→v3/backfill, prefetch/repeat-one, theme upgrade.
+- Clippy/fmt/Prettier passed; frontend **318 KB JS /101 KB gzip**, **48 KB CSS**, ~120 KB woff2.
+- ARM64 `.app` **13.09 MiB**, ad hoc `codesign --verify --deep --strict`; CFBundleName curado, stable identifier.
+- Unchanged offline render probe: P50 **16.75 µs**, P95 **17.38 µs**, P99 **18.12 µs**, max **101.46 µs** /5333 µs, zero clipping. [Baseline probe](render-probe.json).
 
-## Límites importantes
+Unverified: alternate four styles/light mode, real waveform readability, mini behavior, 20 Hz WebView console performance, long real-file decode/analysis; three-OS CI configured without verified execution.
 
-- PCM precargado limitado a 96 MiB por archivo (~4:22 a 48 kHz estéreo); el prefetch de la cola puede sumar un clip residente más.
-- Interpolación lineal en reproducción; EQ y techo básicos; loops sin crossfade. Transposición/key lock se preparan por clip y no son DSP continuo de baja latencia.
-- UI a 20 Hz: playhead, waveform detallada y platos avanzan en pasos de 50 ms (S2).
-- El feedback visual cubre teclado y clics; acciones MIDI no se reflejan aún en la UI (S7).
-- Una sola salida estéreo; sin cue de auriculares, ASIO/JACK ni PipeWire nativo.
-- Conexión MIDI manual; sin Clock, encoders relativos, LED ni controlador físico probado.
-- Sin media keys/Now Playing/MPRIS/SMTC, video ni plugins. Explorador remoto aislado implementado (S5/ADR-012); reproducción web pendiente de comprobar y sin integración con el motor.
-- `color-mix()` y unidades de contenedor requieren WebKit de Safari 16+.
+## User-visible compatibility notes
 
-## Aprendizajes de implementación
+- Hot cue/CUE jumps **and plays** from pause/EOF; Shift saves without start, seek retains pause. Out-of-loop jumps disable loop. Default cues show 0:00.
+- Existing DB upgrades to v3; old app versions reject newer schema. Make a consistent backup before rollback needs.
+- Pre-v3 tracks have flat waveform until first deck load fills it.
+- App name is `curado.app`; quit old instance before opening updated one. Old `Curado Visuals.app` helper cache can be removed manually.
 
-El análisis de waveform cabe en el mismo bucle que limpia y copia muestras: no hace falta una segunda pasada ni retener PCM para calcularla, lo que prepara el terreno para streaming. Enviar peaks dentro de `get_library` era el mayor payload de IPC con bibliotecas grandes; pasar a carga por pista y `ArrayBuffer` reduce el coste a lo que se ve. En la UI, el coste dominante no era React sino redimensionar y repintar canvas en cada snapshot; separar «dibujo estático» de «overlay que se mueve» elimina ese trabajo. Las animaciones de feedback con Web Animations evitan renders y reflows por tecla.
+## Important limits
+
+- Preloaded PCM ≤96 MiB/file (~4:22 at 48 kHz stereo); prefetch adds another clip; tuning adds source/result memory.
+- Linear playback interpolation, basic EQ/ceiling, no loop crossfade; offline pitch is not continuous low-latency streaming DSP.
+- UI position/detail/platters at 20 Hz, 50 ms steps (S2).
+- MIDI feedback not mirrored in UI (S7); manual MIDI connect, no Clock/relative encoders/LEDs/physical controller verification.
+- One stereo output, no independent headphone cue, ASIO/JACK/native PipeWire.
+- Manual device recovery, no media keys/Now Playing/MPRIS/SMTC/video/plugins.
+- Remote browser audio outside engine; compatibility/login/layout pending.
+- `color-mix()`/container units require Safari 16+ WebKit.
+
+## Implementation lessons
+
+Waveform analysis fits the decode cleaning/copy pass without extra PCM retention, useful for streaming. Peak-free library listings avoid large IPC payloads. Repainting/resizing canvas on every snapshot dominated UI cost; static drawing plus transformed overlays removes that work. Web Animations give per-key feedback without React renders/reflow. These implementation gains do not remove the measured scheduling outlier or missing hardware evidence.
