@@ -3099,3 +3099,193 @@ input[type='color'] {
   background: var(--accent-soft);
   color: var(--text);
 }
+
+/* Alternate all-in-one surface: presentation only, sharing the native controls. */
+.mix-layout-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.mix-layout-bar span {
+  margin-right: 5px;
+}
+.mix-layout-bar button {
+  min-height: 30px;
+  padding: 5px 12px;
+}
+.mix-layout-bar button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.mix-view > .zoom-stack {
+  margin-top: 0;
+}
+.hardware-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 4px 4px 18px;
+}
+.hardware-surface {
+  min-width: 1000px;
+  grid-template-columns: minmax(260px, 1fr) 430px minmax(260px, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 12px 0;
+  padding: 20px 18px 24px;
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--text) 7%, transparent), transparent 14%),
+    linear-gradient(110deg, var(--chrome-2), var(--surface-raised) 48%, var(--chrome-2));
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    inset 0 -7px 0 var(--shadow),
+    0 18px 32px -20px var(--shadow);
+}
+.hardware-screen {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  padding: 10px;
+  border: 7px solid var(--chrome);
+  border-radius: 9px;
+  background: var(--surface-input);
+  box-shadow:
+    0 5px 14px var(--shadow),
+    inset 0 0 0 1px var(--line-strong);
+}
+.hardware-screen-header,
+.hardware-screen-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary);
+  font: 10px var(--font-mono);
+  letter-spacing: 0.08em;
+}
+.hardware-screen-header {
+  padding: 3px 5px 8px;
+}
+.hardware-screen-header span:first-child {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+.hardware-screen-footer {
+  padding: 7px 5px 3px;
+}
+.hardware-screen .zoom-stack {
+  margin: 0;
+  background: var(--surface-input);
+}
+.hardware-screen .zoom-wave {
+  height: 53px;
+}
+.hardware-surface > .deck {
+  grid-row: 1 / 3;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px;
+  min-width: 0;
+}
+.hardware-surface > .deck-0 {
+  grid-column: 1;
+}
+.hardware-surface > .deck-1 {
+  grid-column: 3;
+}
+.hardware-surface > .mixer {
+  grid-column: 2;
+  grid-row: 2;
+  width: 100%;
+  justify-self: stretch;
+  align-self: stretch;
+  gap: 14px 8px;
+  background: linear-gradient(180deg, var(--surface-raised), var(--chrome-2));
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    inset 0 2px 3px var(--shadow);
+}
+.hardware-surface .deck-body {
+  flex: 1;
+  align-content: start;
+  gap: 18px 10px;
+}
+.hardware-surface .platter {
+  width: min(100%, 240px);
+  background: radial-gradient(
+    circle,
+    var(--surface-raised) 0 35%,
+    var(--chrome) 36% 68%,
+    var(--surface-hover) 69% 73%,
+    var(--chrome) 74%
+  ) !important;
+  box-shadow:
+    inset 0 0 0 5px var(--line-strong),
+    0 8px 12px var(--shadow) !important;
+}
+.hardware-surface .platter-disc {
+  inset: 12px;
+  background: repeating-radial-gradient(circle, var(--chrome-line) 0 1px, transparent 1px 4px);
+  border: 2px solid var(--line-strong);
+}
+.hardware-surface .platter-label {
+  inset: 30%;
+  background: radial-gradient(
+    circle,
+    var(--surface-input) 0 55%,
+    var(--tone) 57% 60%,
+    var(--chrome) 62%
+  ) !important;
+  box-shadow:
+    0 0 0 3px var(--chrome),
+    0 0 0 4px var(--line-strong);
+}
+.hardware-surface .platter-mark {
+  height: 21%;
+}
+.hardware-surface .deck-pads {
+  gap: 10px;
+}
+.hardware-surface .cue-pad {
+  min-height: 55px;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    0 3px 4px var(--shadow);
+}
+.hardware-surface .cue-pad.set {
+  box-shadow:
+    inset 0 -3px 0 var(--tone),
+    0 3px 4px var(--shadow);
+}
+.hardware-surface .transport .play-button,
+.hardware-surface .transport button:nth-child(2) {
+  border-radius: 50%;
+  min-height: 55px !important;
+}
+.hardware-surface .knob-cap {
+  border-radius: 50%;
+  box-shadow:
+    0 4px 5px var(--shadow),
+    inset 0 1px 1px var(--line-strong),
+    inset 0 -2px 2px var(--shadow);
+}
+.hardware-surface .slider-cap {
+  border-radius: 2px;
+}
+.hardware-surface .channel-fader .slider {
+  --cap: 22px;
+}
+.hardware-surface .deck-head {
+  align-items: start;
+}
+.hardware-surface .deck-tag {
+  border-radius: 50%;
+}
+.hardware-surface .musical-controls {
+  margin: 0;
+}

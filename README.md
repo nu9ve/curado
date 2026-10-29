@@ -46,6 +46,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Find the key:** estimated BPM and musical key in standard letter notation and Camelot, an editable beatgrid, key lock and ±12-semitone transposition.
 - **Play by feel:** remappable keyboard controls, MIDI Learn, animated feedback and footer hints that explain the control you point to.
 - **Make it yours:** five visual styles, your own accent color, light/dark/system themes and waveform options.
+- **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
 - **Visualize:** open Metal from the player on macOS and choose terrain, orbit, tunnel or ribbons; adjust glow and let the master signal animate the scene.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 

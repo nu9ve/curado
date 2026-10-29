@@ -12,6 +12,7 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 | [DECISIONS](DECISIONS.md)       | Why approaches were chosen and when to reconsider                  |
 | [CONTROLS](CONTROLS.md)         | Listen, mix, map controls and recover                              |
 | [THEMES](THEMES.md)             | Visual language, styles, fonts and native header                   |
+| [MIXER-VIEWS](MIXER-VIEWS.md)   | Hardware-inspired console proposals and capability gaps            |
 | [PLATFORMS](PLATFORMS.md)       | Dependencies, distribution and OS differences                      |
 | [QUALITY](QUALITY.md)           | Release gates and missing evidence                                 |
 | [ROADMAP](ROADMAP.md)           | Priorities and dependencies                                        |

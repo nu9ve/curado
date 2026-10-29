@@ -44,6 +44,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Explorar la música:** BPM/key estimados, notación americana y Camelot, beatgrid editable, key lock y transposición ±12 semitonos.
 - **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
+- **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
 - **Visualizar:** abre Metal desde el reproductor en macOS y elige terreno, órbita, túnel o cintas; ajusta el brillo y deja que la señal master anime la escena.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 

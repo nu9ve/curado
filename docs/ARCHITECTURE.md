@@ -37,6 +37,8 @@ flowchart LR
 
 Telemetry never causes the UI to re-emit an action. No PCM crosses IPC. Library UI is separate from telemetry consumers. Slider parameters coalesce for 16 ms; transport goes directly. Focused hotkeys follow DOM → IPC → Rust queue without waiting for React. They are not sample accurate; MIDI bypasses the WebView. Web Animations illuminate `data-action`/`data-key` controls, keycaps and the HUD in the input handler, without reading layout or awaiting the engine.
 
+Mix offers classic and console presentations with the same `Deck` and `Mixer` components and engine action paths. `curado.mix-layout.v1` stores only the layout choice in frontend localStorage, with a classic fallback if unavailable or invalid. Switching it does not send a session-mode command or change transport. The console scrolls horizontally at narrow widths. It is not a hardware or DSP emulation; see [Mixer views](MIXER-VIEWS.md).
+
 `ContextHelp` delegates `pointerover` and `focusin` once per mount, not `pointermove`. `hints.ts` resolves exact actions/current mappings and derives transport/routing diagnostics from snapshots. Help never controls audio, extrapolates position or writes preferences. Unspecified controls use their label/title and fallback text. Its fixed footer row expands the shell's reserved height and repositions notices.
 
 ## Waveform and UI rendering

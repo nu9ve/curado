@@ -31,6 +31,8 @@ import { DEFAULT_KEYS, allowedInMode, matchKey } from './lib/keyboard';
 import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
 import { setMiniWindow } from './lib/window';
+import { readMixLayout, saveMixLayout } from './lib/mix-layout';
+import type { MixLayout } from './lib/mix-layout';
 import { Deck } from './components/Deck';
 import { Mixer, SampleBank } from './components/Mixer';
 import { Library } from './components/Library';
@@ -580,46 +582,96 @@ function MixView({
   onLibrary: (data: LibraryData) => void;
 }) {
   const { audio } = useSnapshot();
+  const [layout, setLayout] = useState<MixLayout>(() => {
+    try {
+      return readMixLayout(globalThis.localStorage);
+    } catch {
+      return 'classic';
+    }
+  });
+  const chooseLayout = (next: MixLayout) => {
+    setLayout(next);
+    try {
+      saveMixLayout(globalThis.localStorage, next);
+    } catch {
+      // Access to the storage object itself can be blocked by the WebView.
+    }
+  };
   const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
+  const waves = (
+    <div className="zoom-stack">
+      {slots.map((slot, i) => (
+        <ZoomWave
+          key={i}
+          name={i ? 'B' : 'A'}
+          tone={i ? 'b' : 'a'}
+          trackId={library.tracks.some((t) => t.id === slot.id) ? slot.id : undefined}
+          slot={slot}
+          onSeek={
+            slot.id
+              ? (s) =>
+                  call('audio_action', { action: { slot: i, kind: 'seek', value: s } }).catch(
+                    onError,
+                  )
+              : undefined
+          }
+        />
+      ))}
+    </div>
+  );
   return (
     <div className="mix-view">
-      <div className="zoom-stack">
-        {slots.map((slot, i) => (
-          <ZoomWave
-            key={i}
-            name={i ? 'B' : 'A'}
-            tone={i ? 'b' : 'a'}
-            trackId={library.tracks.some((t) => t.id === slot.id) ? slot.id : undefined}
-            slot={slot}
-            onSeek={
-              slot.id
-                ? (s) =>
-                    call('audio_action', { action: { slot: i, kind: 'seek', value: s } }).catch(
-                      onError,
-                    )
-                : undefined
-            }
-          />
-        ))}
+      <div className="mix-layout-bar" role="group" aria-label={tr('Vista de mezcla', 'Mix layout')}>
+        <span>{tr('Vista de mezcla', 'Mix layout')}</span>
+        <button
+          type="button"
+          aria-pressed={layout === 'classic'}
+          onClick={() => chooseLayout('classic')}
+        >
+          {tr('curado', 'curado')}
+        </button>
+        <button
+          type="button"
+          aria-pressed={layout === 'console'}
+          onClick={() => chooseLayout('console')}
+        >
+          {tr('cabina', 'console')}
+        </button>
       </div>
-      <div className="console">
-        <Deck
-          index={0}
-          onLibrary={onLibrary}
-          tracks={library.tracks}
-          keys={keys}
-          onError={onError}
-          loading={loading.includes(0)}
-        />
-        <Mixer keys={keys} onError={onError} />
-        <Deck
-          index={1}
-          onLibrary={onLibrary}
-          tracks={library.tracks}
-          keys={keys}
-          onError={onError}
-          loading={loading.includes(1)}
-        />
+      {layout === 'classic' && waves}
+      <div className={layout === 'console' ? 'hardware-scroll' : undefined}>
+        <div className={layout === 'console' ? 'console hardware-surface' : 'console'}>
+          {layout === 'console' && (
+            <div className="hardware-screen">
+              <div className="hardware-screen-header">
+                <span>curado</span>
+                <span>{tr('CABINA · 2 CANALES', 'CONSOLE · 2 CHANNELS')}</span>
+              </div>
+              {waves}
+              <div className="hardware-screen-footer">
+                <span>DECK A</span>
+                <span>DECK B</span>
+              </div>
+            </div>
+          )}
+          <Deck
+            index={0}
+            onLibrary={onLibrary}
+            tracks={library.tracks}
+            keys={keys}
+            onError={onError}
+            loading={loading.includes(0)}
+          />
+          <Mixer keys={keys} onError={onError} />
+          <Deck
+            index={1}
+            onLibrary={onLibrary}
+            tracks={library.tracks}
+            keys={keys}
+            onError={onError}
+            loading={loading.includes(1)}
+          />
+        </div>
       </div>
       <div className="console-foot">
         <SampleBank

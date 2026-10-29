@@ -1,5 +1,17 @@
 # curado status
 
+## Alternate console view · 2026-10-29
+
+Mix now has a persisted **curado / cabina** selector. The console arranges the existing two decks around a central waveform screen and mixer, with hardware-inspired jogs, pads and faders; user theme and accent still apply. The same components and native actions handle both layouts, and switching does not change session mode. A narrow viewport scrolls horizontally. This is an initial RX3-inspired surface, not an exact equipment layout; the platter still toggles playback, and FX, headphone routing and jog behavior are unchanged. [Mixer views](MIXER-VIEWS.md) records the dedicated audio and hardware backlog.
+
+Verification: `bun run check` passed (27 tests, including layout storage fallback), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.51 MiB), its ad hoc signature verified, and `desktop:install --no-build` installed and registered it without launching; executable SHA-256 `c5e03d8538a7c025b38e42b1d43eb5684268985b5217529eac27a11804a8531e`. No visual, listening or hardware review was performed. Next: inspect both layouts, scrolling, themes, accessibility and switching during playback with explicit visual-test authorization; use that feedback to refine proportions and equipment-specific arrangement.
+
+## Mixer console research · 2026-10-29
+
+[Mixer views](MIXER-VIEWS.md) records the current two-deck architecture, a proposed themed 2D console with depth, and gaps relative to the RX3, DJM-750MK2, DJM-A9 and CDJ-3000X. Four sample slots are not four mixer channels; independent headphone cue, continuous jog and full hardware effects remain absent. No layout or DSP was implemented, and no visual, listening or hardware test was performed. Next: choose the first console direction and supported control set, then prototype using existing actions without changing engine ownership; retain streaming and the native position clock as structural priorities.
+
+Verification: `bun run check` passed (26 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests), `cargo clippy --workspace --all-targets -- -D warnings` and formatting checks for the edited documents passed. This documentation-only session did not rebuild or install the app.
+
 ## Metal visual variations · 2026-10-29
 
 The separate macOS Metal window now offers terrain, orbit, tunnel and ribbons, with a native selector and a glow slider for the three new scenes. The palette follows the user accent. RMS and the 64-sample scope animate the scenes; no FFT or frequency bands were added. Selection and glow reset when the window closes; the integrated canvas is unchanged. The shader uses bounded procedural effects, not a bloom post-process, and retains the separate worker and 30 FPS cap.
