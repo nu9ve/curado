@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useEffect, useState } from 'react';
 import { call, control, useSnapshot } from '../lib/bridge';
 import { keyLabel, transposeKey, NOTES } from '../lib/music';
@@ -67,7 +68,7 @@ export function MusicalControls({
           data-action={`${index}:masterDeck:0`}
           onClick={() => send('masterDeck')}
         >
-          {master === index ? 'MASTER' : 'hacer master'}
+          {master === index ? 'MASTER' : tr('hacer master', 'make master')}
         </button>
         <button
           disabled={disabled || master === index || !bpm || !audio?.slots[master]?.music.bpm}
@@ -86,7 +87,10 @@ export function MusicalControls({
           Q
         </button>
         <select
-          aria-label={`Loop en beats deck ${index ? 'B' : 'A'}`}
+          aria-label={tr(
+            `Loop en beats deck ${index ? 'B' : 'A'}`,
+            `Beat loop deck ${index ? 'B' : 'A'}`,
+          )}
           disabled={disabled || !bpm}
           value={slot.looping ? slot.loopBeats : ''}
           data-action={`${index}:loopBeats:0`}
@@ -103,7 +107,10 @@ export function MusicalControls({
         </select>
       </div>
       <div className="musical-row key-controls">
-        <span className="musical-key" title="Tonalidad de salida estimada">
+        <span
+          className="musical-key"
+          title={tr('Tonalidad de salida estimada', 'Estimated output key')}
+        >
           {keyLabel(key)} <b>{keyLabel(key, 'camelot')}</b>
           {cents !== 0 && (
             <small>
@@ -122,7 +129,7 @@ export function MusicalControls({
         </button>
         <button
           disabled={disabled || slot.tuning.semitones <= -12}
-          aria-label="Bajar un semitono"
+          aria-label={tr('Bajar un semitono', 'Down one semitone')}
           data-action={`${index}:transposeStep:-1`}
           onClick={() => send('transposeStep', -1)}
         >
@@ -130,7 +137,7 @@ export function MusicalControls({
         </button>
         <button
           disabled={disabled}
-          aria-label="Restaurar transposición"
+          aria-label={tr('Restaurar transposición', 'Reset transposition')}
           data-action={`${index}:transpose:0`}
           onClick={() => send('transpose', 0)}
         >
@@ -139,7 +146,7 @@ export function MusicalControls({
         </button>
         <button
           disabled={disabled || slot.tuning.semitones >= 12}
-          aria-label="Subir un semitono"
+          aria-label={tr('Subir un semitono', 'Up one semitone')}
           data-action={`${index}:transposeStep:1`}
           onClick={() => send('transposeStep', 1)}
         >
@@ -157,18 +164,34 @@ export function MusicalControls({
       </div>
       {pending && (
         <small className="tuning-pending" role="status">
-          Preparando ajuste de audio… el tempo anterior continúa hasta estar listo.
+          {tr(
+            'Preparando ajuste de audio… el tempo anterior continúa hasta estar listo.',
+            'Preparing audio adjustment… the previous tempo continues until ready.',
+          )}{' '}
         </small>
       )}
       {slot.queued && (
-        <small role="status">Cue preparado · espera al siguiente beat del master.</small>
+        <small role="status">
+          {tr(
+            'Cue preparado · espera al siguiente beat del master.',
+            "Cue queued · waiting for the master's next beat.",
+          )}
+        </small>
       )}
       {tuningError && pending && (
         <small className="error-text">
-          {tuningError} <button onClick={() => send('retryTuning')}>reintentar</button>
+          {tuningError}{' '}
+          <button onClick={() => send('retryTuning')}>{tr('reintentar', 'retry')}</button>
         </small>
       )}
-      {!bpm && !disabled && <small>Sin beatgrid: analiza o corrige BPM para cuantizar.</small>}
+      {!bpm && !disabled && (
+        <small>
+          {tr(
+            'Sin beatgrid: analiza o corrige BPM para cuantizar.',
+            'No beatgrid: analyze or correct BPM to quantize.',
+          )}
+        </small>
+      )}
       {!disabled && (
         <AnalysisEditor
           id={slot.id}
@@ -223,9 +246,10 @@ function AnalysisEditor({
       }}
     >
       <summary>
-        beatgrid / análisis · {music.manual ? 'manual' : 'estimado'}
+        {tr('beatgrid / análisis ·', 'beatgrid / analysis ·')}{' '}
+        {music.manual ? 'manual' : tr('estimado', 'estimated')}
         {!music.manual && music.bpm
-          ? ` · periodicidad ${Math.round(music.bpmConfidence * 100)}%`
+          ? ` · ${tr('periodicidad', 'periodicity')} ${Math.round(music.bpmConfidence * 100)}%`
           : ''}
       </summary>
       <form
@@ -244,7 +268,7 @@ function AnalysisEditor({
         }}
       >
         <label>
-          BPM original
+          {tr('BPM original', 'Original BPM')}{' '}
           <input
             type="number"
             min="40"
@@ -261,7 +285,7 @@ function AnalysisEditor({
           ×2
         </button>
         <label>
-          Offset beat (s)
+          {tr('Offset beat (s)', 'Beat offset (s)')}{' '}
           <input
             type="number"
             min="0"
@@ -272,12 +296,12 @@ function AnalysisEditor({
           />
         </label>
         <button type="button" onClick={() => setOffset(position.toFixed(4))}>
-          beat aquí
+          {tr('beat aquí', 'beat here')}{' '}
         </button>
         <label>
-          Tonalidad
+          {tr('Tonalidad', 'Key')}{' '}
           <select value={key} onChange={(e) => setKey(e.target.value)}>
-            <option value="">desconocida</option>
+            <option value="">{tr('desconocida', 'unknown')}</option>
             {[false, true].flatMap((minor) =>
               NOTES.map((_, tonic) => (
                 <option key={`${tonic}:${minor}`} value={`${tonic}:${minor ? 1 : 0}`}>
@@ -288,15 +312,18 @@ function AnalysisEditor({
           </select>
         </label>
         <button type="submit" disabled={busy}>
-          guardar
+          {tr('guardar', 'save')}{' '}
         </button>
         <button
           type="button"
           disabled={busy}
-          title="Recalcula y reemplaza las correcciones manuales"
+          title={tr(
+            'Recalcula y reemplaza las correcciones manuales',
+            'Recalculate and replace manual corrections',
+          )}
           onClick={() => void run('analyze_track', {})}
         >
-          {busy ? 'analizando…' : 'reanalizar'}
+          {busy ? tr('analizando…', 'analyzing…') : tr('reanalizar', 'reanalyze')}
         </button>
       </form>
     </details>

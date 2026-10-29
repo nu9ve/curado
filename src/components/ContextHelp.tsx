@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
 import { useSnapshot } from '../lib/bridge';
@@ -48,7 +49,7 @@ export function ContextHelpPanel({
     <section
       className={`context-help ${expanded ? 'is-expanded' : ''} tone-${hint?.tone ?? 'master'}`}
       data-context-help
-      aria-label="Ayuda contextual"
+      aria-label={tr('Ayuda contextual', 'Contextual help')}
       onKeyDown={(e) => {
         if (e.key !== 'Escape' || !expanded) return;
         e.preventDefault();
@@ -60,12 +61,19 @@ export function ContextHelpPanel({
       <div className="context-summary">
         <HelpCircle size={14} aria-hidden="true" />
         <span className="context-copy" role="status" aria-live="polite" aria-atomic="true">
-          <strong>{hint?.label ?? 'explora curado'}</strong>
+          <strong>{hint?.label ?? tr('explora curado', 'explore curado')}</strong>
           <span className="context-excerpt">
-            {hint?.summary ?? 'Pasa el cursor o enfoca un control para conocerlo.'}
+            {hint?.summary ??
+              tr(
+                'Pasa el cursor o enfoca un control para conocerlo.',
+                'Hover or focus a control to learn about it.',
+              )}
           </span>
         </span>
-        <span className="context-shortcuts" aria-label="Atajos asignados">
+        <span
+          className="context-shortcuts"
+          aria-label={tr('Atajos asignados', 'Assigned shortcuts')}
+        >
           {hint?.shortcuts.map((key) => (
             <kbd key={key}>{key}</kbd>
           ))}
@@ -78,18 +86,24 @@ export function ContextHelpPanel({
           aria-controls="context-help-details"
           onClick={() => onExpand(!expanded)}
         >
-          {expanded ? 'menos' : 'más info'}
+          {expanded ? tr('menos', 'less') : tr('más info', 'more info')}
           {expanded ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
       </div>
       <div id="context-help-details" className="context-details" hidden={!expanded}>
         <p>
           {hint?.summary ??
-            'La ayuda sigue al control que señalas con el cursor o recorres con Tab.'}
+            tr(
+              'La ayuda sigue al control que señalas con el cursor o recorres con Tab.',
+              'Help follows the control you point to or focus with Tab.',
+            )}
         </p>
         <p>
           {hint?.detail ??
-            'Aquí aparecerán detalles de uso, atajos y consejos. Puedes cerrar esta sección con Escape.'}
+            tr(
+              'Aquí aparecerán detalles de uso, atajos y consejos. Puedes cerrar esta sección con Escape.',
+              'Usage details, shortcuts and tips appear here. Press Escape to close this section.',
+            )}
         </p>
         {hint?.status && <p className="context-status">{hint.status}</p>}
       </div>

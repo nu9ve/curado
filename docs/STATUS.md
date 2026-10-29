@@ -1,5 +1,23 @@
 # curado status
 
+## Localization in progress · 2026-10-29
+
+The frontend has an explicit Spanish/English selector in Appearance, with Spanish as the fallback and a versioned localStorage preference. The selected language updates document `lang` and the subscribed UI without restarting audio. Main navigation, library, decks, settings, appearance, keyboard labels and action help have initial English translations; the option is explicitly marked in progress. Native errors, menus, visual window title, some dynamic strings and complete coverage/a11y review remain. The audio settings description now reflects sync and beat echo. No new dependency or native permission was added.
+
+Browser preview on macOS: language changed immediately and persisted across reload; empty player and mix in English and the pixel/light appearance were inspected. Native ARM64 `.app` built, ad hoc signature verified and installed in `~/Applications/curado.app`; the installer found no running installed instance. An explicitly authorized native review loaded the local demo and captured [mix in gothic](assets/mix-gothic-es.jpg) and the [Metal viewer](assets/visual-metal.jpg), and switched the native settings to English. [Settings preview](assets/settings-en-preview.jpg) is a browser capture. Visual inspection is not a listening test. Native UI automation later timed out while preparing another theme, so a complete cross-view, bilingual and multi-theme visual review remains pending.
+
+Verification: `bun run check` passed (26 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. Installed executable SHA-256 `7a500b9157e8ff1e71eee1e0626f6db15c15b564572156539c09d210cef1d206`. Next: translate and test native errors, menus and remaining dynamic strings; verify switching in the installed app and complete the screenshot set before removing the in-progress label.
+
+The native review selected English and attempted a theme change before UI automation timed out; the final appearance preference could not be confirmed or restored. The review loaded the demo into the deck slots and did not start playback.
+
+## Interface and localization review · 2026-10-29
+
+The installed native app was opened for an explicitly authorized interface review. The accessibility tree exposed the player, a populated two-deck mix view, musical controls, samples, keyboard map and library; this is an interface inspection, not a listening or hardware test. The active session was left alone. No new README screenshots were captured: the visible library contains the user's tracks, and English localization is not yet implemented. Existing screenshots remain historical.
+
+At this initial review, the UI embedded Spanish strings throughout React components, contextual help, keyboard labels and native errors, with no language preference. A complete English/Spanish implementation must cover dynamic and accessible text, native errors and menus as well as persistence and language switching, then be verified across the views. The outdated audio settings copy was corrected in the subsequent work above; full localization is still pending.
+
+Verification for this documentation-only change: `bun run check` passed (24 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests), and `cargo clippy --workspace --all-targets -- -D warnings` passed. No application rebuild or installation was required. Next: implement and test localization before capturing a clean demo session in both languages and replacing the historical README image.
+
 Updated **2026-10-26**, America/Hermosillo. Version **0.1.0**: local testing foundation with estimated BPM/key, editable beatgrid, sync/quantize, worker-prepared transposition and an integrated isolated web browser. The production matrix in QUALITY is incomplete.
 
 ## Resume here

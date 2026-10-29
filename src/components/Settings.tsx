@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { X, Radio, Keyboard, SlidersHorizontal, Trash2, Palette } from 'lucide-react';
 import { ThemePanel } from './ThemePanel';
-import { call, useSnapshot } from '../lib/bridge';
+import { call, native, useSnapshot } from '../lib/bridge';
 import { DEFAULT_KEYS, actionLabel, bindingLabel } from '../lib/keyboard';
 import type { Action, KeyBinding } from '../lib/types';
+import { setLanguage, tr, useLanguage } from '../lib/language';
 export function Settings({
   keys,
   onKeys,
@@ -15,6 +16,7 @@ export function Settings({
   onClose: () => void;
   onError: (e: unknown) => void;
 }) {
+  const language = useLanguage();
   const [tab, setTab] = useState('appearance');
   const [devices, setDevices] = useState<string[]>([]);
   const [ports, setPorts] = useState<string[]>([]);
@@ -26,6 +28,7 @@ export function Settings({
   const [target, setTarget] = useState('0:toggle');
   const [cue, setCue] = useState('0');
   const refresh = () => {
+    if (!native) return;
     call<string[]>('audio_devices').then(setDevices).catch(onError);
     call<string[]>('midi_ports').then(setPorts).catch(onError);
   };
@@ -54,7 +57,14 @@ export function Settings({
         i === capture ? { ...k, code: e.code, shift: e.shiftKey } : k,
       );
       if (next.some((k, i) => i !== capture && k.code === e.code && k.shift === e.shiftKey)) {
-        onError(new Error('Esa tecla ya está asignada. Elige otra.'));
+        onError(
+          new Error(
+            tr(
+              'Esa tecla ya está asignada. Elige otra.',
+              'That key is already assigned. Choose another.',
+            ),
+          ),
+        );
         return;
       }
       onKeys(next).catch(onError);
@@ -78,23 +88,23 @@ export function Settings({
         className="settings modal"
         role="dialog"
         aria-modal="true"
-        aria-label="Configuración"
+        aria-label={tr('Configuración', 'Settings')}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
           <div>
-            <span className="eyebrow">a tu manera</span>
-            <h2>configuración</h2>
+            <span className="eyebrow">{tr('a tu manera', 'your way')}</span>
+            <h2>{tr('configuración', 'settings')}</h2>
           </div>
-          <button aria-label="Cerrar configuración" onClick={onClose}>
+          <button aria-label={tr('Cerrar configuración', 'Close settings')} onClick={onClose}>
             <X size={18} />
           </button>
         </div>
         <div className="settings-tabs">
           {[
-            ['appearance', 'Apariencia', Palette],
+            ['appearance', tr('Apariencia', 'Appearance'), Palette],
             ['audio', 'Audio', SlidersHorizontal],
-            ['keyboard', 'Teclado', Keyboard],
+            ['keyboard', tr('Teclado', 'Keyboard'), Keyboard],
             ['midi', 'MIDI', Radio],
           ].map(([id, label, Icon]) => (
             <button
@@ -106,47 +116,77 @@ export function Settings({
             </button>
           ))}
         </div>
-        {tab === 'appearance' && <ThemePanel onError={onError} />}
+        {tab === 'appearance' && (
+          <>
+            <div className="settings-body">
+              <label>
+                {tr('Idioma', 'Language')}
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value === 'en' ? 'en' : 'es')}
+                >
+                  <option value="es">Español</option>
+                  <option value="en">English (in progress)</option>
+                </select>
+              </label>
+              {language === 'en' && (
+                <p>
+                  English translation is in progress; some controls and messages remain in Spanish.
+                </p>
+              )}
+            </div>
+            <ThemePanel onError={onError} />
+          </>
+        )}
         {tab === 'audio' && (
           <div className="settings-body">
-            <h3>el audio tiene prioridad.</h3>
+            <h3>{tr('el audio tiene prioridad.', 'audio comes first.')}</h3>
             <p>
-              El motor Rust reproduce y procesa audio fuera de la interfaz. Los visuales y la
-              biblioteca trabajan por separado.
+              {tr(
+                'El motor Rust reproduce y procesa audio fuera de la interfaz. Los visuales y la biblioteca trabajan por separado.',
+                'The Rust engine plays and processes audio independently of the interface. Visuals and the library run separately.',
+              )}{' '}
             </p>
             <div className="info-grid">
               <span>
-                Backend<b>{snap.output?.backend ?? 'Sin salida'}</b>
+                Backend<b>{snap.output?.backend ?? tr('Sin salida', 'No output')}</b>
               </span>
               <span>
-                Frecuencia<b>{snap.output?.sampleRate ?? '—'} Hz</b>
+                {tr('Frecuencia', 'Sample rate')}
+                <b>{snap.output?.sampleRate ?? '—'} Hz</b>
               </span>
               <span>
                 Callbacks<b>{snap.audio?.callbacks ?? 0}</b>
               </span>
               <span>
-                Muestras limitadas<b>{snap.audio?.clipped ?? 0}</b>
+                {tr('Muestras limitadas', 'Clipped samples')}
+                <b>{snap.audio?.clipped ?? 0}</b>
               </span>
             </div>
             {(snap.error || snap.audio?.streamError) && (
               <p className="error-text">
                 {snap.error ??
-                  'El dispositivo ha reportado un error. Selecciona una salida y reinicia el motor.'}
+                  tr(
+                    'El dispositivo ha reportado un error. Selecciona una salida y reinicia el motor.',
+                    'The device reported an error. Select an output and restart the engine.',
+                  )}
               </p>
             )}
             <label>
-              Dispositivo de salida
+              {tr('Dispositivo de salida', 'Output device')}{' '}
               <select value={device} onChange={(e) => setDevice(e.target.value)}>
-                <option value="">Predeterminado del sistema</option>
+                <option value="">{tr('Predeterminado del sistema', 'System default')}</option>
                 {devices.map((d) => (
                   <option key={d}>{d}</option>
                 ))}
               </select>
             </label>
             <label>
-              Buffer de audio
+              {tr('Buffer de audio', 'Audio buffer')}{' '}
               <select value={frames} onChange={(e) => setFrames(e.target.value)}>
-                <option value="">Automático · recomendado</option>
+                <option value="">
+                  {tr('Automático · recomendado', 'Automatic · recommended')}
+                </option>
                 {[128, 256, 512, 1024].map((n) => (
                   <option key={n} value={n}>
                     {n} frames
@@ -158,11 +198,13 @@ export function Settings({
               </select>
             </label>
             <p className="notice">
-              Al aplicar se descargan los decks y samples. Vuelve a cargar las pistas. Un buffer
-              menor exige más al sistema; la cifra no representa la latencia total.
+              {tr(
+                'Al aplicar se descargan los decks y samples. Vuelve a cargar las pistas. Un buffer menor exige más al sistema; la cifra no representa la latencia total.',
+                'Applying unloads decks and samples. Reload your tracks. A smaller buffer requires more from the system; the figure is not total latency.',
+              )}{' '}
             </p>
             <div className="button-row">
-              <button onClick={refresh}>Actualizar dispositivos</button>
+              <button onClick={refresh}>{tr('Actualizar dispositivos', 'Refresh devices')}</button>
               <button
                 className="primary"
                 disabled={busy}
@@ -180,21 +222,27 @@ export function Settings({
                   }
                 }}
               >
-                {busy ? 'Aplicando…' : 'Aplicar / recuperar audio'}
+                {busy
+                  ? tr('Aplicando…', 'Applying…')
+                  : tr('Aplicar / recuperar audio', 'Apply / recover audio')}
               </button>
             </div>
             <p className="small-print">
-              Velocidad y tono cambian juntos. El EQ es de tres bandas básicas; echo de 375 ms. Sin
-              sincronización automática de beats ni preescucha independiente todavía.
+              {tr(
+                'El EQ es de tres bandas básicas. El echo sigue el BPM y la división elegida; SYNC vincula tempo y fase al deck master. No hay preescucha independiente todavía.',
+                'The EQ has three basic bands. Echo follows BPM and the selected division; SYNC links tempo and phase to the master deck. Independent headphone cue is not available yet.',
+              )}{' '}
             </p>
           </div>
         )}
         {tab === 'keyboard' && (
           <div className="settings-body">
-            <h3>un teclado. toda la sesión.</h3>
+            <h3>{tr('un teclado. toda la sesión.', 'one keyboard. the whole session.')}</h3>
             <p>
-              Atajos físicos con la ventana enfocada. Al escribir o usar sliders no se disparan
-              acciones. Shift + cue guarda la posición. Haz clic en una tecla para cambiarla.
+              {tr(
+                'Atajos físicos con la ventana enfocada. Al escribir o usar sliders no se disparan acciones. Shift + cue guarda la posición. Haz clic en una tecla para cambiarla.',
+                'Physical shortcuts work while the window is focused. Typing or using sliders does not trigger actions. Shift + cue saves the position. Click a key to change it.',
+              )}{' '}
             </p>
             <div className="keymap">
               {keys.map((k, i) => (
@@ -207,45 +255,49 @@ export function Settings({
                     {['cue', 'setCue'].includes(k.action.kind) ? ` ${k.action.value + 1}` : ''}
                   </span>
                   <button className={capture === i ? 'capture' : ''} onClick={() => setCapture(i)}>
-                    {capture === i ? 'Pulsa una tecla…' : bindingLabel(k)}
+                    {capture === i ? tr('Pulsa una tecla…', 'Press a key…') : bindingLabel(k)}
                   </button>
                 </div>
               ))}
             </div>
             <button onClick={() => onKeys(DEFAULT_KEYS).catch(onError)}>
-              Restaurar distribución original
+              {tr('Restaurar distribución original', 'Restore default layout')}{' '}
             </button>
             <p className="small-print">
-              ESC silencia todos los decks y baja el master a cero. Sube el master para reanudar.
-              Los atajos no son globales del sistema.
+              {tr(
+                'ESC silencia todos los decks y baja el master a cero. Sube el master para reanudar. Los atajos no son globales del sistema.',
+                'ESC stops all decks and turns master down to zero. Turn master up to resume. Shortcuts are not system-wide.',
+              )}{' '}
             </p>
           </div>
         )}
         {tab === 'midi' && (
           <div className="settings-body">
-            <h3>conecta. mueve. aprende.</h3>
+            <h3>{tr('conecta. mueve. aprende.', 'connect. move. learn.')}</h3>
             <p>
-              Note On y CC absolutos por dispositivo, canal y número. Los mapeos se guardan
-              automáticamente.
+              {tr(
+                'Note On y CC absolutos por dispositivo, canal y número. Los mapeos se guardan automáticamente.',
+                'Note On and absolute CC by device, channel and number. Mappings are saved automatically.',
+              )}{' '}
             </p>
             <label>
-              Entrada MIDI
+              {tr('Entrada MIDI', 'MIDI input')}{' '}
               <select
                 value={snap.midi.connected ?? ''}
                 onChange={(e) =>
                   call('midi_connect', { name: e.target.value || null }).catch(onError)
                 }
               >
-                <option value="">Desconectado</option>
+                <option value="">{tr('Desconectado', 'Disconnected')}</option>
                 {ports.map((p) => (
                   <option key={p}>{p}</option>
                 ))}
               </select>
             </label>
-            <button onClick={refresh}>Buscar dispositivos</button>
+            <button onClick={refresh}>{tr('Buscar dispositivos', 'Find devices')}</button>
             <div className="learn-box">
               <label>
-                Acción
+                {tr('Acción', 'Action')}{' '}
                 <select value={target} onChange={(e) => setTarget(e.target.value)}>
                   {[0, 1].flatMap((slot) =>
                     [
@@ -269,17 +321,19 @@ export function Settings({
                   )}
                   {[2, 3, 4, 5].map((slot) => (
                     <option key={slot} value={`${slot}:trigger`}>
-                      Sample {slot - 1} · Disparar
+                      Sample {slot - 1} {tr('· Disparar', '· Trigger')}{' '}
                     </option>
                   ))}
                   <option value="0:crossfader">Mixer · Crossfader</option>
                   <option value="0:master">Mixer · Master</option>
-                  <option value="0:panic">Mixer · Silenciar todo</option>
+                  <option value="0:panic">
+                    {tr('Mixer · Silenciar todo', 'Mixer · Mute all')}
+                  </option>
                 </select>
               </label>
               {(target.endsWith(':cue') || target.endsWith(':setCue')) && (
                 <select
-                  aria-label="Número de cue"
+                  aria-label={tr('Número de cue', 'Cue number')}
                   value={cue}
                   onChange={(e) => setCue(e.target.value)}
                 >
@@ -291,14 +345,22 @@ export function Settings({
                 </select>
               )}
               <button className="primary" disabled={!snap.midi.connected} onClick={learn}>
-                {snap.midi.learning ? 'Esperando control…' : 'Aprender siguiente control'}
+                {snap.midi.learning
+                  ? tr('Esperando control…', 'Waiting for control…')
+                  : tr('Aprender siguiente control', 'Learn next control')}
               </button>
               {snap.midi.learning && (
                 <button onClick={() => call('midi_learn', { action: null }).catch(onError)}>
-                  Cancelar aprendizaje
+                  {tr('Cancelar aprendizaje', 'Cancel learn')}{' '}
                 </button>
               )}
-              <small>{snap.midi.lastMessage ?? 'Mueve un control para ver su mensaje aquí.'}</small>
+              <small>
+                {snap.midi.lastMessage ??
+                  tr(
+                    'Mueve un control para ver su mensaje aquí.',
+                    'Move a control to see its message here.',
+                  )}
+              </small>
             </div>
             <div className="midi-mappings">
               {snap.midi.bindings.map((b, i) => (
@@ -311,7 +373,7 @@ export function Settings({
                     </small>
                   </span>
                   <button
-                    aria-label="Eliminar mapeo MIDI"
+                    aria-label={tr('Eliminar mapeo MIDI', 'Remove MIDI mapping')}
                     onClick={() => call('midi_remove', { index: i }).catch(onError)}
                   >
                     <Trash2 size={14} />
@@ -321,9 +383,10 @@ export function Settings({
             </div>
             {snap.midi.error && <p className="error-text">{snap.midi.error}</p>}
             <p className="small-print">
-              Controladores relativos, MIDI Clock, feedback LED, SysEx y reconexión automática
-              quedan pendientes. Tras desconectar físicamente un equipo, vuelve a buscarlo y
-              conectarlo.
+              {tr(
+                'Controladores relativos, MIDI Clock, feedback LED, SysEx y reconexión automática quedan pendientes. Tras desconectar físicamente un equipo, vuelve a buscarlo y conectarlo.',
+                'Relative controllers, MIDI Clock, LED feedback, SysEx and automatic reconnection are not implemented. After disconnecting a device, find and connect it again.',
+              )}{' '}
             </p>
           </div>
         )}

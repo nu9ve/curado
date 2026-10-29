@@ -5,9 +5,35 @@
 
 Bienvenido. **curado** es un espacio para escuchar tu colección, probar una transición o armar una mezcla. Combina biblioteca, dos decks, mixer y cuatro pads de samples. Tus archivos se quedan donde están: curado no los mueve ni los modifica.
 
-![Mixer de curado con dos decks, waveforms, mixer central y samples](docs/assets/mixer.png)
+![Vista de mezcla de curado con dos decks cargados y estilo gótico](docs/assets/mix-gothic-es.jpg)
 
-_Captura de una sesión de desarrollo; no muestra todas las funciones de la compilación más reciente. La interfaz está actualmente en español; la documentación técnica está en inglés._
+_Vista nativa de macOS con la sesión de prueba, en español y con estilo gótico. La documentación técnica está en inglés._
+
+<details>
+<summary>Más vistas</summary>
+
+![Paisaje sonoro Metal de curado](docs/assets/visual-metal.jpg)
+
+_El paisaje sonoro Metal en una ventana independiente de macOS._
+
+![Configuración de apariencia en inglés](docs/assets/settings-en-preview.jpg)
+
+_Apariencia e idioma en la vista previa del navegador. La traducción al inglés sigue en desarrollo._
+
+</details>
+
+## Recorre la app
+
+| Lugar                   | Qué puedes hacer                                                                                                              |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Barra lateral**       | Recorrer la colección, favoritos y playlists; abrir radio, iniciar la sesión de prueba o configurar la app.                   |
+| **Reproductor**         | Escuchar el deck A, usar una cola con repetición y ver el visual integrado que responde al audio.                             |
+| **Mezcla**              | Cargar A y B, revisar sus waveforms y beatgrids, usar cues y loops, y mezclar con EQ, filtros, echo y cuatro pads de samples. |
+| **Biblioteca**          | Buscar pistas locales, revisar el BPM y la tonalidad estimados, cargar una selección y organizar playlists.                   |
+| **Configuración**       | Ajustar apariencia, salida y buffer, asignaciones de teclado y MIDI Learn.                                                    |
+| **Footer y vista mini** | Controlar el deck A y el master; señalar o enfocar un control para ver su ayuda. La vista mini permanece encima.              |
+
+La interfaz comienza en español; la opción de inglés está en desarrollo y algunos mensajes nativos permanecen en español. BPM, tonalidad y beatgrid son estimaciones que puedes corregir; SYNC sigue al deck master elegido y no inicia la reproducción. El audio de servicios web funciona separado de los decks locales.
 
 > **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas locales en Apple Silicon. Faltan validación de hardware en Windows/Linux, streaming de pistas largas y distribución firmada. Revisa el [estado](docs/STATUS.md) y los límites de abajo antes de depender de curado para una sesión.
 

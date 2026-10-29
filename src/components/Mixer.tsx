@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { Square, Plus, Play, Pause } from 'lucide-react';
 import { control, parameter, useSnapshot } from '../lib/bridge';
 import type { KeyBinding, Track } from '../lib/types';
@@ -18,7 +19,10 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
   const param = (kind: string) => (v: number) => parameter(index, kind, v, onError);
   const act = (kind: string) => actionKey({ slot: index, kind, value: 0 });
   return (
-    <div className={`channel tone-${tone}`} aria-label={`Canal ${index ? 'B' : 'A'}`}>
+    <div
+      className={`channel tone-${tone}`}
+      aria-label={tr(`Canal ${index ? 'B' : 'A'}`, `Channel ${index ? 'B' : 'A'}`)}
+    >
       <span className="channel-tag">{index ? 'B' : 'A'}</span>
       <div className="channel-knobs">
         <Knob
@@ -83,7 +87,10 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
       <label className="echo-division">
         ECHO · BEATS
         <select
-          aria-label={`División echo ${index ? 'B' : 'A'}`}
+          aria-label={tr(
+            `División echo ${index ? 'B' : 'A'}`,
+            `Echo division ${index ? 'B' : 'A'}`,
+          )}
           data-action={act('echoBeats')}
           value={slot.echoBeats}
           onChange={(e) => control(index, 'echoBeats', +e.target.value).catch(onError)}
@@ -96,7 +103,11 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
         </select>
       </label>
       <div className="channel-fader">
-        <Meter vertical value={slot.peak} label={`Nivel deck ${index ? 'B' : 'A'}`} />
+        <Meter
+          vertical
+          value={slot.peak}
+          label={tr(`Nivel deck ${index ? 'B' : 'A'}`, `Deck ${index ? 'B' : 'A'} level`)}
+        />
         <Slider
           label="VOL"
           action={act('gain')}
@@ -121,7 +132,7 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
       <Channel index={0} onError={onError} />
       <div className="mixer-master">
         <span className="mixer-brand">mx·2</span>
-        <Meter vertical value={audio?.peak ?? 0} label="Nivel master" />
+        <Meter vertical value={audio?.peak ?? 0} label={tr('Nivel master', 'Master level')} />
         <Slider
           label="MASTER"
           action={actionKey({ slot: 0, kind: 'master', value: 0 })}
@@ -134,7 +145,10 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
           className="panic"
           onClick={() => control(0, 'panic').catch(onError)}
           data-action={actionKey({ slot: 0, kind: 'panic', value: 0 })}
-          title="Detiene todo y baja el master a cero"
+          title={tr(
+            'Detiene todo y baja el master a cero',
+            'Stops everything and turns master down to zero',
+          )}
         >
           <Square size={9} fill="currentColor" />
           {panic && <Key code={panic.code}>{bindingLabel(panic)}</Key>}
@@ -142,25 +156,29 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
       </div>
       <Channel index={1} onError={onError} />
       <div className="xfader">
-        <div className="linked-transport" role="group" aria-label="Transporte simultáneo A y B">
+        <div
+          className="linked-transport"
+          role="group"
+          aria-label={tr('Transporte simultáneo A y B', 'Linked transport A and B')}
+        >
           <span>A + B</span>
           <button
-            aria-label="Reproducir ambos decks"
+            aria-label={tr('Reproducir ambos decks', 'Play both decks')}
             data-action="0:playBoth:0"
             onClick={() => control(0, 'playBoth').catch(onError)}
             disabled={!audio?.slots[0]?.id && !audio?.slots[1]?.id}
           >
-            <Play size={12} /> ambos
+            <Play size={12} /> {tr('ambos', 'both')}{' '}
           </button>
           <button
-            aria-label="Pausar ambos decks"
+            aria-label={tr('Pausar ambos decks', 'Pause both decks')}
             data-action="0:pauseBoth:0"
             onClick={() => control(0, 'pauseBoth').catch(onError)}
           >
             <Pause size={12} />
           </button>
           <button
-            aria-label="Hot cue 1 en ambos decks"
+            aria-label={tr('Hot cue 1 en ambos decks', 'Hot cue 1 on both decks')}
             data-action="0:cueBoth:0"
             onClick={() => control(0, 'cueBoth').catch(onError)}
             disabled={!audio?.slots[0]?.id && !audio?.slots[1]?.id}
@@ -193,7 +211,7 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
                 key={value}
                 data-action={actionKey({ slot: 0, kind: 'crossfader', value })}
                 onClick={() => control(0, 'crossfader', value).catch(onError)}
-                aria-label={`Crossfader ${['A', 'centro', 'B'][value * 2]}`}
+                aria-label={`Crossfader ${['A', tr('centro', 'center'), 'B'][value * 2]}`}
               >
                 {b ? <Key code={b.code}>{bindingLabel(b)}</Key> : '—'}
               </button>
@@ -232,19 +250,22 @@ export function SampleBank({
               <button
                 disabled={!track}
                 onClick={() => control(slot, 'trigger').catch(onError)}
-                title={track?.title ?? 'Carga una pista'}
+                title={track?.title ?? tr('Carga una pista', 'Load a track')}
                 data-action={actionKey({ slot, kind: 'trigger', value: 0 })}
               >
                 <span>
                   S{i + 1}
                   {b && <Key code={b.code}>{bindingLabel(b)}</Key>}
                 </span>
-                <strong>{track?.title ?? 'vacío'}</strong>
+                <strong>{track?.title ?? tr('vacío', 'empty')}</strong>
               </button>
               <button
                 className="pad-load"
-                aria-label={`Cargar selección en sample ${i + 1}`}
-                title="Cargar la pista seleccionada"
+                aria-label={tr(
+                  `Cargar selección en sample ${i + 1}`,
+                  `Load selection into sample ${i + 1}`,
+                )}
+                title={tr('Cargar la pista seleccionada', 'Load selected track')}
                 disabled={!selected}
                 onClick={() => selected && onLoad(slot, selected)}
               >

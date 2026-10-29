@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import type { Action, KeyBinding } from './types';
 import { actionLabel, bindingLabel } from './keyboard';
+import { tr } from './language';
 
 /**
  * Visual confirmation for keyboard actions. It animates the DOM directly through the
@@ -50,7 +51,8 @@ export const useHud = () => useSyncExternalStore(subscribe, () => entries);
 
 function describe(a: Action) {
   const target = a.slot < 2 ? (a.slot ? 'B' : 'A') : `S${a.slot - 1}`;
-  if (a.kind === 'crossfader') return `Crossfader ${['A', 'centro', 'B'][Math.round(a.value * 2)]}`;
+  if (a.kind === 'crossfader')
+    return `Crossfader ${['A', tr('centro', 'center'), 'B'][Math.round(a.value * 2)]}`;
   if (['panic', 'master', 'playBoth', 'pauseBoth', 'cueBoth'].includes(a.kind))
     return `${actionLabel(a.kind)}${a.kind === 'cueBoth' ? ` ${a.value + 1}` : ''}`;
   const cue = ['cue', 'setCue'].includes(a.kind) ? ` ${a.value + 1}` : '';
@@ -65,7 +67,9 @@ export function feedback(binding: KeyBinding, ok = true) {
   const entry = {
     id: ++counter,
     key: bindingLabel(binding),
-    label: ok ? describe(binding.action) : `${describe(binding.action)} · no disponible`,
+    label: ok
+      ? describe(binding.action)
+      : `${describe(binding.action)} · ${tr('no disponible', 'unavailable')}`,
     slot: binding.action.slot,
   };
   entries = [...entries.slice(-3), entry];

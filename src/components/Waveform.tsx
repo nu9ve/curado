@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useTheme, currentPalette } from '../lib/theme-store';
@@ -62,7 +63,7 @@ export function WaveOverview({
   tone = 'a',
   onSeek,
   compact = false,
-  label = 'Posición de reproducción',
+  label = tr('Posición de reproducción', 'Playback position'),
 }: OverviewProps) {
   const wave = useWaveform(trackId);
   const { colors, style, key } = useColors(tone);
@@ -243,7 +244,7 @@ export function ZoomWave({
       aria-valuemin={onSeek ? 0 : undefined}
       aria-valuemax={onSeek ? Math.round(slot.duration) : undefined}
       aria-valuenow={onSeek ? Math.round(slot.position) : undefined}
-      aria-label={`Waveform detallada deck ${name}`}
+      aria-label={tr(`Waveform detallada deck ${name}`, `Detailed waveform deck ${name}`)}
       onKeyDown={(e) => {
         if (!onSeek || !slot.duration || !['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
         e.preventDefault();

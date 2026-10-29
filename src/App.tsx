@@ -1,3 +1,4 @@
+import { tr, useLanguage } from './lib/language';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
@@ -42,6 +43,7 @@ import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
 
 export default function App() {
+  useLanguage();
   const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
   const [view, setView] = useState('all');
   const mode = useMode();
@@ -129,7 +131,8 @@ export default function App() {
         await call('load_track', { slot, id });
         setLibrary(await call<LibraryData>('get_library'));
         void refreshWaveform(id);
-        notify(`Pista lista en ${slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`}.`);
+        const destination = slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`;
+        notify(tr(`Pista lista en ${destination}.`, `Track ready in ${destination}.`));
       } catch (e) {
         onError(e);
       } finally {
@@ -154,13 +157,16 @@ export default function App() {
   );
   const importMedia = useCallback(
     async (folder: boolean) => {
-      setBusy('Importando y analizando música…');
+      setBusy(tr('Importando y analizando música…', 'Importing and analyzing music…'));
       try {
         const report = await call<ImportReport>('import_media', { folder });
         setLibrary(await call<LibraryData>('get_library'));
         if (report.added || report.skipped || report.errors.length)
           notify(
-            `${report.added} pistas añadidas · ${report.skipped} existentes${report.errors.length ? ` · ${report.errors.join('\n')}` : ''}`,
+            tr(
+              `${report.added} pistas añadidas · ${report.skipped} existentes`,
+              `${report.added} tracks added · ${report.skipped} already present`,
+            ) + (report.errors.length ? ` · ${report.errors.join('\n')}` : ''),
             !!report.errors.length,
           );
       } catch (e) {
@@ -172,7 +178,7 @@ export default function App() {
     [notify, onError],
   );
   const demo = async () => {
-    setBusy('Preparando sesión de prueba…');
+    setBusy(tr('Preparando sesión de prueba…', 'Preparing demo session…'));
     try {
       const data = await call<LibraryData>('create_demo');
       setLibrary(data);
@@ -181,7 +187,12 @@ export default function App() {
         .sort((a, b) => a.title.localeCompare(b.title));
       for (let i = 0; i < Math.min(6, demos.length); i++)
         await call('load_track', { slot: i, id: demos[i].id });
-      notify('Sesión de prueba lista. Dale Play; cambia a Mezcla para usar ambos decks y samples.');
+      notify(
+        tr(
+          'Sesión de prueba lista. Dale Play; cambia a Mezcla para usar ambos decks y samples.',
+          'Demo ready. Press Play; switch to Mix to use both decks and samples.',
+        ),
+      );
     } catch (e) {
       onError(e);
     } finally {
@@ -234,20 +245,20 @@ export default function App() {
           <Logo size={26} />
           <Wordmark />
         </div>
-        <nav className="side-nav" aria-label="Colección">
-          <span className="eyebrow">colección</span>
+        <nav className="side-nav" aria-label={tr('Colección', 'Collection')}>
+          <span className="eyebrow">{tr('colección', 'collection')}</span>
           <NavItem
             active={view === 'all'}
             onClick={() => setView('all')}
             icon={<LibraryIcon size={16} />}
-            label="toda la música"
+            label={tr('toda la música', 'all music')}
             count={library.tracks.length}
           />
           <NavItem
             active={view === 'favorites'}
             onClick={() => setView('favorites')}
             icon={<Star size={16} />}
-            label="favoritos"
+            label={tr('favoritos', 'favorites')}
             count={favorites}
           />
         </nav>
@@ -256,7 +267,7 @@ export default function App() {
             <span className="eyebrow">playlists</span>
             <button
               className="icon-button"
-              aria-label="Crear playlist"
+              aria-label={tr('Crear playlist', 'Create playlist')}
               onClick={() => setNewPlaylist(true)}
             >
               <Plus size={14} />
@@ -280,7 +291,7 @@ export default function App() {
           ))}
           {!library.playlists.length && (
             <button className="sidebar-hint" onClick={() => setNewPlaylist(true)}>
-              <Plus size={13} /> un lugar para cada mood
+              <Plus size={13} /> {tr('un lugar para cada mood', 'a place for every mood')}{' '}
             </button>
           )}
         </nav>
@@ -297,24 +308,34 @@ export default function App() {
           <button className="demo-button" disabled={!!busy} onClick={demo}>
             <Sparkles size={15} />
             <span>
-              sesión de prueba
-              <small>2 tracks + 4 samples locales</small>
+              {tr('sesión de prueba', 'demo session')}{' '}
+              <small>{tr('2 tracks + 4 samples locales', '2 tracks + 4 local samples')}</small>
             </span>
           </button>
           <button className="settings-button" onClick={() => setSettings(true)}>
             <Settings2 size={15} />
-            configuración
+            {tr('configuración', 'settings')}{' '}
           </button>
           <span className="build-label">curado 0.1 · local first</span>
         </div>
       </aside>
       <header className="topbar" data-tauri-drag-region>
         <div className="breadcrumb" data-tauri-drag-region>
-          <span>tu espacio</span>
+          <span>{tr('tu espacio', 'your space')}</span>
           <i>/</i>
-          <b>{view === 'web' ? 'radio / web' : mode === 'player' ? 'reproductor' : 'mezcla'}</b>
+          <b>
+            {view === 'web'
+              ? 'radio / web'
+              : mode === 'player'
+                ? tr('reproductor', 'player')
+                : tr('mezcla', 'mix')}
+          </b>
         </div>
-        <div className={`mode-switch is-${mode}`} role="group" aria-label="Modo de uso">
+        <div
+          className={`mode-switch is-${mode}`}
+          role="group"
+          aria-label={tr('Modo de uso', 'Mode')}
+        >
           <i className="mode-indicator" aria-hidden="true" />
           <button
             className={mode === 'player' ? 'active' : ''}
@@ -323,7 +344,7 @@ export default function App() {
             onClick={() => changeMode('player')}
           >
             <Headphones size={14} />
-            reproductor
+            {tr('reproductor', 'player')}{' '}
           </button>
           <button
             className={mode === 'mix' ? 'active' : ''}
@@ -332,25 +353,25 @@ export default function App() {
             onClick={() => changeMode('mix')}
           >
             <SlidersHorizontal size={14} />
-            mezcla
+            {tr('mezcla', 'mix')}{' '}
           </button>
         </div>
         <div className="header-right">
           <ConnectionStatus />
           <button
             className="icon-button"
-            aria-label="Vista mini siempre visible"
+            aria-label={tr('Vista mini siempre visible', 'Always-on-top mini view')}
             data-help="mini"
-            title="Vista mini · siempre encima"
+            title={tr('Vista mini · siempre encima', 'Mini view · always on top')}
             onClick={() => toggleMini(true)}
           >
             <PictureInPicture2 size={16} />
           </button>
           <button
             className="icon-button"
-            aria-label="Abrir configuración"
+            aria-label={tr('Abrir configuración', 'Open settings')}
             data-help="settings"
-            title="Configuración"
+            title={tr('Configuración', 'Settings')}
             onClick={() => setSettings(true)}
           >
             <Settings2 size={16} />
@@ -362,8 +383,10 @@ export default function App() {
           <PersistenceNotice />
           {!native && (
             <div className="notice">
-              Vista previa de la interfaz · el audio y las integraciones requieren la app de
-              escritorio.
+              {tr(
+                'Vista previa de la interfaz · el audio y las integraciones requieren la app de escritorio.',
+                'Interface preview · audio and integrations require the desktop app.',
+              )}{' '}
             </div>
           )}
           {view === 'web' ? (
@@ -399,8 +422,14 @@ export default function App() {
                   .then(() =>
                     notify(
                       repeat === 'off'
-                        ? 'Cola en reproducción. Se detendrá al terminar la selección.'
-                        : 'Cola en reproducción con repetición activada.',
+                        ? tr(
+                            'Cola en reproducción. Se detendrá al terminar la selección.',
+                            'Queue playing. It will stop at the end of the selection.',
+                          )
+                        : tr(
+                            'Cola en reproducción con repetición activada.',
+                            'Queue playing with repeat enabled.',
+                          ),
                     ),
                   )
                   .catch(onError)
@@ -462,7 +491,11 @@ export default function App() {
             }}
           >
             <div className="modal-header">
-              <h2>{editingPlaylist !== null ? 'renombrar playlist' : 'nueva playlist'}</h2>
+              <h2>
+                {editingPlaylist !== null
+                  ? tr('renombrar playlist', 'rename playlist')
+                  : tr('nueva playlist', 'new playlist')}
+              </h2>
               <button
                 type="button"
                 aria-label="Cancelar"
@@ -476,19 +509,21 @@ export default function App() {
               </button>
             </div>
             <label>
-              Nombre
+              {tr('Nombre', 'Name')}{' '}
               <input
                 autoFocus
                 maxLength={80}
                 value={playlistName}
                 onChange={(e) => setPlaylistName(e.target.value)}
-                placeholder="Una selección para…"
+                placeholder={tr('Una selección para…', 'A selection for…')}
                 required
               />
             </label>
             <button className="primary" type="submit">
               <Plus size={14} />
-              {editingPlaylist !== null ? 'Guardar nombre' : 'Crear playlist'}
+              {editingPlaylist !== null
+                ? tr('Guardar nombre', 'Save name')
+                : tr('Crear playlist', 'Create playlist')}
             </button>
           </form>
         </div>
@@ -613,7 +648,7 @@ function Toast({
       role={notice.error ? 'alert' : 'status'}
     >
       <span>{notice.text}</span>
-      <button aria-label="Cerrar aviso" onClick={onClose}>
+      <button aria-label={tr('Cerrar aviso', 'Close notice')} onClick={onClose}>
         <X size={15} />
       </button>
     </div>
@@ -626,14 +661,14 @@ function ConnectionStatus() {
   return (
     <span
       className={`connection ${failed ? 'failed' : ''}`}
-      title={s.error ?? s.output?.device ?? 'Iniciando motor'}
+      title={s.error ?? s.output?.device ?? tr('Iniciando motor', 'Starting engine')}
     >
       <span className={`status-dot ${!failed && s.output ? 'active' : ''}`} />
       {failed
-        ? 'revisar audio'
+        ? tr('revisar audio', 'check audio')
         : s.output
           ? `${s.output.backend} · ${s.output.sampleRate / 1000} kHz`
-          : 'audio nativo'}
+          : tr('audio nativo', 'native audio')}
     </span>
   );
 }
@@ -642,8 +677,11 @@ function PersistenceNotice() {
   const { persistenceError } = useSnapshot();
   return persistenceError ? (
     <div role="alert" className="notice error-text">
-      No se pudieron guardar los cues: {persistenceError}. Comprueba el espacio en disco antes de
-      salir.
+      {tr('No se pudieron guardar los cues:', 'Could not save cues:')} {persistenceError}
+      {tr(
+        '. Comprueba el espacio en disco antes de salir.',
+        '. Check disk space before quitting.',
+      )}{' '}
     </div>
   ) : null;
 }

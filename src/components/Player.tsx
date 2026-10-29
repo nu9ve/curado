@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import type { CSSProperties } from 'react';
 import { Play, Pause, SkipBack, SkipForward, Maximize2, Volume2 } from 'lucide-react';
 import { control, parameter, useSnapshot } from '../lib/bridge';
@@ -43,16 +44,27 @@ export function NowPlaying({
       <TrackArt id={track?.id} size="lg" />
       <div className="now-info">
         <span className="eyebrow">
-          {s.queue.active ? `COLA ${s.queue.index + 1}/${s.queue.count}` : 'AHORA SUENA'}
+          {s.queue.active
+            ? `${tr('COLA', 'QUEUE')} ${s.queue.index + 1}/${s.queue.count}`
+            : tr('AHORA SUENA', 'NOW PLAYING')}
           {s.queue.active &&
             s.queue.repeat !== 'off' &&
-            ` · REPETIR ${s.queue.repeat === 'one' ? 'PISTA' : 'TODO'}`}
+            ` · ${tr('REPETIR', 'REPEAT')} ${s.queue.repeat === 'one' ? tr('PISTA', 'TRACK') : tr('TODO', 'ALL')}`}
         </span>
-        <h2>{track?.title ?? 'dale espacio a tu música'}</h2>
-        <p>{track?.artist ?? 'Importa una pista o prueba la sesión de ejemplo.'}</p>
+        <h2>{track?.title ?? tr('dale espacio a tu música', 'give your music room to play')}</h2>
+        <p>
+          {track?.artist ??
+            tr(
+              'Importa una pista o prueba la sesión de ejemplo.',
+              'Import a track or try the demo session.',
+            )}
+        </p>
         {s.queue.error && (
           <p className="error-text">
-            {s.queue.active ? 'Aviso de cola' : 'Cola detenida'}: {s.queue.error}
+            {s.queue.active
+              ? tr('Aviso de cola', 'Queue notice')
+              : tr('Cola detenida', 'Queue stopped')}
+            : {s.queue.error}
           </p>
         )}
       </div>
@@ -66,7 +78,7 @@ export function NowPlaying({
         <button
           className="round-play"
           disabled={!track}
-          aria-label={slot.playing ? 'Pausar' : 'Reproducir'}
+          aria-label={slot.playing ? tr('Pausar', 'Pause') : tr('Reproducir', 'Play')}
           data-action={actionKey({ slot: 0, kind: 'toggle', value: 0 })}
           onClick={() => control(0, 'toggle').catch(onError)}
         >
@@ -108,18 +120,24 @@ export function BottomBar({
         <div className="bottom-track">
           <TrackArt id={track?.id} size="sm" />
           <span>
-            <strong>{track?.title ?? 'tu música, a tu ritmo'}</strong>
-            <small>{track?.artist ?? 'Selecciona una pista para comenzar'}</small>
+            <strong>{track?.title ?? tr('tu música, a tu ritmo', 'your music, your pace')}</strong>
+            <small>
+              {track?.artist ?? tr('Selecciona una pista para comenzar', 'Select a track to begin')}
+            </small>
           </span>
         </div>
         <div className="bottom-transport">
-          <button aria-label="Pista anterior" disabled={!tracks.length} onClick={() => onNext(-1)}>
+          <button
+            aria-label={tr('Pista anterior', 'Previous track')}
+            disabled={!tracks.length}
+            onClick={() => onNext(-1)}
+          >
             <SkipBack size={14} />
           </button>
           <button
             className="mini-play"
             disabled={!track}
-            aria-label="Play o pausa deck A"
+            aria-label={tr('Play o pausa deck A', 'Play or pause deck A')}
             data-action={actionKey({ slot: 0, kind: 'toggle', value: 0 })}
             onClick={() => control(0, 'toggle').catch(onError)}
           >
@@ -129,7 +147,11 @@ export function BottomBar({
               <Play size={15} fill="currentColor" />
             )}
           </button>
-          <button aria-label="Pista siguiente" disabled={!tracks.length} onClick={() => onNext(1)}>
+          <button
+            aria-label={tr('Pista siguiente', 'Next track')}
+            disabled={!tracks.length}
+            onClick={() => onNext(1)}
+          >
             <SkipForward size={14} />
           </button>
           <span className="mono">{time(a.position)}</span>
@@ -149,7 +171,7 @@ export function BottomBar({
             value={s.audio?.master ?? 0.75}
             onChange={(v) => parameter(0, 'master', v, onError)}
           />
-          <Meter value={s.audio?.peak ?? 0} label="Nivel master" />
+          <Meter value={s.audio?.peak ?? 0} label={tr('Nivel master', 'Master level')} />
         </div>
       </div>
       <ContextHelp keys={keys} expanded={helpExpanded} onExpand={onHelpExpand} />
@@ -178,7 +200,7 @@ export function MiniPlayer({
       <div className="mini-info" data-tauri-drag-region>
         <strong>{track?.title ?? 'curado'}</strong>
         <small>
-          {track?.artist ?? 'sin pista'} · {remaining(a)}
+          {track?.artist ?? tr('sin pista', 'no track')} · {remaining(a)}
         </small>
         <WaveOverview
           compact
@@ -188,13 +210,17 @@ export function MiniPlayer({
         />
       </div>
       <div className="mini-controls">
-        <button aria-label="Pista anterior" onClick={() => onNext(-1)} disabled={!tracks.length}>
+        <button
+          aria-label={tr('Pista anterior', 'Previous track')}
+          onClick={() => onNext(-1)}
+          disabled={!tracks.length}
+        >
           <SkipBack size={13} />
         </button>
         <button
           className="mini-play"
           disabled={!track}
-          aria-label="Play o pausa"
+          aria-label={tr('Play o pausa', 'Play or pause')}
           data-action={actionKey({ slot: 0, kind: 'toggle', value: 0 })}
           onClick={() => control(0, 'toggle').catch(onError)}
         >
@@ -204,10 +230,18 @@ export function MiniPlayer({
             <Play size={15} fill="currentColor" />
           )}
         </button>
-        <button aria-label="Pista siguiente" onClick={() => onNext(1)} disabled={!tracks.length}>
+        <button
+          aria-label={tr('Pista siguiente', 'Next track')}
+          onClick={() => onNext(1)}
+          disabled={!tracks.length}
+        >
           <SkipForward size={13} />
         </button>
-        <button aria-label="Salir de la vista mini" title="Vista completa" onClick={onExit}>
+        <button
+          aria-label={tr('Salir de la vista mini', 'Exit mini view')}
+          title={tr('Vista completa', 'Full view')}
+          onClick={onExit}
+        >
           <Maximize2 size={13} />
         </button>
       </div>

@@ -21,4 +21,4 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 
 Before changing code, read [AGENTS.md](../AGENTS.md). Start a session by choosing a verifiable priority and reading its dependencies. Close it by recording evidence, limits and a specific next step. Documentation is maintained explicitly; it does not update itself.
 
-Technical documentation is in English. `README.es.md` is the Spanish entry point; the current app UI remains Spanish. Made by [nu9ve](https://nu9ve.xyz).
+Technical documentation is in English. `README.es.md` is the Spanish entry point. The app defaults to Spanish; English localization is in progress. Made by [nu9ve](https://nu9ve.xyz).

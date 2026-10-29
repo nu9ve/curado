@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
@@ -47,7 +48,7 @@ export function Fader({
 export function Meter({
   value,
   vertical = false,
-  label = 'Nivel de audio',
+  label = tr('Nivel de audio', 'Audio level'),
 }: {
   value: number;
   vertical?: boolean;

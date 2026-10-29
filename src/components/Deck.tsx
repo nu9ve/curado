@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import type { CSSProperties } from 'react';
 import { Play, Pause, Repeat2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useSnapshot, control, parameter } from '../lib/bridge';
@@ -38,7 +39,7 @@ function Platter({
       className={`platter ${slot.playing ? 'spinning' : ''}`}
       disabled={disabled}
       onClick={onToggle}
-      aria-label={`${slot.playing ? 'Pausar' : 'Reproducir'} deck ${index ? 'B' : 'A'}`}
+      aria-label={`${slot.playing ? tr('Pausar', 'Pause') : tr('Reproducir', 'Play')} deck ${index ? 'B' : 'A'}`}
       data-action={actionKey({ slot: index, kind: 'toggle', value: 0 })}
     >
       <span className="platter-disc" style={{ '--turn': `${turn}deg` } as CSSProperties}>
@@ -81,10 +82,18 @@ export function Deck({
       <header className="deck-head">
         <span className="deck-tag">{index ? 'B' : 'A'}</span>
         <div className="deck-title">
-          <strong>{loading ? 'cargando…' : (track?.title ?? 'sin pista')}</strong>
-          <small>{track?.artist ?? `Selecciona una pista y cárgala en ${index ? 'B' : 'A'}`}</small>
+          <strong>
+            {loading ? tr('cargando…', 'loading…') : (track?.title ?? tr('sin pista', 'no track'))}
+          </strong>
+          <small>
+            {track?.artist ??
+              tr(
+                `Selecciona una pista y cárgala en ${index ? 'B' : 'A'}`,
+                `Select a track and load it into ${index ? 'B' : 'A'}`,
+              )}
+          </small>
           <small className="deck-status">
-            {loading ? 'Cargando…' : deckStatus(snap.audio, index)}
+            {loading ? tr('Cargando…', 'Loading…') : deckStatus(snap.audio, index)}
           </small>
         </div>
         <div className="deck-time">
@@ -116,7 +125,10 @@ export function Deck({
               <button
                 key={i}
                 className={`cue-pad ${slot.cues[i] > 0 ? 'set' : ''}`}
-                title="Clic para saltar y reproducir · Shift + clic para guardar"
+                title={tr(
+                  'Clic para saltar y reproducir · Shift + clic para guardar',
+                  'Click to jump and play · Shift-click to save',
+                )}
                 aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}`}
                 disabled={!!empty}
                 data-action={`${act('cue', i)} ${act('setCue', i)}`}
@@ -134,7 +146,7 @@ export function Deck({
               disabled={!!empty}
               onClick={() => send('toggle')}
               data-action={act('toggle')}
-              aria-label={`${slot.playing ? 'Pausar' : 'Reproducir'} deck ${index ? 'B' : 'A'}`}
+              aria-label={`${slot.playing ? tr('Pausar', 'Pause') : tr('Reproducir', 'Play')} deck ${index ? 'B' : 'A'}`}
             >
               {slot.playing ? (
                 <Pause size={16} fill="currentColor" />
@@ -148,7 +160,7 @@ export function Deck({
             </button>
             <button
               disabled={!track}
-              aria-label="Nudge atrás"
+              aria-label={tr('Nudge atrás', 'Nudge backward')}
               onClick={() => send('nudge', -0.05)}
               data-action={act('nudge', -0.05)}
             >
@@ -157,7 +169,7 @@ export function Deck({
             </button>
             <button
               disabled={!track}
-              aria-label="Nudge adelante"
+              aria-label={tr('Nudge adelante', 'Nudge forward')}
               onClick={() => send('nudge', 0.05)}
               data-action={act('nudge', 0.05)}
             >

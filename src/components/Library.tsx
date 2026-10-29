@@ -1,3 +1,4 @@
+import { tr, useLanguage } from '../lib/language';
 import { memo, useMemo, useState } from 'react';
 import { Search, ArrowUpRight, Star, Play, X, Music2, FolderOpen, Disc3 } from 'lucide-react';
 import type { Library as LibraryData, LibraryEdit, Track } from '../lib/types';
@@ -27,6 +28,7 @@ export const Library = memo(function Library({
   busy: string | null;
   mode: 'player' | 'mix';
 }) {
+  useLanguage();
   const [query, setQuery] = useState('');
   const [repeat, setRepeat] = useState<'off' | 'one' | 'all'>('off');
   const [playlist, setPlaylist] = useState('');
@@ -43,17 +45,21 @@ export const Library = memo(function Library({
   }, [data, active, view, query]);
   const selection = data.tracks.find((t) => t.id === selected);
   const subtitle = active
-    ? 'Tu selección, en el orden que elegiste.'
+    ? tr('Tu selección, en el orden que elegiste.', 'Your selection, in the order you chose.')
     : view === 'favorites'
-      ? 'Las pistas a las que siempre vuelves.'
-      : 'Tu colección local. Lista para escuchar o mezclar.';
+      ? tr('Las pistas a las que siempre vuelves.', 'The tracks you keep coming back to.')
+      : tr(
+          'Tu colección local. Lista para escuchar o mezclar.',
+          'Your local collection. Ready to listen or mix.',
+        );
   return (
     <section className="library">
       <div className="library-heading">
         <div>
-          <div className="eyebrow">tu espacio sonoro</div>
+          <div className="eyebrow">{tr('tu espacio sonoro', 'your sound space')}</div>
           <h2>
-            {active?.name ?? (view === 'favorites' ? 'favoritos' : 'biblioteca')}
+            {active?.name ??
+              (view === 'favorites' ? tr('favoritos', 'favorites') : tr('biblioteca', 'library'))}
             <span>{filtered.length}</span>
           </h2>
           <p>{subtitle}</p>
@@ -61,13 +67,13 @@ export const Library = memo(function Library({
         <div className="library-actions">
           {mode === 'player' && filtered.length > 0 && (
             <select
-              aria-label="Repetición de cola"
+              aria-label={tr('Repetición de cola', 'Queue repeat')}
               value={repeat}
               onChange={(e) => setRepeat(e.target.value as 'off' | 'one' | 'all')}
             >
-              <option value="off">Repetir: no</option>
-              <option value="all">Repetir: todo</option>
-              <option value="one">Repetir: pista</option>
+              <option value="off">{tr('Repetir: no', 'Repeat: off')}</option>
+              <option value="all">{tr('Repetir: todo', 'Repeat: all')}</option>
+              <option value="one">{tr('Repetir: pista', 'Repeat: track')}</option>
             </select>
           )}
           {mode === 'player' && filtered.length > 0 && (
@@ -80,15 +86,16 @@ export const Library = memo(function Library({
               }
             >
               <Play size={12} />
-              Escuchar selección
+              {tr('Escuchar selección', 'Play selection')}{' '}
             </button>
           )}
           <button onClick={() => onImport(true)} disabled={!!busy}>
             <FolderOpen size={14} />
-            Carpeta
+            {tr('Carpeta', 'Folder')}{' '}
           </button>
           <button className="primary" onClick={() => onImport(false)} disabled={!!busy}>
-            <span>+</span>Importar música
+            <span>+</span>
+            {tr('Importar música', 'Import music')}{' '}
           </button>
         </div>
       </div>
@@ -96,19 +103,23 @@ export const Library = memo(function Library({
         <label className="search">
           <Search size={15} />
           <input
-            aria-label="Buscar música"
-            placeholder="Buscar por canción o artista…"
+            aria-label={tr('Buscar música', 'Search music')}
+            placeholder={tr('Buscar por canción o artista…', 'Search by song or artist…')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           {query && (
-            <button aria-label="Limpiar búsqueda" onClick={() => setQuery('')}>
+            <button
+              aria-label={tr('Limpiar búsqueda', 'Clear search')}
+              onClick={() => setQuery('')}
+            >
               <X size={13} />
             </button>
           )}
         </label>
         <small>
-          {filtered.length} PISTAS · {time(filtered.reduce((n, t) => n + t.duration, 0))}
+          {filtered.length} {tr('PISTAS ·', 'TRACKS ·')}{' '}
+          {time(filtered.reduce((n, t) => n + t.duration, 0))}
         </small>
         {active && (
           <button
@@ -116,13 +127,16 @@ export const Library = memo(function Library({
             onClick={() => {
               if (
                 confirm(
-                  `¿Eliminar la playlist «${active.name}»? Tus archivos y pistas se conservan.`,
+                  tr(
+                    `¿Eliminar la playlist «${active.name}»? Tus archivos y pistas se conservan.`,
+                    `Delete playlist “${active.name}”? Your files and tracks will be kept.`,
+                  ),
                 )
               )
                 onEdit({ kind: 'deletePlaylist', id: active.id });
             }}
           >
-            Eliminar playlist
+            {tr('Eliminar playlist', 'Delete playlist')}{' '}
           </button>
         )}
       </div>
@@ -133,15 +147,17 @@ export const Library = memo(function Library({
             <b>{selection.title}</b>
           </span>
           <button onClick={() => onLoad(0, selection.id)}>
-            Cargar en A<ArrowUpRight size={13} />
+            {tr('Cargar en A', 'Load into A')}
+            <ArrowUpRight size={13} />
           </button>
           {mode === 'mix' && (
             <button onClick={() => onLoad(1, selection.id)}>
-              Cargar en B<ArrowUpRight size={13} />
+              {tr('Cargar en B', 'Load into B')}
+              <ArrowUpRight size={13} />
             </button>
           )}
           <select
-            aria-label="Añadir selección a playlist"
+            aria-label={tr('Añadir selección a playlist', 'Add selection to playlist')}
             value={playlist}
             onChange={(e) => {
               setPlaylist('');
@@ -149,7 +165,7 @@ export const Library = memo(function Library({
                 onEdit({ kind: 'addToPlaylist', playlist: +e.target.value, track: selection.id });
             }}
           >
-            <option value="">+ Añadir a playlist</option>
+            <option value="">{tr('+ Añadir a playlist', '+ Add to playlist')}</option>
             {data.playlists.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -158,15 +174,23 @@ export const Library = memo(function Library({
           </select>
           <button
             className="subtle"
-            title="Retirar de biblioteca sin borrar el archivo"
+            title={tr(
+              'Retirar de biblioteca sin borrar el archivo',
+              'Remove from library without deleting the file',
+            )}
             onClick={() => {
               if (
-                confirm(`¿Retirar «${selection.title}» de la biblioteca? El archivo se conserva.`)
+                confirm(
+                  tr(
+                    `¿Retirar «${selection.title}» de la biblioteca? El archivo se conserva.`,
+                    `Remove “${selection.title}” from the library? The file will be kept.`,
+                  ),
+                )
               )
                 onEdit({ kind: 'removeTrack', track: selection.id });
             }}
           >
-            Retirar
+            {tr('Retirar', 'Remove')}{' '}
           </button>
         </div>
       )}
@@ -175,13 +199,13 @@ export const Library = memo(function Library({
           <thead>
             <tr>
               <th className="number">#</th>
-              <th>pista / artista</th>
-              <th>formato</th>
-              <th>duración</th>
+              <th>{tr('pista / artista', 'track / artist')}</th>
+              <th>{tr('formato', 'format')}</th>
+              <th>{tr('duración', 'duration')}</th>
               <th>BPM</th>
               <th>key / Camelot</th>
-              <th aria-label="Favoritos" />
-              <th aria-label="Cargar pista" />
+              <th aria-label={tr('Favoritos', 'Favorites')} />
+              <th aria-label={tr('Cargar pista', 'Load track')} />
             </tr>
           </thead>
           <tbody>
@@ -207,20 +231,22 @@ export const Library = memo(function Library({
             </div>
             <h3>
               {query
-                ? 'No encontramos esa pista'
+                ? tr('No encontramos esa pista', 'No tracks found')
                 : data.tracks.length
-                  ? 'Esta selección está vacía'
-                  : 'Todo empieza con una canción'}
+                  ? tr('Esta selección está vacía', 'This selection is empty')
+                  : tr('Todo empieza con una canción', 'It all starts with a song')}
             </h3>
             <p>
               {query
-                ? 'Prueba con otro título o artista.'
-                : 'Importa tus archivos o carga la sesión de prueba desde el menú lateral.'}
+                ? tr('Prueba con otro título o artista.', 'Try another title or artist.')
+                : tr(
+                    'Importa tus archivos o carga la sesión de prueba desde el menú lateral.',
+                    'Import your files or load the demo session from the sidebar.',
+                  )}
             </p>
             {!data.tracks.length && (
               <button onClick={() => onImport(false)} disabled={!!busy}>
-                Elegir archivos
-                <ArrowUpRight size={14} />
+                {tr('Elegir archivos', 'Choose files')} <ArrowUpRight size={14} />
               </button>
             )}
           </div>
@@ -229,11 +255,17 @@ export const Library = memo(function Library({
       <div className="library-foot">
         <span>
           <span className="status-dot active" />
-          Archivos locales · tus originales se conservan
+          {tr(
+            'Archivos locales · tus originales se conservan',
+            'Local files · your originals stay untouched',
+          )}{' '}
         </span>
         <span>
           {filtered.length > 500
-            ? 'Mostrando 500 pistas. Usa la búsqueda.'
+            ? tr(
+                'Mostrando 500 pistas. Usa la búsqueda.',
+                'Showing 500 tracks. Use search to find more.',
+              )
             : 'MP3 · FLAC · WAV · AAC · ALAC · AIFF · OGG'}
         </span>
       </div>
@@ -292,7 +324,12 @@ function TrackRow({
       <td
         className="mono"
         title={
-          track.music?.manual ? 'Corrección manual' : 'Estimación automática; corrige en el deck'
+          track.music?.manual
+            ? tr('Corrección manual', 'Manual correction')
+            : tr(
+                'Estimación automática; corrige en el deck',
+                'Automatic estimate; correct it in the deck',
+              )
         }
       >
         {keyLabel(track.music?.key ?? null)}{' '}
@@ -301,7 +338,11 @@ function TrackRow({
       <td>
         <button
           className={`icon-button star ${track.favorite ? 'is-favorite' : ''}`}
-          aria-label={`${track.favorite ? 'Quitar de' : 'Añadir a'} favoritos ${track.title}`}
+          aria-label={
+            track.favorite
+              ? tr(`Quitar de favoritos ${track.title}`, `Remove ${track.title} from favorites`)
+              : tr(`Añadir a favoritos ${track.title}`, `Add ${track.title} to favorites`)
+          }
           onClick={(e) => {
             e.stopPropagation();
             onEdit({ kind: 'favorite', track: track.id, value: !track.favorite });
@@ -332,7 +373,10 @@ function TrackRow({
           )}
           {activeId && (
             <button
-              aria-label={`Retirar ${track.title} de playlist`}
+              aria-label={tr(
+                `Retirar ${track.title} de playlist`,
+                `Remove ${track.title} from playlist`,
+              )}
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit({ kind: 'removeFromPlaylist', playlist: activeId, track: track.id });

@@ -2,6 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSyncExternalStore } from 'react';
 import type { Action, AppSnapshot } from './types';
+import { tr } from './language';
 export const native = isTauri();
 let snapshot: AppSnapshot = {
   tuningError: null,
@@ -55,7 +56,12 @@ export async function connect() {
 }
 export async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!native)
-    throw new Error('Esta función requiere curado de escritorio. Ejecuta bun run desktop.');
+    throw new Error(
+      tr(
+        'Esta función requiere curado de escritorio. Ejecuta bun run desktop.',
+        'This feature requires the curado desktop app. Run bun run desktop.',
+      ),
+    );
   return invoke<T>(command, args);
 }
 export const control = (slot: number, kind: string, value = 0) =>

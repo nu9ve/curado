@@ -7,9 +7,35 @@
 
 Listen to your local collection, try a transition, or build a mix without leaving your keyboard. **curado** combines a music library with two decks, a mixer and four sample pads. Your music stays in its original location; curado never moves or edits the files.
 
-![curado mixer with two decks, waveforms, a central mixer and sample pads](docs/assets/mixer.png)
+![curado mix view with two loaded decks in the gothic style](docs/assets/mix-gothic-es.jpg)
 
-_Mixer capture from a development session. The interface is currently in Spanish; this image does not show every feature in the latest build._
+_Native macOS mix view with the local demo, in Spanish and the gothic style._
+
+<details>
+<summary>More views</summary>
+
+![curado Metal soundscape](docs/assets/visual-metal.jpg)
+
+_The separate Metal soundscape on macOS._
+
+![Appearance settings in English](docs/assets/settings-en-preview.jpg)
+
+_Appearance and language settings in the browser preview. English is still in progress._
+
+</details>
+
+## Find your way around
+
+| Place                      | What you can do                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Sidebar**                | Browse the collection, favorites and playlists, open radio, start the local demo or configure the app.                        |
+| **Player**                 | Listen to deck A, use a queue with repeat, and watch the integrated audio-reactive visual.                                    |
+| **Mix**                    | Load A and B, inspect their waveforms and beatgrids, use cues and loops, and mix with EQ, filters, echo and four sample pads. |
+| **Library**                | Search local tracks, check estimated BPM and key, load a selection into a deck, and organize playlists.                       |
+| **Settings**               | Adjust appearance, output and buffer, keyboard bindings and MIDI Learn.                                                       |
+| **Footer and mini player** | Control deck A and master volume; hover or focus a control for contextual help. The mini player stays on top.                 |
+
+The interface defaults to Spanish; an English option is in progress, with some native messages still in Spanish. BPM, key and beatgrid are estimates you can correct; SYNC follows a chosen master deck and does not start playback. Web-service audio runs separately from the local decks.
 
 > **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows/Linux hardware validation, long-track streaming and release signing are still pending. See [current status](docs/STATUS.md) and [known limits](#before-you-start).
 

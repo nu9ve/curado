@@ -1,5 +1,6 @@
 import type { Action, AppSnapshot, Audio, KeyBinding } from './types';
 import { actionLabel, allowedInMode, bindingLabel } from './keyboard';
+import { currentLanguage, tr } from './language';
 
 export interface HintTarget {
   label: string;
@@ -162,18 +163,163 @@ const descriptions: Record<string, [string, string]> = {
   ],
 };
 
+const englishDescriptions: Record<string, [string, string]> = {
+  toggle: [
+    'Toggle playback for this deck.',
+    'Each deck has its own transport; pausing one does not stop the other deck or samples.',
+  ],
+  play: [
+    'Start this deck.',
+    'At the end it starts again from the beginning. Output also depends on channel, crossfader and master levels.',
+  ],
+  pause: [
+    'Pause this deck at its current position.',
+    'Other decks and samples continue. Use a hot cue to jump and play.',
+  ],
+  cue: [
+    'Jump to the hot cue and play.',
+    'With SYNC and Q on the follower, the cue waits for the next master beat. Shift-click saves. A jump outside the loop disables it.',
+  ],
+  setCue: [
+    'Save the current position to this hot cue.',
+    'Cues are saved per track and shared by both decks. Saving does not change playback.',
+  ],
+  playBoth: [
+    'Start A and B in the same audio block.',
+    'Positions are preserved unless a deck has ended. This does not change levels or sync BPM.',
+  ],
+  pauseBoth: [
+    'Pause A and B in the same audio block.',
+    'Both positions are preserved; samples remain independent.',
+  ],
+  cueBoth: [
+    'Jump to the hot cue and play both decks together.',
+    'Each track uses its own cue. This does not sync BPM or restore a muted master.',
+  ],
+  seek: [
+    'Seek within this track.',
+    'Playback or pause is preserved. A jump outside the loop disables it.',
+  ],
+  nudge: [
+    'Move this deck a few milliseconds.',
+    'Use it to adjust alignment by ear. It does not permanently change speed.',
+  ],
+  loop: [
+    'Toggle this deck’s loop.',
+    'With BPM it uses the selected beat length and Q aligns the start. Without a grid it creates up to four seconds. Boundaries have no crossfade yet.',
+  ],
+  loopIn: [
+    'Mark the loop start at the current position.',
+    'The loop is disabled until you set its end with OUT.',
+  ],
+  loopOut: [
+    'Mark the end and enable the loop if it follows IN.',
+    'The section repeats on this deck. Boundaries do not yet have a crossfade.',
+  ],
+  trigger: [
+    'Play the sample from the start.',
+    'Each pad has independent transport and routes to master, outside the A/B crossfader.',
+  ],
+  gain: [
+    'Adjust channel volume before the crossfader.',
+    'The meter is before crossfader and master. Double-click to restore the default.',
+  ],
+  rate: [
+    'Change this deck’s speed.',
+    'Key lock preserves pitch using background preparation; without it, speed also changes pitch. Double-click to reset.',
+  ],
+  low: [
+    'Adjust channel bass.',
+    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+  ],
+  mid: [
+    'Adjust channel mids.',
+    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+  ],
+  high: [
+    'Adjust channel treble.',
+    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+  ],
+  filter: [
+    'Reduce highs with a low-pass filter.',
+    'Fully right is open (OFF). A closed filter can make a track nearly silent.',
+  ],
+  highPass: [
+    'Reduce lows with a high-pass filter.',
+    'OFF passes the full signal. It is independent of the low-pass filter.',
+  ],
+  echo: [
+    'Add echo to this channel.',
+    'Time follows output BPM and the chosen beat division; without analysis it uses 120 BPM. Double-click removes the effect.',
+  ],
+  echoBeats: [
+    'Choose echo length in beats.',
+    '0.5 is half a beat and 0.75 is dotted. Smoothed time changes can sweep the pitch of the tail.',
+  ],
+  quantize: [
+    'Toggle beatgrid quantization.',
+    'Enabled by default. Correct BPM and offset if detection does not match.',
+  ],
+  loopBeats: [
+    'Create a loop of the selected beat length.',
+    'With Q on, it starts at the beat. The beatgrid belongs to this track.',
+  ],
+  sync: [
+    'Link this deck’s tempo and phase to the master.',
+    'Choose the other deck as master. A manual speed change disables sync on this deck.',
+  ],
+  masterDeck: [
+    'Choose the deck that guides synchronization.',
+    'The other deck can follow it with SYNC. Changing master does not start playback.',
+  ],
+  tempo: [
+    'Adjust playback BPM.',
+    'The original detected BPM is unchanged. Key lock preserves pitch when speed changes.',
+  ],
+  transpose: [
+    'Change key in semitones without changing BPM.',
+    'Audio is prepared in the background while the previous setting continues playing.',
+  ],
+  transposeStep: [
+    'Move one semitone without changing BPM.',
+    'Requests accumulate and obsolete preparations are canceled; transport and cues are preserved.',
+  ],
+  keyLock: [
+    'Preserve pitch when changing tempo.',
+    'On by default. Without it, speed also changes pitch.',
+  ],
+  keySync: [
+    'Match the master key or its compatible relative.',
+    'This is a one-time adjustment; it does not follow later changes.',
+  ],
+  crossfader: [
+    'Distribute the mix between A and B.',
+    'Left is A, center is both, right is B. It does not start or pause decks.',
+  ],
+  master: [
+    'Adjust the total output volume.',
+    'Affects decks and samples. After panic, raise master and resume the desired decks.',
+  ],
+  panic: [
+    'Stop decks and samples and turn master to zero.',
+    'Also cancels the queue. Raise master and play again to resume; cues do not restore volume.',
+  ],
+};
+
 /** Transport/routing facts only; a playing source may itself contain silence. */
 export function deckStatus(audio: Audio | null, index: number): string {
   const slot = audio?.slots[index];
-  if (!audio || !slot?.id) return 'Sin pista';
-  if (audio.streamError) return 'Error de salida';
+  if (!audio || !slot?.id) return tr('Sin pista', 'No track');
+  if (audio.streamError) return tr('Error de salida', 'Output error');
   if (!slot.playing)
-    return slot.duration > 0 && slot.position >= slot.duration ? 'Fin de pista' : 'En pausa';
-  if (audio.master === 0) return 'Master a cero';
-  if (slot.gain === 0) return 'Canal a cero';
+    return slot.duration > 0 && slot.position >= slot.duration
+      ? tr('Fin de pista', 'End of track')
+      : tr('En pausa', 'Paused');
+  if (audio.master === 0) return tr('Master a cero', 'Master at zero');
+  if (slot.gain === 0) return tr('Canal a cero', 'Channel at zero');
   if ((index === 0 && audio.crossfader === 1) || (index === 1 && audio.crossfader === 0))
-    return 'Fuera del crossfader';
-  return 'Reproduciendo';
+    return tr('Fuera del crossfader', 'Outside crossfader');
+  return tr('Reproduciendo', 'Playing');
 }
 const sections: Record<string, [string, string]> = {
   'web-explorer': [
@@ -207,6 +353,41 @@ const sections: Record<string, [string, string]> = {
   mini: [
     'Abre la vista mini siempre encima.',
     'Conserva el transporte y permite volver a la vista completa.',
+  ],
+};
+
+const englishSections: Record<string, [string, string]> = {
+  'web-explorer': [
+    'Open radio and web services.',
+    'The integrated browser has independent audio. Leaving this view stops web audio and preserves local decks.',
+  ],
+  'web-fractos': [
+    'Open fractos radio.',
+    'Its embedded players play outside the mixer; control them on the website or stop web audio.',
+  ],
+  'web-soundcloud': [
+    'Open SoundCloud.',
+    'Web playback does not enter the decks. The session is temporary; external links, popups and downloads are restricted.',
+  ],
+  'web-close': [
+    'Close the browser and stop web playback.',
+    'This does not pause local decks. curado’s mute controls the native engine only.',
+  ],
+  player: [
+    'Listen with deck A and the queue.',
+    'Switching to player pauses B and samples and moves the crossfader to A.',
+  ],
+  mix: [
+    'Mix with two decks and four samples.',
+    'Entering centers the crossfader. Cues do not synchronize tempo or beats.',
+  ],
+  settings: [
+    'Configure audio, keyboard, MIDI and appearance.',
+    'Changing audio devices unloads slots. Escape closes settings.',
+  ],
+  mini: [
+    'Open the always-on-top mini view.',
+    'Transport is preserved and you can return to the full view.',
   ],
 };
 
@@ -249,7 +430,13 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
   const label = action
     ? `${scope}${actionLabel(action.kind)}${numbered}${direction}`
     : target.label || 'Ayuda contextual';
-  const text = (action && descriptions[action.kind]) || (target.help && sections[target.help]);
+  const text =
+    (action &&
+      (currentLanguage() === 'en'
+        ? englishDescriptions[action.kind]
+        : descriptions[action.kind])) ||
+    (target.help &&
+      (currentLanguage() === 'en' ? englishSections[target.help] : sections[target.help]));
   const shortcuts = keys
     .filter((k) =>
       actions.some(
@@ -260,8 +447,11 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
       ),
     )
     .map(bindingLabel);
-  let status = target.disabled ? 'Control no disponible en este momento.' : undefined;
-  if (action && !allowedInMode(action, snapshot.mode)) status = 'Disponible en modo Mezcla.';
+  let status = target.disabled
+    ? tr('Control no disponible en este momento.', 'Control currently unavailable.')
+    : undefined;
+  if (action && !allowedInMode(action, snapshot.mode))
+    status = tr('Disponible en modo Mezcla.', 'Available in Mix mode.');
   else if (!target.disabled && action && snapshot.audio) {
     const slot = snapshot.audio.slots[action.slot];
     if (slot && !global) {
@@ -270,10 +460,15 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
   }
   return {
     label,
-    summary: text ? text[0] : target.title || 'Control de la interfaz de curado.',
+    summary: text
+      ? text[0]
+      : target.title || tr('Control de la interfaz de curado.', 'curado interface control.'),
     detail: text
       ? text[1]
-      : 'Esta es la ayuda básica de este control. Los textos y consejos se ampliarán aquí.',
+      : tr(
+          'Esta es la ayuda básica de este control. Los textos y consejos se ampliarán aquí.',
+          'Basic help for this control.',
+        ),
     shortcuts: [...new Set(shortcuts)],
     tone,
     status,

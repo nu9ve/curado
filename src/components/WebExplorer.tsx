@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useEffect, useRef, useState } from 'react';
 import { Radio, X } from 'lucide-react';
 import { call, native } from '../lib/bridge';
@@ -77,12 +78,21 @@ export function WebExplorer({
   }, [suspended]);
 
   return (
-    <section className="web-explorer" aria-label="Servicios web y radio">
+    <section
+      className="web-explorer"
+      aria-label={tr('Servicios web y radio', 'Web services and radio')}
+    >
       <div className="web-explorer-heading">
         <h2>radio / web</h2>
-        <span className="web-audio-badge">audio web independiente</span>
+        <span className="web-audio-badge">
+          {tr('audio web independiente', 'independent web audio')}
+        </span>
       </div>
-      <div className="web-explorer-actions" role="group" aria-label="Servicio web">
+      <div
+        className="web-explorer-actions"
+        role="group"
+        aria-label={tr('Servicio web', 'Web service')}
+      >
         <button
           disabled={!native}
           aria-pressed={service === 'fractos'}
@@ -105,25 +115,51 @@ export function WebExplorer({
           onClick={() => setService(null)}
           data-help="web-close"
         >
-          <X size={14} /> detener audio web
+          <X size={14} /> {tr('detener audio web', 'stop web audio')}{' '}
         </button>
-        {failed && <button onClick={() => setRetry((value) => value + 1)}>Reintentar</button>}
+        {failed && (
+          <button onClick={() => setRetry((value) => value + 1)}>
+            {tr('Reintentar', 'Retry')}
+          </button>
+        )}
       </div>
       <p className="web-audio-note">
-        El audio web se controla en su player. Master, FX, sync y Escape actúan sobre los decks
-        locales. Cambiar de servicio o salir de esta vista detiene la reproducción web.
+        {tr(
+          'El audio web se controla en su player. Master, FX, sync y Escape actúan sobre los decks locales. Cambiar de servicio o salir de esta vista detiene la reproducción web.',
+          'Web audio is controlled in its player. Master, FX, sync and Escape affect local decks. Switching services or leaving this view stops web playback.',
+        )}{' '}
       </p>
-      <div ref={host} className="web-explorer-frame" aria-label="Área del navegador integrado">
+      <div
+        ref={host}
+        className="web-explorer-frame"
+        aria-label={tr('Área del navegador integrado', 'Integrated browser area')}
+      >
         {!native ? (
-          <p>El navegador integrado requiere curado de escritorio.</p>
+          <p>
+            {tr(
+              'El navegador integrado requiere curado de escritorio.',
+              'The integrated browser requires the desktop app.',
+            )}
+          </p>
         ) : !service ? (
-          <p>Audio web detenido. Elige un servicio para volver a escuchar.</p>
+          <p>
+            {tr(
+              'Audio web detenido. Elige un servicio para volver a escuchar.',
+              'Web audio stopped. Choose a service to listen again.',
+            )}
+          </p>
         ) : failed ? (
-          <p role="alert">No se pudo abrir el navegador. Puedes reintentar.</p>
+          <p role="alert">
+            {tr(
+              'No se pudo abrir el navegador. Puedes reintentar.',
+              'Could not open the browser. You can retry.',
+            )}
+          </p>
         ) : (
           <span className="sr-only">
-            Contenido de {service === 'fractos' ? 'fractos radio' : 'SoundCloud'} en un navegador
-            integrado.
+            {tr('Contenido de', 'Content from')}{' '}
+            {service === 'fractos' ? 'fractos radio' : 'SoundCloud'}{' '}
+            {tr('en un navegador integrado.', 'in an integrated browser.')}{' '}
           </span>
         )}
       </div>

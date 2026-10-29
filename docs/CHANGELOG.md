@@ -1,5 +1,15 @@
 # Change history
 
+## 2026-10-29 · English UI in progress
+
+Added a persisted frontend language preference, Spanish fallback, initial English translations for major UI and action help, and corrected outdated audio settings copy. English remains explicitly marked in progress: native messages/menus and other strings still need coverage. A browser preview verified switching and persistence; native demo mix and Metal viewer captures were added, plus an English settings browser preview. No listening test; full screenshot and localization review remains pending.
+
+## 2026-10-29 · Interface review and README navigation
+
+- Added matching English and Spanish maps of the app's main views and clarified the behavior of SYNC, analysis and web audio.
+- Inspected the installed native interface with explicit user authorization. No listening test or new screenshot; the live session and its library were left unchanged.
+- Recorded the localization scope and outdated audio-settings text in STATUS. English UI support remains unimplemented.
+
 ## 2026-10-26 · English docs and a bilingual welcome
 
 Reworked the public README around listening/mixing/first use, with reciprocal English/Spanish links, the user's development mixer capture and nu9ve.xyz credit. Added SETUP with agent prompts, prerequisite checks, installation/update steps, platform distinctions and troubleshooting. Translated technical docs and AGENTS into English while retaining Spanish maintainer communication and existing UI labels. Documentation-only work is explicitly exempt from rebuilding/reinstalling an unchanged app; required checks still apply.

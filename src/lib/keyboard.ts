@@ -1,4 +1,5 @@
 import type { KeyBinding } from './types';
+import { currentLanguage } from './language';
 const key = (code: string, slot: number, kind: string, value = 0, shift = false): KeyBinding => ({
   code,
   shift,
@@ -55,6 +56,43 @@ export function bindingLabel(binding: KeyBinding) {
   return `${binding.shift ? '⇧ ' : ''}${keyLabel(binding.code)}`;
 }
 export function actionLabel(kind: string) {
+  if (currentLanguage() === 'en') {
+    const english: Record<string, string> = {
+      nudge: 'Nudge (seconds)',
+      toggle: 'Play / pause',
+      cue: 'Hot cue',
+      setCue: 'Save cue',
+      playBoth: 'Play A + B',
+      pauseBoth: 'Pause A + B',
+      cueBoth: 'Hot cue A + B',
+      loop: 'Loop on/off',
+      loopIn: 'Loop IN',
+      loopOut: 'Loop OUT',
+      trigger: 'Trigger sample',
+      crossfader: 'Crossfader',
+      panic: 'Mute all',
+      gain: 'Volume',
+      rate: 'Speed',
+      low: 'Low',
+      mid: 'Mid',
+      high: 'High',
+      filter: 'LP filter',
+      echo: 'Echo',
+      highPass: 'HP filter',
+      echoBeats: 'Echo in beats',
+      quantize: 'Quantize',
+      loopBeats: 'Beat loop',
+      sync: 'Tempo sync',
+      masterDeck: 'Master deck',
+      tempo: 'Tempo',
+      transpose: 'Transpose',
+      transposeStep: 'Transpose one semitone',
+      keyLock: 'Key lock',
+      keySync: 'Key sync',
+      master: 'Master',
+    };
+    return english[kind] ?? kind;
+  }
   return (
     (
       {

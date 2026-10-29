@@ -1,3 +1,4 @@
+import { tr } from '../lib/language';
 import { useTheme, currentPalette } from '../lib/theme-store';
 import { rgb } from '../lib/theme';
 import { useEffect, useRef, useState } from 'react';
@@ -69,18 +70,21 @@ export function Visual({ onError }: { onError: (e: unknown) => void }) {
     <section className="visual">
       <canvas ref={ref} />
       <div className="visual-overlay">
-        <span className="eyebrow">paisaje sonoro</span>
+        <span className="eyebrow">{tr('paisaje sonoro', 'soundscape')}</span>
         <h2>
-          deja que la música
-          <br />
-          dibuje el espacio
+          {tr('deja que la música', 'let the music')} <br />
+          {tr('dibuje el espacio', 'draw the space')}{' '}
         </h2>
-        <p>procedural · reactivo al master</p>
+        <p>{tr('procedural · reactivo al master', 'procedural · reacts to master')}</p>
       </div>
       <div className="visual-controls">
         <button
           onClick={() => setEnabled((v) => !v)}
-          title={enabled ? 'Pausar visual integrado' : 'Activar visual integrado'}
+          title={
+            enabled
+              ? tr('Pausar visual integrado', 'Pause integrated visual')
+              : tr('Activar visual integrado', 'Enable integrated visual')
+          }
         >
           {enabled ? <Eye size={14} /> : <EyeOff size={14} />}
         </button>

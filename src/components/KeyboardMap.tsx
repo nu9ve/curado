@@ -1,3 +1,4 @@
+import { tr, useLanguage } from '../lib/language';
 import { memo } from 'react';
 import type { KeyBinding } from '../lib/types';
 import { actionLabel, allowedInMode, keyLabel } from '../lib/keyboard';
@@ -58,12 +59,13 @@ export const KeyboardMap = memo(function KeyboardMap({
   mode: 'player' | 'mix';
   onTrigger: (binding: KeyBinding) => void;
 }) {
+  useLanguage();
   return (
-    <section className="keyboard-map" aria-label="Mapa del teclado">
+    <section className="keyboard-map" aria-label={tr('Mapa del teclado', 'Keyboard map')}>
       <div className="keyboard-legend">
-        <span className="eyebrow">TECLADO</span>
-        <span className="z-a">A · izquierda</span>
-        <span className="z-b">B · derecha</span>
+        <span className="eyebrow">{tr('TECLADO', 'KEYBOARD')}</span>
+        <span className="z-a">{tr('A · izquierda', 'A · left')}</span>
+        <span className="z-b">{tr('B · derecha', 'B · right')}</span>
         <span className="z-sample">samples</span>
         <span className="z-mixer">mixer</span>
       </div>
@@ -86,7 +88,7 @@ export const KeyboardMap = memo(function KeyboardMap({
                 className={`keycap z-${z} ${code === 'Space' ? 'wide' : ''} ${blocked && bound.length ? 'blocked' : ''}`}
                 data-key={code}
                 data-action={bound.map((b) => actionKey(b.action)).join(' ') || undefined}
-                title={title || 'Libre'}
+                title={title || tr('Libre', 'Unassigned')}
                 disabled={!plain || (blocked && bound.length > 0)}
                 onClick={() => plain && onTrigger(plain)}
                 tabIndex={-1}
