@@ -678,7 +678,7 @@ pub fn run() {
                             .lock()
                             .unwrap()
                             .as_ref()
-                            .map(|o| o.handle.snapshot());
+                            .map(|o| o.handle.clone());
                         if let Some(audio) = audio {
                             let theme = state.theme.lock().unwrap().clone();
                             state.visuals.lock().unwrap().send(&audio, &theme);

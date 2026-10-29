@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-29 · Reactive Metal scenes
+
+Added a faceted gateway with particles, circular waveform/spectrum and depth-tested low-poly spectral city. Added temporary scene, glow, sensitivity, speed and color controls; hide/restore, fullscreen and spring camera interactions. A bounded on-demand master capture feeds a worker-side 2,048-point FFT and smoothed 24-bin spectrum; no FFT or allocation runs in the callback. Updated both READMEs and architecture. See STATUS for validation and limits.
+
 ## 2026-10-29 · Alternate console view
 
 Added a locally persisted curado/console layout selector in Mix. The console uses the existing deck, mixer, waveform and action contracts in an all-in-one-inspired surface, preserving theme colors and horizontally scrolling at narrow widths. No engine or DSP behavior changed. MIXER-VIEWS records the visual limits and a dedicated audio, routing and player-function backlog; visual and listening review remain pending.

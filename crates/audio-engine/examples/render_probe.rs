@@ -27,14 +27,18 @@ fn main() {
         handle.control(slot, Control::Filter(0.7)).unwrap();
         renderer.render(&mut output, 2);
     }
+    let visuals = std::env::args().any(|arg| arg == "--visuals");
     let blocks = 48000 * 60 / 256;
     let mut timings = Vec::with_capacity(blocks);
-    for _ in 0..blocks {
+    for block in 0..blocks {
+        if visuals && block % 10 == 0 {
+            let _ = handle.visual_samples();
+        }
         let started = Instant::now();
         renderer.render(&mut output, 2);
         timings.push(started.elapsed().as_secs_f64() * 1_000_000.);
     }
     timings.sort_by(f64::total_cmp);
     let snap = handle.snapshot();
-    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{}}}",timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped);
+    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"visualCapture\":{},\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{}}}",visuals,timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped);
 }

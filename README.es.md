@@ -45,7 +45,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
 - **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
-- **Visualizar:** abre Metal desde el reproductor en macOS y elige terreno, órbita, túnel o cintas; ajusta el brillo y deja que la señal master anime la escena.
+- **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 
 Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí necesitan conexión.

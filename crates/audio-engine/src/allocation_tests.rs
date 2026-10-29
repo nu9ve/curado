@@ -52,12 +52,15 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     handle.control(0, crate::Control::Seek(0.05)).unwrap();
     handle.control(0, crate::Control::Filter(0.3)).unwrap();
     handle.control(0, crate::Control::SetCue(1)).unwrap();
+    assert!(handle.visual_samples().is_none());
     ACTIVE.with(|a| a.set(true));
     for _ in 0..10 {
         renderer.render(&mut output, 2);
     }
     ACTIVE.with(|a| a.set(false));
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
+    assert!(handle.visual_samples().is_some());
+    handle.stop_visual_capture();
     handle.collect();
     // Exercise linked transport and hot-cue restarts with both decks and a sample.
     handle.load_and_play(1, clip()).unwrap();

@@ -17,6 +17,8 @@ use std::sync::{
 use tuning::{MusicMeter, TunedClip, Tuning, TuningMeter};
 
 pub const SLOTS: usize = 6;
+/// One bounded, on-demand master capture for the visual worker.
+pub const VISUAL_SAMPLES: usize = 2048;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Action {
@@ -183,6 +185,10 @@ pub struct Shared {
     peak: AtomicU32,
     rms: AtomicU32,
     waveform: [AtomicU32; 64],
+    visual_state: AtomicUsize,
+    visual_next: AtomicUsize,
+    visual_samples: [AtomicU32; VISUAL_SAMPLES],
+    visual_rate: u32,
     crossfader: AtomicU32,
     master: AtomicU32,
     master_deck: AtomicUsize,
@@ -238,6 +244,33 @@ pub struct Snapshot {
     pub master_deck: usize,
 }
 impl EngineHandle {
+    /// Called by the visual worker only. Returns one complete mono master window and
+    /// requests the next one; the callback never waits for the consumer.
+    pub fn visual_samples(&self) -> Option<([f32; VISUAL_SAMPLES], u32)> {
+        use std::sync::atomic::Ordering::{Acquire, Release};
+        let state = self.0.visual_state.load(Acquire);
+        if state != 0 && state & 1 == 0 {
+            let samples =
+                std::array::from_fn(|i| f32::from_bits(self.0.visual_samples[i].load(Relaxed)));
+            let next = self.0.visual_next.fetch_add(2, Relaxed);
+            self.0.visual_state.store(next, Release);
+            Some((samples, self.0.visual_rate))
+        } else {
+            if state == 0 {
+                let next = self.0.visual_next.fetch_add(2, Relaxed);
+                let _ = self
+                    .0
+                    .visual_state
+                    .compare_exchange(0, next, Release, Relaxed);
+            }
+            None
+        }
+    }
+    pub fn stop_visual_capture(&self) {
+        self.0
+            .visual_state
+            .store(0, std::sync::atomic::Ordering::Release);
+    }
     pub fn action(&self, action: Action) -> Result<(), String> {
         let c = action.validate()?;
         if let Control::Rate(rate) = c {
@@ -736,6 +769,9 @@ pub struct Renderer {
     master_target: f32,
     scope: [f32; 64],
     scope_head: usize,
+    visual_capture: [f32; VISUAL_SAMPLES],
+    visual_head: usize,
+    visual_request: usize,
     master_deck: usize,
 }
 pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
@@ -751,6 +787,10 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
         peak: AtomicU32::new(0),
         rms: AtomicU32::new(0),
         waveform: std::array::from_fn(|_| AtomicU32::new(0)),
+        visual_state: AtomicUsize::new(0),
+        visual_next: AtomicUsize::new(1),
+        visual_samples: std::array::from_fn(|_| AtomicU32::new(0)),
+        visual_rate: sample_rate,
         crossfader: AtomicU32::new(0.5_f32.to_bits()),
         master: AtomicU32::new(0.75_f32.to_bits()),
         master_deck: AtomicUsize::new(0),
@@ -769,6 +809,9 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
             master_target: 0.75,
             scope: [0.; 64],
             scope_head: 0,
+            visual_capture: [0.; VISUAL_SAMPLES],
+            visual_head: 0,
+            visual_request: 0,
             master_deck: 0,
         },
     )
@@ -1094,6 +1137,15 @@ impl Renderer {
                 self.sample_rate,
             );
         }
+        let request = self
+            .shared
+            .visual_state
+            .load(std::sync::atomic::Ordering::Acquire);
+        let capturing = request != 0 && request & 1 == 1;
+        if request != self.visual_request {
+            self.visual_head = 0;
+            self.visual_request = request;
+        }
         for frame in output.chunks_mut(channels.max(1)) {
             let follower = 1 - self.master_deck;
             if let Some((control, queued_beat)) = self.decks[follower].scheduled {
@@ -1135,6 +1187,10 @@ impl Renderer {
             self.scope[self.scope_head % 64] = (stereo[0] + stereo[1]) * 0.5;
             self.scope_head = (self.scope_head + 1) % 64;
             let mono = (stereo[0] + stereo[1]) * 0.5;
+            if capturing && self.visual_head < VISUAL_SAMPLES {
+                self.visual_capture[self.visual_head] = mono;
+                self.visual_head += 1;
+            }
             for (c, sample) in frame.iter_mut().enumerate() {
                 *sample = T::from_sample(if channels == 1 {
                     mono
@@ -1144,6 +1200,18 @@ impl Renderer {
                     0.
                 });
             }
+        }
+        if capturing && self.visual_head == VISUAL_SAMPLES {
+            for (dst, sample) in self.shared.visual_samples.iter().zip(self.visual_capture) {
+                dst.store(sample.to_bits(), Relaxed);
+            }
+            let _ = self.shared.visual_state.compare_exchange(
+                request,
+                request + 1,
+                std::sync::atomic::Ordering::Release,
+                Relaxed,
+            );
+            self.visual_head = 0;
         }
         for (i, d) in self.decks.iter().enumerate() {
             let m = &self.shared.meters[i];
@@ -1221,6 +1289,34 @@ impl Renderer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn visual_capture_is_complete_bounded_and_cancelled_on_restart() {
+        let (handle, mut renderer) = engine(48000);
+        assert!(handle.visual_samples().is_none());
+        render(&mut renderer, 1024);
+        assert!(handle.visual_samples().is_none());
+        handle.stop_visual_capture();
+        assert!(handle.visual_samples().is_none());
+        render(&mut renderer, 1024);
+        assert!(handle.visual_samples().is_none());
+        render(&mut renderer, 1024);
+        let (samples, rate) = handle.visual_samples().unwrap();
+        assert_eq!(rate, 48000);
+        assert!(samples.iter().all(|sample| *sample == 0.));
+        // No request can build an unbounded backlog when the reader is late.
+        render(&mut renderer, 8192);
+        assert!(handle.visual_samples().is_some());
+        assert!(handle.visual_samples().is_none());
+        handle.load(0, clip(9)).unwrap();
+        handle.control(0, Control::Play).unwrap();
+        let output = render(&mut renderer, VISUAL_SAMPLES);
+        let (captured, _) = handle.visual_samples().unwrap();
+        assert!(captured.iter().any(|sample| *sample > 0.01));
+        for (i, sample) in captured.iter().enumerate() {
+            assert_eq!(*sample, (output[i * 2] + output[i * 2 + 1]) * 0.5);
+        }
+        handle.stop_visual_capture();
+    }
     fn clip(id: u64) -> Arc<Clip> {
         Arc::new(Clip {
             id,

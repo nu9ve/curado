@@ -47,7 +47,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Play by feel:** remappable keyboard controls, MIDI Learn, animated feedback and footer hints that explain the control you point to.
 - **Make it yours:** five visual styles, your own accent color, light/dark/system themes and waveform options.
 - **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
-- **Visualize:** open Metal from the player on macOS and choose terrain, orbit, tunnel or ribbons; adjust glow and let the master signal animate the scene.
+- **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
 Local listening and mixing work offline. Web services need internet. There is no WebAudio replacement for the native engine.
