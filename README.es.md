@@ -14,7 +14,7 @@ _Vista nativa de macOS con la sesión de prueba, en español y con estilo gótic
 
 ![Paisaje sonoro Metal de curado](docs/assets/visual-metal.jpg)
 
-_El paisaje sonoro Metal en una ventana independiente de macOS._
+_El paisaje sonoro Metal en una ventana independiente de macOS (vista anterior del terreno)._
 
 ![Configuración de apariencia en inglés](docs/assets/settings-en-preview.jpg)
 
@@ -44,6 +44,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Explorar la música:** BPM/key estimados, notación americana y Camelot, beatgrid editable, key lock y transposición ±12 semitonos.
 - **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
+- **Visualizar:** abre Metal desde el reproductor en macOS y elige terreno, órbita, túnel o cintas; ajusta el brillo y deja que la señal master anime la escena.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 
 Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí necesitan conexión.

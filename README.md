@@ -16,7 +16,7 @@ _Native macOS mix view with the local demo, in Spanish and the gothic style._
 
 ![curado Metal soundscape](docs/assets/visual-metal.jpg)
 
-_The separate Metal soundscape on macOS._
+_The separate Metal soundscape on macOS (earlier terrain view)._
 
 ![Appearance settings in English](docs/assets/settings-en-preview.jpg)
 
@@ -46,6 +46,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Find the key:** estimated BPM and musical key in standard letter notation and Camelot, an editable beatgrid, key lock and ±12-semitone transposition.
 - **Play by feel:** remappable keyboard controls, MIDI Learn, animated feedback and footer hints that explain the control you point to.
 - **Make it yours:** five visual styles, your own accent color, light/dark/system themes and waveform options.
+- **Visualize:** open Metal from the player on macOS and choose terrain, orbit, tunnel or ribbons; adjust glow and let the master signal animate the scene.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
 Local listening and mixing work offline. Web services need internet. There is no WebAudio replacement for the native engine.

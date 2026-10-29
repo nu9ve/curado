@@ -99,7 +99,7 @@ Trusted frontend has local CSP, no remote scripts or generic shell/file API. Fon
 
 midir uses CoreMIDI/WinMM/ALSA. Input callback copies three bytes into a queue of 256. Worker handles at most 64 messages every 2 ms, learns device/channel/type/number and sends the same engine actions. CC normalizes parameters (EQ 0–2, unity at CC 64); buttons trigger on Note On or CC ≥64. No MIDI Clock, relative encoders, SysEx or feedback yet.
 
-Metal is a separate process. App extracts a Swift helper into cache; it receives RMS, peak and a 64-sample scope, never complete PCM. Blocked stdin only stalls the visual worker. Procedural shader mesh has no FFT/true band separation. Hidden/minimized skips drawing. Helper exits on window close/stdin close. Distribution requires replacing extraction with a signed in-bundle helper.
+Metal is a separate process. App extracts a Swift helper into cache; it receives RMS, peak and a 64-sample scope, never complete PCM. Blocked stdin only stalls the visual worker. The helper offers a terrain mesh plus orbit, tunnel and ribbon shaders; a native selector and glow slider affect only the helper and reset when it closes. Scenes use the shared accent, RMS and waveform; the glow is procedural rather than a post-processing bloom. There is no FFT/true band separation. Drawing is bounded to 30 FPS and hidden/minimized skips drawing. Helper exits on window close/stdin close. Distribution requires replacing extraction with a signed in-bundle helper.
 
 ## Isolated web services
 

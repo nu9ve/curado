@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-29 · Metal visual variations
+
+Added selectable orbit, tunnel and waveform-ribbon scenes alongside the existing terrain, with accent-based gradients and adjustable procedural glow. The native helper retains its bounded 30 FPS and audio snapshot boundary; controls are temporary and the integrated canvas is unchanged. No FFT or spectrum analysis was added. Compilation and validation details, including remaining visual checks, are recorded in STATUS.
+
 ## 2026-10-29 · English UI in progress
 
 Added a persisted frontend language preference, Spanish fallback, initial English translations for major UI and action help, and corrected outdated audio settings copy. English remains explicitly marked in progress: native messages/menus and other strings still need coverage. A browser preview verified switching and persistence; native demo mix and Metal viewer captures were added, plus an English settings browser preview. No listening test; full screenshot and localization review remains pending.

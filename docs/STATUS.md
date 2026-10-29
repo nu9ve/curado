@@ -1,5 +1,11 @@
 # curado status
 
+## Metal visual variations · 2026-10-29
+
+The separate macOS Metal window now offers terrain, orbit, tunnel and ribbons, with a native selector and a glow slider for the three new scenes. The palette follows the user accent. RMS and the 64-sample scope animate the scenes; no FFT or frequency bands were added. Selection and glow reset when the window closes; the integrated canvas is unchanged. The shader uses bounded procedural effects, not a bloom post-process, and retains the separate worker and 30 FPS cap.
+
+Verification: Swift typecheck passed; Metal compiled all shader functions and both render pipelines on the local GPU without opening the app. `bun run check` passed (26 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The ARM64 `.app` built (13.51 MiB) and its ad hoc signature verified. Installation was blocked because the installed app was running; it was not stopped or updated. No visual, listening or performance review was performed. Next: close the running app and run `bun run desktop:install --no-build` while this bundle is current; with explicit authorization, inspect all scenes, resizing, accessibility and GPU load with real playback. Consider persistent preferences and true spectral analysis only as separate work.
+
 ## Localization in progress · 2026-10-29
 
 The frontend has an explicit Spanish/English selector in Appearance, with Spanish as the fallback and a versioned localStorage preference. The selected language updates document `lang` and the subscribed UI without restarting audio. Main navigation, library, decks, settings, appearance, keyboard labels and action help have initial English translations; the option is explicitly marked in progress. Native errors, menus, visual window title, some dynamic strings and complete coverage/a11y review remain. The audio settings description now reflects sync and beat echo. No new dependency or native permission was added.
