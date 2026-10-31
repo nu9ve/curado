@@ -185,6 +185,7 @@ export interface Audio {
   beatFx: BeatFxState[];
   sampler: number;
   autoGain: boolean;
+  crossfaderCurve: number;
   slots: Slot[];
   peak: number;
   rms: number;

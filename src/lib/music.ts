@@ -12,6 +12,20 @@ export function keyLabel(key: MusicalKey | null, notation: 'american' | 'camelot
     : `${NOTES[key.tonic]}${key.minor ? 'm' : ''}`;
 }
 
+/** Whether beat `n` of a map starts a bar, counting from the beat nearest the downbeat. */
+export function isMapDownbeat(beats: number[], n: number, downbeat: number, beatsPerBar = 4) {
+  let nearest = 0;
+  let distance = Infinity;
+  for (let i = 0; i < Math.min(beats.length, 64); i++) {
+    const gap = Math.abs(beats[i] - downbeat);
+    if (gap < distance) {
+      distance = gap;
+      nearest = i;
+    }
+  }
+  return (n - nearest) % beatsPerBar === 0;
+}
+
 /** Whether a grid line starts a bar. Works from positions, so editing the grid cannot break it. */
 export function isDownbeat(time: number, beat: number, downbeat: number, beatsPerBar = 4) {
   const beats = Math.round((time - downbeat) / beat);

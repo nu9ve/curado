@@ -4,6 +4,9 @@ use std::sync::atomic::{
 };
 /// Hot cues A to H, the same as rekordbox and CDJs.
 pub const HOT_CUES: usize = 8;
+/// A cue saved at the very start. Zero is what every store and export reads as "no cue", so one
+/// here sits a microsecond in instead: nothing has to change, and the difference is not audible.
+pub const CUE_AT_START: f64 = 1e-6;
 /// Shared by decks loading the same track. Updates never allocate or lock.
 #[derive(Debug)]
 pub struct CueState {

@@ -3,9 +3,9 @@ const key = 'curado.mix-layout.v1';
 
 export function readMixLayout(storage: Pick<Storage, 'getItem'> | undefined): MixLayout {
   try {
-    return storage?.getItem(key) === 'console' ? 'console' : 'classic';
+    return storage?.getItem(key) === 'classic' ? 'classic' : 'console';
   } catch {
-    return 'classic';
+    return 'console';
   }
 }
 

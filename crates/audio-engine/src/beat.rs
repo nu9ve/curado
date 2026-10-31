@@ -414,6 +414,143 @@ fn half_or_double(onsets: &Onsets, period: f64) -> f64 {
     }
 }
 
+const MAP_WINDOW_BEATS: usize = 16;
+const MAP_STEP_BEATS: usize = 8;
+/// Below this the grid stays one tempo. Measured after removing any steady slope, which is a
+/// slightly wrong BPM rather than a moving tempo: without that, nearly half of a library of
+/// steady club tracks got a map.
+const MAP_MIN_DRIFT: f64 = 0.08;
+/// How far the beat can move from one step to the next and still be the same beat.
+const MAP_MAX_STEP: f64 = 0.04;
+/// Share of the windows that have to show a clear pulse before trusting what they say.
+const MAP_MIN_CLEAR: f64 = 0.9;
+/// Follows the beat through the track in overlapping windows, answering only when the pulse
+/// clearly wanders from the one grid, as a live drummer's does. See `music::follow_tempo`.
+pub fn tempo_map(mono: &[f32], rate: f64, period: f64, offset: f64) -> Option<Vec<f64>> {
+    let onsets = Onsets::new(mono, rate);
+    let total = ((onsets.duration() - offset) / period) as usize;
+    if total < MAP_WINDOW_BEATS * 2 {
+        return None;
+    }
+    let strength = |seconds: f64| -> f64 {
+        let tick = (seconds / onsets.tick).round();
+        if tick < 0. || tick as usize >= onsets.len() {
+            return 0.;
+        }
+        onsets.beat_strength(tick as usize)
+    };
+    let score = |first: usize, shift: f64| -> f64 {
+        (first..(first + MAP_WINDOW_BEATS).min(total))
+            .map(|n| strength(offset + n as f64 * period + shift))
+            .sum()
+    };
+    let tick = onsets.tick;
+    let reach = (MAP_MAX_STEP / tick).ceil() as i32;
+    let (mut shift, mut knots, mut clear, mut windows) = (0_f64, Vec::new(), 0, 0);
+    let mut first = 0;
+    while first + MAP_WINDOW_BEATS <= total {
+        windows += 1;
+        // Only near where the beat was, so a strong off-beat section cannot capture it.
+        let mut best = (f64::MIN, shift);
+        let mut sum = 0.;
+        for step in -reach..=reach {
+            let candidate = shift + step as f64 * tick;
+            let value = score(first, candidate);
+            sum += value;
+            if value > best.0 {
+                best = (value, candidate);
+            }
+        }
+        let mean = sum / (2 * reach + 1) as f64;
+        if best.0 > mean * 1.5 {
+            clear += 1;
+            shift = best.1;
+            knots.push(((first + MAP_WINDOW_BEATS / 2) as f64, shift));
+        }
+        first += MAP_STEP_BEATS;
+    }
+    if windows == 0 || (clear as f64) < windows as f64 * MAP_MIN_CLEAR || knots.len() < 3 {
+        return None;
+    }
+    // A median over three steps, so one odd section does not bend the whole grid.
+    let smooth: Vec<(f64, f64)> = (0..knots.len())
+        .map(|i| {
+            let mut near = [
+                knots[i.saturating_sub(1)].1,
+                knots[i].1,
+                knots[(i + 1).min(knots.len() - 1)].1,
+            ];
+            near.sort_by(f64::total_cmp);
+            (knots[i].0, near[1])
+        })
+        .collect();
+    let count = smooth.len() as f64;
+    let (mean_x, mean_y) = (
+        smooth.iter().map(|k| k.0).sum::<f64>() / count,
+        smooth.iter().map(|k| k.1).sum::<f64>() / count,
+    );
+    let slope = smooth
+        .iter()
+        .map(|k| (k.0 - mean_x) * (k.1 - mean_y))
+        .sum::<f64>()
+        / smooth
+            .iter()
+            .map(|k| (k.0 - mean_x).powi(2))
+            .sum::<f64>()
+            .max(1e-9);
+    let residual = |k: &(f64, f64)| k.1 - mean_y - slope * (k.0 - mean_x);
+    let lowest = smooth.iter().map(residual).fold(f64::MAX, f64::min);
+    let highest = smooth.iter().map(residual).fold(f64::MIN, f64::max);
+    if highest - lowest < MAP_MIN_DRIFT {
+        return None;
+    }
+    let mut beats = Vec::with_capacity(total);
+    let mut knot = 0;
+    for n in 0..total {
+        let at = n as f64;
+        while knot + 1 < smooth.len() && smooth[knot + 1].0 <= at {
+            knot += 1;
+        }
+        let shift = match smooth.get(knot + 1) {
+            Some(next) if at >= smooth[knot].0 => {
+                let t = (at - smooth[knot].0) / (next.0 - smooth[knot].0);
+                smooth[knot].1 + (next.1 - smooth[knot].1) * t
+            }
+            _ => smooth[knot].1,
+        };
+        beats.push(offset + at * period + shift);
+    }
+    beats
+        .windows(2)
+        .all(|pair| pair[1] > pair[0])
+        .then_some(beats)
+}
+
+/// Each band folded onto one beat, in 64 bins, peak at one. For evaluating phase choices.
+pub fn folds(mono: &[f32], rate: f64, period: f64) -> [Vec<f64>; 3] {
+    let onsets = Onsets::new(mono, rate);
+    let mut curves = [vec![0_f64; 64], vec![0_f64; 64], vec![0_f64; 64]];
+    let mut counts = [0_f64; 64];
+    for n in 0..onsets.len() {
+        let time = (n as f64 + 0.5) * onsets.tick;
+        let bin = (time.rem_euclid(period) / period * 64.) as usize % 64;
+        for (curve, band) in curves.iter_mut().zip(&onsets.energy) {
+            curve[bin] += band[n] as f64;
+        }
+        counts[bin] += 1.;
+    }
+    for curve in &mut curves {
+        for (value, count) in curve.iter_mut().zip(counts) {
+            *value /= count.max(1.);
+        }
+        let peak = curve.iter().copied().fold(1e-12, f64::max);
+        for value in curve.iter_mut() {
+            *value = (*value / peak * 1000.).round() / 1000.;
+        }
+    }
+    curves
+}
+
 /// Folds every band onto one beat and finds where the average beat starts. A kick rises in
 /// the bass and across the spectrum at once, so a louder off-beat bass note or a hi-hat, which
 /// only rise in one of them, cannot take the grid from it.
@@ -879,6 +1016,51 @@ mod tests {
             (analysis.downbeat - analysis.beat_offset).abs() < 1e-9,
             "{analysis:?}"
         );
+    }
+
+    /// Kicks whose tempo moves slowly back and forth, as a drummer's can.
+    fn drifting(seconds: f64, rate: f64, bpm: f64, swing: f64) -> (Vec<[f32; 2]>, Vec<f64>) {
+        let mut song = Track::new(seconds, rate);
+        let (mut time, mut truth) = (0.25, Vec::new());
+        while time < seconds - 1. {
+            song.kick(time, 2., 0.8);
+            truth.push(time);
+            let wander = (TAU * time / 60.).sin() * swing;
+            time += 60. / (bpm * (1. + wander));
+        }
+        (song.finish(), truth)
+    }
+    fn mono(samples: &[[f32; 2]]) -> Vec<f32> {
+        samples.iter().map(|f| (f[0] + f[1]) * 0.5).collect()
+    }
+
+    #[test]
+    fn a_steady_track_keeps_one_grid() {
+        let rate = 22050.;
+        let samples = house(180., rate, 124.);
+        assert_eq!(
+            tempo_map(&mono(&samples), rate, 60. / 124., 0.),
+            None,
+            "a map has to earn its place"
+        );
+    }
+
+    #[test]
+    fn a_wandering_tempo_gets_beats_that_follow_it() {
+        let rate = 22050.;
+        let (samples, truth) = drifting(180., rate, 120., 0.008);
+        let signal = mono(&samples);
+        let map = tempo_map(&signal, rate, 60. / 120., 0.25 % 0.5).expect("a map");
+        // Most of the real kicks have a map beat right on them.
+        let close = truth
+            .iter()
+            .skip(40)
+            .take(truth.len() - 80)
+            .filter(|kick| map.iter().any(|beat| (beat - **kick).abs() < 0.03))
+            .count();
+        let of = truth.len() - 80;
+        assert!(close * 10 >= of * 8, "{close} of {of}");
+        assert!(map.windows(2).all(|pair| pair[1] > pair[0]));
     }
 
     #[test]

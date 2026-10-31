@@ -438,6 +438,19 @@ impl ColorFx {
     }
 }
 
+/// Divisions a Beat FX unit steps through. On Pitch the same steps choose an interval, so one
+/// control serves both, and the interface shows semitones there.
+pub const BEAT_DIVISIONS: [f64; 11] = [0.0625, 0.125, 0.25, 0.5, 0.75, 1., 2., 4., 8., 16., 32.];
+pub const PITCH_STEPS: [f32; 11] = [-12., -7., -5., -3., -2., -1., 1., 2., 5., 7., 12.];
+fn pitch_ratio(beats: f32) -> f32 {
+    let index = BEAT_DIVISIONS
+        .iter()
+        .position(|division| *division as f32 == beats)
+        .unwrap_or(6);
+    2_f32.powf(PITCH_STEPS[index] / 12.)
+}
+const GRAIN_SECONDS: f32 = 0.06;
+
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum BeatKind {
     Delay,
@@ -450,9 +463,14 @@ pub enum BeatKind {
     Filter,
     Trans,
     Roll,
+    SlipRoll,
+    Pitch,
+    Spiral,
+    Helix,
+    VinylBrake,
 }
 impl BeatKind {
-    pub const COUNT: u8 = 9;
+    pub const COUNT: u8 = 14;
     pub fn from_index(index: u8) -> Self {
         match index {
             0 => Self::Delay,
@@ -463,6 +481,11 @@ impl BeatKind {
             6 => Self::Filter,
             7 => Self::Trans,
             8 => Self::Roll,
+            9 => Self::SlipRoll,
+            10 => Self::Pitch,
+            11 => Self::Spiral,
+            12 => Self::Helix,
+            13 => Self::VinylBrake,
             _ => Self::Echo,
         }
     }
@@ -470,7 +493,10 @@ impl BeatKind {
         self as u8
     }
     fn delays(self) -> bool {
-        matches!(self, Self::Delay | Self::Echo | Self::PingPong)
+        matches!(
+            self,
+            Self::Delay | Self::Echo | Self::PingPong | Self::Spiral | Self::Helix
+        )
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -528,6 +554,20 @@ pub struct BeatFx {
     roll_length: usize,
     roll_read: usize,
     roll_seam: f32,
+    /// A Slip Roll takes a new slice when its division changes.
+    roll_beats: f32,
+    grains: Vec<[f32; 2]>,
+    grain_head: usize,
+    grain_phase: f32,
+    grain_frames: f32,
+    pitch: f32,
+    diffusers: [[Allpass; 2]; 2],
+    helix_left: u32,
+    was_on: bool,
+    /// Vinyl Brake: how fast its read head still moves, and how far it has fallen behind.
+    brake_speed: f32,
+    brake_lag: f32,
+    brake_head: usize,
 }
 impl BeatFx {
     pub fn new(sr: u32) -> Self {
@@ -567,6 +607,23 @@ impl BeatFx {
             roll_length: 1,
             roll_read: 0,
             roll_seam: (rate * ROLL_SEAM_SECONDS).max(1.),
+            roll_beats: 0.,
+            grains: preallocated((rate * GRAIN_SECONDS * 2.) as usize + 4),
+            grain_head: 0,
+            grain_phase: 0.,
+            grain_frames: rate * GRAIN_SECONDS,
+            pitch: 1.,
+            diffusers: std::array::from_fn(|c| {
+                [
+                    Allpass::new(((347 + c * 23) as f32 * rate / 44100.) as usize),
+                    Allpass::new(((113 + c * 11) as f32 * rate / 44100.) as usize),
+                ]
+            }),
+            helix_left: 0,
+            was_on: false,
+            brake_speed: 1.,
+            brake_lag: 0.,
+            brake_head: 0,
         }
     }
     pub fn settings(&self) -> BeatSettings {
@@ -601,6 +658,7 @@ impl BeatFx {
                 let t = (std::f32::consts::PI * sweep(200., 3000., lfo) / self.sr).tan();
                 self.phaser_a = (t - 1.) / (t + 1.);
             }
+            BeatKind::Pitch => self.pitch = pitch_ratio(self.settings.beats),
             _ => {}
         }
     }
@@ -619,6 +677,15 @@ impl BeatFx {
             self.switch += (1. - self.switch) * self.smoothing;
         }
         let on = self.settings.on && self.kind == target;
+        if on && !self.was_on && self.kind == BeatKind::Helix {
+            // Helix feeds on one cycle, then keeps turning what it took.
+            self.helix_left = (self.settings.beats * self.frames_per_beat) as u32;
+        }
+        if on && !self.was_on && self.kind == BeatKind::VinylBrake {
+            self.brake_speed = 1.;
+            self.brake_lag = 0.;
+        }
+        self.was_on = on;
         let depth = self.settings.depth;
         self.send += (f32::from(on) - self.send) * self.smoothing;
         self.wet += (depth - self.wet) * self.smoothing;
@@ -638,9 +705,24 @@ impl BeatFx {
             BeatKind::Delay => 0.25,
             BeatKind::Echo => 0.62,
             BeatKind::PingPong => 0.6,
+            BeatKind::Spiral => 0.78,
+            BeatKind::Helix if on => 0.96,
+            BeatKind::Helix => 0.7,
             _ => 0.,
         };
-        let send = if self.kind.delays() { self.send } else { 0. };
+        let send = match self.kind {
+            BeatKind::Helix => {
+                let feeding = self.helix_left > 0;
+                self.helix_left = self.helix_left.saturating_sub(1);
+                if feeding {
+                    self.send
+                } else {
+                    0.
+                }
+            }
+            kind if kind.delays() => self.send,
+            _ => 0.,
+        };
         let mut written = [0.; 2];
         if self.kind == BeatKind::PingPong {
             let fed = (input[0] + input[1]) * 0.5 * send;
@@ -648,17 +730,76 @@ impl BeatFx {
             written[1] = clean(delayed[0] * feedback);
         } else {
             for (c, value) in written.iter_mut().enumerate() {
-                let (damped, _, _) = self.damping[c].tick(&self.damping_coef, delayed[c]);
-                *value = clean(input[c] * send + damped * feedback);
+                let (mut damped, _, _) = self.damping[c].tick(&self.damping_coef, delayed[c]);
+                if self.kind == BeatKind::Spiral {
+                    // Each repeat smears further, so it dissolves instead of just fading.
+                    for diffuser in &mut self.diffusers[c] {
+                        damped = diffuser.tick(damped);
+                    }
+                }
+                let fed = input[c] * send + damped * feedback;
+                // Long feedback on a short division would otherwise pile up well past full scale.
+                *value = clean(if matches!(self.kind, BeatKind::Spiral | BeatKind::Helix) {
+                    fed / (1. + 0.35 * fed.abs())
+                } else {
+                    fed
+                });
             }
         }
         self.delay[self.head] = written;
         self.head = (self.head + 1) % self.delay.len();
         let inline = self.amount * self.switch;
         match self.kind {
-            BeatKind::Delay | BeatKind::Echo | BeatKind::PingPong => {
+            BeatKind::Delay | BeatKind::Echo | BeatKind::PingPong | BeatKind::Spiral => {
                 let wet = self.wet * self.switch;
                 [input[0] + delayed[0] * wet, input[1] + delayed[1] * wet]
+            }
+            BeatKind::VinylBrake => {
+                // The audio keeps being written while a slowing head falls behind it.
+                let len = self.roll.len();
+                self.roll[self.brake_head] = input;
+                let read = read_delay(&self.roll, self.brake_head, self.brake_lag);
+                self.brake_head = (self.brake_head + 1) % len;
+                if on {
+                    self.brake_speed = (self.brake_speed - 1. / cycle.max(1.)).max(0.);
+                    self.brake_lag = (self.brake_lag + 1. - self.brake_speed).min(len as f32 - 2.);
+                }
+                let level = (self.brake_speed * 8.).min(1.);
+                [
+                    mix(input[0], read[0] * level, inline),
+                    mix(input[1], read[1] * level, inline),
+                ]
+            }
+            BeatKind::Helix => {
+                let wet = self.wet * self.switch;
+                let turn = self.lfo();
+                [
+                    input[0] + delayed[0] * wet * (1. - 0.7 * turn),
+                    input[1] + delayed[1] * wet * (0.3 + 0.7 * turn),
+                ]
+            }
+            BeatKind::Pitch => {
+                // Two read heads half a grain apart, each silent when it wraps.
+                let window = self.grain_frames;
+                self.grain_phase = (self.grain_phase + (1. - self.pitch) / window).rem_euclid(1.);
+                let other = (self.grain_phase + 0.5).rem_euclid(1.);
+                let near = read_delay(
+                    &self.grains,
+                    self.grain_head,
+                    self.grain_phase * window + 1.,
+                );
+                let far = read_delay(
+                    &self.grains,
+                    self.grain_head % self.grains.len(),
+                    other * window + 1.,
+                );
+                let shape = (std::f32::consts::PI * self.grain_phase).sin().powi(2);
+                self.grains[self.grain_head] = input;
+                self.grain_head = (self.grain_head + 1) % self.grains.len();
+                [
+                    mix(input[0], near[0] * shape + far[0] * (1. - shape), inline),
+                    mix(input[1], near[1] * shape + far[1] * (1. - shape), inline),
+                ]
             }
             BeatKind::Reverb => {
                 // Longer divisions make a longer tail, which is what TIME means here.
@@ -715,11 +856,14 @@ impl BeatFx {
                 let wet = self.gate * inline + (1. - inline);
                 [input[0] * wet, input[1] * wet]
             }
-            BeatKind::Roll => {
+            BeatKind::Roll | BeatKind::SlipRoll => {
                 let length = (cycle as usize).clamp(2, self.roll.len());
+                let new_slice =
+                    self.kind == BeatKind::SlipRoll && self.roll_beats != self.settings.beats;
+                self.roll_beats = self.settings.beats;
                 if !on {
                     self.rolling = false;
-                } else if !self.rolling {
+                } else if !self.rolling || new_slice {
                     self.rolling = true;
                     self.roll_filled = 0;
                     self.roll_read = 0;
@@ -775,7 +919,7 @@ mod tests {
         ColorKind::Crush,
         ColorKind::Filter,
     ];
-    const ALL_BEAT: [BeatKind; 9] = [
+    const ALL_BEAT: [BeatKind; 14] = [
         BeatKind::Delay,
         BeatKind::Echo,
         BeatKind::PingPong,
@@ -785,6 +929,11 @@ mod tests {
         BeatKind::Filter,
         BeatKind::Trans,
         BeatKind::Roll,
+        BeatKind::SlipRoll,
+        BeatKind::Pitch,
+        BeatKind::Spiral,
+        BeatKind::Helix,
+        BeatKind::VinylBrake,
     ];
     fn sine(i: usize, hz: f32) -> f32 {
         (std::f32::consts::TAU * hz * i as f32 / SR as f32).sin() * 0.5
@@ -961,11 +1110,16 @@ mod tests {
         };
         assert!(tail(BeatKind::Echo) > 0.01);
         assert!(tail(BeatKind::Reverb) > 0.003);
+        assert!(tail(BeatKind::Spiral) > 0.003);
+        assert!(tail(BeatKind::Helix) > 0.003);
         for kind in [
             BeatKind::Trans,
             BeatKind::Filter,
             BeatKind::Phaser,
             BeatKind::Roll,
+            BeatKind::SlipRoll,
+            BeatKind::Pitch,
+            BeatKind::VinylBrake,
         ] {
             assert!(tail(kind) < 0.002, "{kind:?}");
         }
@@ -1049,6 +1203,125 @@ mod tests {
         for i in 0..SR as usize * 20 {
             assert!(fx.process([sine(i, 100.); 2])[0].is_finite());
         }
+    }
+
+    #[test]
+    fn slip_roll_takes_a_new_slice_when_the_division_changes_and_roll_does_not() {
+        let held_after_change = |kind: BeatKind| {
+            let mut fx = unit(kind, 0.25);
+            fx.set_clock(4800., Some(0.));
+            let ramp = |i: usize| (i as f32 / 40000.).min(1.) * 0.6 + 0.1;
+            let mut settings = fx.settings();
+            settings.on = false;
+            fx.set(settings);
+            for i in 0..SETTLE {
+                fx.process([ramp(i); 2]);
+            }
+            settings.on = true;
+            fx.set(settings);
+            for i in SETTLE..SETTLE + 6000 {
+                fx.process([ramp(i); 2]);
+            }
+            settings.beats = 0.125;
+            fx.set(settings);
+            let at = SETTLE + 6000;
+            let mut last = 0.;
+            for i in at..at + 300 {
+                last = fx.process([ramp(i); 2])[0];
+            }
+            (last - ramp(at + 300)).abs()
+        };
+        // Close to the live ramp when it just took a slice, far when it still repeats the old.
+        assert!(held_after_change(BeatKind::SlipRoll) < 0.01);
+        assert!(held_after_change(BeatKind::Roll) > 0.02);
+    }
+
+    fn tone_level(output: &[f32], hz: f32) -> f32 {
+        let (mut re, mut im) = (0., 0.);
+        for (i, v) in output.iter().enumerate() {
+            let t = std::f32::consts::TAU * hz * i as f32 / SR as f32;
+            re += v * t.cos();
+            im += v * t.sin();
+        }
+        (re * re + im * im).sqrt() / output.len() as f32
+    }
+
+    #[test]
+    fn pitch_moves_a_tone_by_the_chosen_interval() {
+        for (beats, semitones) in [(32_f32, 12_f32), (0.0625, -12.), (8., 5.)] {
+            let mut fx = unit(BeatKind::Pitch, beats);
+            for i in 0..SETTLE {
+                fx.process([sine(i, 440.); 2]);
+            }
+            let output: Vec<f32> = (SETTLE..SETTLE + SR as usize)
+                .map(|i| fx.process([sine(i, 440.); 2])[0])
+                .collect();
+            let moved = tone_level(&output, 440. * 2_f32.powf(semitones / 12.));
+            let original = tone_level(&output, 440.);
+            assert!(
+                moved > original * 4.,
+                "{semitones}: {moved} against {original}"
+            );
+        }
+    }
+
+    #[test]
+    fn vinyl_brake_slows_to_silence_over_its_division() {
+        let mut fx = unit(BeatKind::VinylBrake, 1.);
+        fx.set_clock(SR as f32 / 2., Some(0.));
+        let mut settings = fx.settings();
+        settings.on = false;
+        fx.set(settings);
+        for i in 0..SETTLE {
+            fx.process([sine(i, 440.); 2]);
+        }
+        settings.on = true;
+        fx.set(settings);
+        let early: Vec<f32> = (0..SR as usize / 8)
+            .map(|i| fx.process([sine(i, 440.); 2])[0])
+            .collect();
+        assert!(power(early.iter().copied()) > 0.1, "it starts audible");
+        for i in 0..SR as usize / 2 {
+            fx.process([sine(i, 440.); 2]);
+        }
+        let late = power((0..4800).map(|i| fx.process([sine(i, 440.); 2])[0]));
+        assert!(late < 1e-3, "{late}");
+        settings.on = false;
+        fx.set(settings);
+        for i in 0..SETTLE {
+            fx.process([sine(i, 440.); 2]);
+        }
+        let back = power((0..4800).map(|i| fx.process([sine(i, 440.); 2])[0]));
+        assert!(back > 0.3, "off returns the audio: {back}");
+    }
+
+    #[test]
+    fn helix_keeps_what_it_took_without_taking_more() {
+        let mut fx = unit(BeatKind::Helix, 0.25);
+        fx.set_clock(SR as f32 / 2., Some(0.));
+        for _ in 0..SETTLE {
+            fx.process([0.; 2]);
+        }
+        let mut settings = fx.settings();
+        settings.on = false;
+        fx.set(settings);
+        for _ in 0..SETTLE {
+            fx.process([0.; 2]);
+        }
+        settings.on = true;
+        fx.set(settings);
+        // A tone for the cycle it takes, then silence going in.
+        for i in 0..SR as usize / 8 {
+            fx.process([sine(i, 300.); 2]);
+        }
+        for _ in 0..SR as usize {
+            fx.process([0.; 2]);
+        }
+        let held = power((0..SR as usize / 4).map(|_| {
+            let out = fx.process([0.; 2]);
+            out[0] + out[1]
+        }));
+        assert!(held > 0.02, "it keeps turning: {held}");
     }
 
     #[test]

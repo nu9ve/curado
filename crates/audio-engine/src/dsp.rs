@@ -335,9 +335,18 @@ pub fn clean(v: f32) -> f32 {
         v
     }
 }
-pub fn crossfade(x: f32) -> [f32; 2] {
-    let t = x.clamp(0., 1.) * std::f32::consts::FRAC_PI_2;
-    [t.cos(), t.sin()]
+/// Gains of A and B. Curve 0 ignores the fader, 1 is a constant-power blend for long mixes, and
+/// 2 is a sharp cut, with both at full level nearly all the way across.
+pub fn crossfade(x: f32, curve: u8) -> [f32; 2] {
+    let x = x.clamp(0., 1.);
+    match curve {
+        0 => [1., 1.],
+        2 => [((1. - x) * 16.).min(1.), (x * 16.).min(1.)],
+        _ => {
+            let t = x * std::f32::consts::FRAC_PI_2;
+            [t.cos(), t.sin()]
+        }
+    }
 }
 
 #[cfg(test)]
@@ -406,6 +415,16 @@ mod tests {
         assert!(measure(true) < measure(false) * 0.01);
     }
 
+    #[test]
+    fn crossfader_curves_keep_their_character() {
+        assert_eq!(crossfade(0., 0), [1., 1.]);
+        assert_eq!(crossfade(1., 0), [1., 1.]);
+        let blend = crossfade(0.5, 1);
+        assert!((blend[0] * blend[0] + blend[1] * blend[1] - 1.).abs() < 1e-5);
+        assert_eq!(crossfade(0.5, 2), [1., 1.]);
+        assert_eq!(crossfade(0., 2), [1., 0.]);
+        assert_eq!(crossfade(1., 2), [0., 1.]);
+    }
     fn sine_level(fx: &mut Effects, p: Params, hz: f32, sr: f32) -> f32 {
         let tone = |i: usize| (std::f32::consts::TAU * hz * i as f32 / sr).sin() * 0.5;
         for i in 0..sr as usize {

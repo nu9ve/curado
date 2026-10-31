@@ -5,6 +5,7 @@ import type { KeyBinding, Track } from '../lib/types';
 import { EMPTY_SLOT } from '../lib/types';
 import { bindingLabel } from '../lib/keyboard';
 import { actionKey } from '../lib/feedback';
+import { COLOR_FX } from '../lib/console-pads';
 import { Key, Knob, LimiterLamp, Meter, Slider } from './Controls';
 
 const eq = (v: number) => {
@@ -25,6 +26,29 @@ function Channel({ index, onError }: { index: number; onError: (e: unknown) => v
     >
       <span className="channel-tag">{index ? 'B' : 'A'}</span>
       <div className="channel-knobs">
+        <Knob
+          label="TRIM"
+          action={act('trim')}
+          tone={tone}
+          max={2}
+          origin={1}
+          defaultValue={1}
+          value={slot.trim}
+          format={eq}
+          onChange={param('trim')}
+        />
+        <Knob
+          label={slot.colorFx ? COLOR_FX[slot.colorFx - 1] : 'COLOR'}
+          action={act('color')}
+          tone={tone}
+          min={-1}
+          max={1}
+          origin={0}
+          defaultValue={0}
+          value={slot.color}
+          format={(v) => (Math.abs(v) < 0.01 ? tr('centro', 'center') : v.toFixed(2))}
+          onChange={param('color')}
+        />
         <Knob
           label="HI"
           action={act('high')}

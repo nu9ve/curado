@@ -1,5 +1,33 @@
 # curado status
 
+## Console as an RX3, measured key, tempo maps and damaged files · 2026-10-30
+
+The maintainer authorized reviewing the screen, and rejected the console as not resembling the real RX3. **cabina** was rebuilt from the official hardware diagram, with control positions measured from it and platters always present. See [ADR-024, ADR-025](DECISIONS.md) and [Controls](CONTROLS.md).
+
+**Checked in a browser preview with a simulated engine and data, at 1000×700 to 1906×1075:** the console fits with no page scroll, no clipped controls; dragging the platter's top sends scratch actions, its edge and a scroll gesture send bends. That proves layout and messages. It is not the real app, real audio or a real jog feel.
+
+**New and automatically tested, not listened to:** Slip Roll, Pitch, Spiral, Helix and Vinyl Brake, for the hardware's 14 Beat FX; delete cue, crossfader curve, KEY SHIFT, KEYBOARD and PAD FX pads; cues at 0:00; slip, reverse, Beat FX on/off and roll on MIDI, not tried on a controller; the new controls in the classic view; a 60 Hz position stream, IPC cost not measured; beat maps from rekordbox and on request, which sync follows within 15 ms in a synthetic test.
+
+**Measured on the maintainer's USB, read only, 986 tracks against rekordbox:**
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Tracks given a key | 25 % | 100 % |
+| Key exact, tracks not used for tuning | 31 % | 41 % |
+| Key a fifth away | 26 % | 15 % |
+| Exact at confidence ≥ 0.3 | | 54 % |
+| Same tempo as rekordbox | 58 % | 58 % |
+| Phase within 50 ms, same tempo | 67 % | 67 % |
+| Half a beat off, same tempo | 11 % | 11 % |
+
+Key and phase are agreement, not truth, and this USB's keys may come from other tools. **Tempo and phase did not improve:** five alternatives were tried and none held up on tracks not used for tuning, so nothing changed there except a **½ beat** button. Of the rest, about 28 % of tempos are off by a small ratio, mostly at low confidence. rekordbox has no variable grid on any of 989 tracks here, so its import path has only synthetic tests. curado's own detector fired on 27 % even when tightened, so it runs only on request and its accuracy is unknown.
+
+**Damaged files:** 1,500 mutations each of real WAV, FLAC and MP3, 60 of whole M4A files, 300 of `export.pdb` and 20,000 of analysis files: no crash, and the slowest decode took under a second. AIFF was not really exercised, since cut copies do not open and its files were too large to mutate whole; other formats and longer runs remain. Time limit, panic containment and skipping damaged frames are in.
+
+Limits: no listening, real jog or hardware test. Release FX, X-Pad, Touch Preview, phrase display, memory cues in the transport, mic, AUX, booth and headphones do not exist, and their controls are dimmed. The console fits by scaling, so its text is small on small windows. Sync on a moving tempo has only synthetic evidence.
+
+Verification: `bun run check` passed (57 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (174 tests, 7 more ignored that need real data) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit over every effect. The macOS `.app` built (14 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `09373d8e5cfe04c633b38329e262e74230027834e08df03a9ebe732d7b4c4b9a`. `export.pdb` on the USB kept its date. Next: the maintainer should try **cabina** with real tracks: the platter above all, then each effect by ear. The rest is in [Roadmap](ROADMAP.md).
+
 ## Fixed mixing screen, channel effects and cleaner audio · 2026-10-30
 
 The maintainer confirmed by ear that USB tracks play and control well, then asked for a better mixing layout and the RX3's missing functions, and approved the audio quality list. See [ADR-022, ADR-023](DECISIONS.md) and [Controls](CONTROLS.md).

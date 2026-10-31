@@ -292,6 +292,17 @@ impl Database {
             .ok()
             .and_then(|s| serde_json::from_str(&s).ok())
     }
+    pub fn forget(&self, key: &str) -> Result<(), String> {
+        self.connection
+            .execute("DELETE FROM settings WHERE key=?", [key])
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    /// Beats of a track whose tempo moves, from an analysis or a rekordbox grid.
+    pub fn beats(&self, id: u64) -> Option<Vec<f64>> {
+        self.setting::<Vec<f64>>(&format!("beats:{id}"))
+            .filter(|beats| beats.len() >= 2 && beats.windows(2).all(|pair| pair[1] > pair[0]))
+    }
     pub fn save<T: Serialize>(&self, key: &str, value: &T) -> Result<(), String> {
         self.connection.execute("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value", params![key, serde_json::to_string(value).map_err(|e| e.to_string())?]).map(|_| ()).map_err(|e| e.to_string())
     }
@@ -419,6 +430,7 @@ mod tests {
         );
         let clip = Clip {
             loudness: None,
+            beats: None,
             id: 10,
             cues: Default::default(),
             samples: vec![],

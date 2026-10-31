@@ -7,6 +7,8 @@ pub const COMMANDS: &[&str] = &[
     "edit_library",
     "import_media",
     "export_rekordbox_xml",
+    "track_beats",
+    "track_follow_tempo",
     "create_demo",
     "load_track",
     "device_library",

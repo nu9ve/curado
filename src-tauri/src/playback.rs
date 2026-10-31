@@ -244,6 +244,7 @@ mod tests {
     fn clip(id: u64) -> Arc<Clip> {
         Arc::new(Clip {
             loudness: None,
+            beats: None,
             id,
             cues: Default::default(),
             samples: vec![],

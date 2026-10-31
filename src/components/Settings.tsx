@@ -78,7 +78,8 @@ export function Settings({
     const action: Action = {
       slot: +slot,
       kind,
-      value: kind === 'cue' || kind === 'setCue' ? +cue : kind === 'rate' ? 1 : 0,
+      value:
+        kind === 'cue' || kind === 'setCue' ? +cue : kind === 'rate' || kind === 'roll' ? 1 : 0,
     };
     call('midi_learn', { action }).catch(onError);
   };
@@ -321,6 +322,10 @@ export function Settings({
                       'color',
                       'colorParam',
                       'beatFxDepth',
+                      'beatFxOn',
+                      'slip',
+                      'reverse',
+                      'roll',
                     ].map((kind) => (
                       <option key={`${slot}:${kind}`} value={`${slot}:${kind}`}>
                         Deck {slot ? 'B' : 'A'} · {actionLabel(kind)}
@@ -332,6 +337,9 @@ export function Settings({
                       Sample {slot - 1} {tr('· Disparar', '· Trigger')}{' '}
                     </option>
                   ))}
+                  <option value="2:beatFxOn">Master · {actionLabel('beatFxOn')}</option>
+                  <option value="2:beatFxDepth">Master · {actionLabel('beatFxDepth')}</option>
+                  <option value="2:sampler">Mixer · {actionLabel('sampler')}</option>
                   <option value="0:crossfader">Mixer · Crossfader</option>
                   <option value="0:master">Mixer · Master</option>
                   <option value="0:panic">

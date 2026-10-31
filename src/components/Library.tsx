@@ -1,5 +1,5 @@
 import { tr, useLanguage } from '../lib/language';
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   ArrowUpRight,
@@ -104,21 +104,33 @@ export const Library = memo(function Library({
           <button
             onClick={onExport}
             disabled={!!busy}
+            aria-label={tr('A rekordbox', 'To rekordbox')}
             title={tr(
               'Guarda un rekordbox.xml con tus cues, loops y grids corregidos. No escribe en ningún USB.',
               'Saves a rekordbox.xml with your cues, loops and corrected grids. Writes to no USB drive.',
             )}
           >
             <Share size={14} />
-            {tr('A rekordbox', 'To rekordbox')}{' '}
+            <span className="action-label">{tr('A rekordbox', 'To rekordbox')}</span>
           </button>
-          <button onClick={() => onImport(true)} disabled={!!busy}>
+          <button
+            onClick={() => onImport(true)}
+            disabled={!!busy}
+            aria-label={tr('Carpeta', 'Folder')}
+            title={tr('Importar una carpeta', 'Import a folder')}
+          >
             <FolderOpen size={14} />
-            {tr('Carpeta', 'Folder')}{' '}
+            <span className="action-label">{tr('Carpeta', 'Folder')}</span>
           </button>
-          <button className="primary" onClick={() => onImport(false)} disabled={!!busy}>
+          <button
+            className="primary"
+            onClick={() => onImport(false)}
+            disabled={!!busy}
+            aria-label={tr('Importar música', 'Import music')}
+            title={tr('Importar música', 'Import music')}
+          >
             <span>+</span>
-            {tr('Importar música', 'Import music')}{' '}
+            <span className="action-label">{tr('Importar música', 'Import music')}</span>
           </button>
         </div>
       </div>
@@ -314,8 +326,13 @@ function TrackRow({
   activeId?: number;
   mix: boolean;
 }) {
+  const row = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (selected) row.current?.scrollIntoView({ block: 'nearest' });
+  }, [selected]);
   return (
     <tr
+      ref={row}
       className={selected ? 'selected' : ''}
       onClick={() => onSelect(track.id)}
       onDoubleClick={() => onLoad(0, track.id)}

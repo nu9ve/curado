@@ -3,7 +3,7 @@ use crate::beat;
 use serde::{Deserialize, Serialize};
 
 /// Stored estimates older than this are recalculated; manual corrections are always kept.
-pub const ANALYSIS_VERSION: u32 = 2;
+pub const ANALYSIS_VERSION: u32 = 3;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +55,22 @@ impl MusicAnalysis {
     }
 }
 
+/// Follows the beat through a track whose tempo moves, from its one-tempo grid. Only on request:
+/// it answered yes on a quarter of a library of steady club tracks, and a wrong map would damage
+/// a good grid, so it never runs by itself.
+pub fn follow_tempo(
+    samples: &[[f32; 2]],
+    sample_rate: u32,
+    music: &MusicAnalysis,
+) -> Option<Vec<f64>> {
+    let stride = ((sample_rate as f64 / 22050.).round() as usize).max(1);
+    let rate = sample_rate as f64 / stride as f64;
+    let mono: Vec<f32> = samples
+        .chunks(stride)
+        .map(|chunk| chunk.iter().map(|f| (f[0] + f[1]) * 0.5).sum::<f32>() / chunk.len() as f32)
+        .collect();
+    beat::tempo_map(&mono, rate, 60. / music.bpm?, music.beat_offset)
+}
 pub fn analyze(samples: &[[f32; 2]], sample_rate: u32) -> MusicAnalysis {
     let stride = (sample_rate / 11025).max(1) as usize;
     let rate = sample_rate as f64 / stride as f64;
@@ -94,13 +110,56 @@ pub fn analyze(samples: &[[f32; 2]], sample_rate: u32) -> MusicAnalysis {
 }
 
 fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
+    chroma(mono, rate).map_or((None, 0.), |chroma| key_from_chroma(&chroma))
+}
+/// Raw measures for evaluating analysis against a reference, on the same downmix `analyze` uses:
+/// energy per MIDI note from 24, and each band folded onto one beat of `bpm`.
+pub struct Evaluation {
+    pub notes: [f64; NOTE_BINS],
+    pub folds: Option<[Vec<f64>; 3]>,
+}
+pub fn evaluate(samples: &[[f32; 2]], sample_rate: u32, bpm: Option<f64>) -> Evaluation {
+    let stride = ((sample_rate as f64 / 22050.).round() as usize).max(1);
+    let rate = sample_rate as f64 / stride as f64;
+    let mono: Vec<f32> = samples
+        .chunks(stride)
+        .map(|chunk| chunk.iter().map(|f| (f[0] + f[1]) * 0.5).sum::<f32>() / chunk.len() as f32)
+        .collect();
+    Evaluation {
+        notes: note_energy(&mono, rate).unwrap_or([0.; NOTE_BINS]),
+        folds: bpm.map(|bpm| beat::folds(&mono, rate, 60. / bpm)),
+    }
+}
+pub const NOTE_BINS: usize = 84;
+/// About 65 Hz to 1 kHz: the bass and the harmony, without the brightness above them.
+const KEY_NOTES: std::ops::RangeInclusive<i32> = 36..=84;
+const THIRD_HARMONIC: f64 = 0.5;
+/// Below this correlation nothing in the track resembles a key.
+const MIN_KEY_CORRELATION: f64 = 0.2;
+const FIRST_NOTE: i32 = 24;
+fn chroma(mono: &[f32], rate: f64) -> Option<[f64; 12]> {
+    let notes = note_energy(mono, rate)?;
+    let mut chroma = [0.; 12];
+    for (i, energy) in notes.iter().enumerate() {
+        let note = FIRST_NOTE + i as i32;
+        if !KEY_NOTES.contains(&note) {
+            continue;
+        }
+        // A note's third harmonic sounds a fifth above it, an octave up. Left in, it pulled the
+        // answer a fifth away on one track in four; measured against rekordbox, see ADR-025.
+        let below = i.checked_sub(19).map_or(0., |at| notes[at]);
+        chroma[note.rem_euclid(12) as usize] += (energy - below * THIRD_HARMONIC).max(0.);
+    }
+    (chroma.iter().sum::<f64>() >= 1e-5).then_some(chroma)
+}
+fn note_energy(mono: &[f32], rate: f64) -> Option<[f64; NOTE_BINS]> {
     const N: usize = 8192;
     if mono.len() < N {
-        return (None, 0.);
+        return None;
     }
     let mut re = vec![0.; N];
     let mut im = vec![0.; N];
-    let mut chroma = [0.; 12];
+    let mut notes = [0.; NOTE_BINS];
     // Overlap only pays on short clips; a whole track has plenty of windows without it.
     let hop = if (mono.len() as f64) < rate * 90. {
         N / 2
@@ -122,7 +181,7 @@ fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
             .collect();
         for i in 2..N / 2 - 1 {
             let hz = i as f64 * rate / N as f64;
-            if !(65.0..=2500.0).contains(&hz) || mag[i] <= mag[i - 1] || mag[i] < mag[i + 1] {
+            if !(30.0..=4000.0).contains(&hz) || mag[i] <= mag[i - 1] || mag[i] < mag[i + 1] {
                 continue;
             }
             let a = mag[i - 1].max(1e-12).ln();
@@ -133,12 +192,15 @@ fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
             let note = 69. + 12. * (frequency / 440.).log2();
             let nearest = note.round();
             let tuning_weight = (1. - (note - nearest).abs() * 2.).max(0.);
-            chroma[(nearest as i32).rem_euclid(12) as usize] += mag[i].sqrt() * tuning_weight;
+            let bin = nearest as i32 - FIRST_NOTE;
+            if (0..NOTE_BINS as i32).contains(&bin) {
+                notes[bin as usize] += mag[i].sqrt() * tuning_weight;
+            }
         }
     }
-    if chroma.iter().sum::<f64>() < 1e-5 {
-        return (None, 0.);
-    }
+    Some(notes)
+}
+fn key_from_chroma(chroma: &[f64; 12]) -> (Option<MusicalKey>, f32) {
     // Krumhansl-Kessler major/minor profiles, evaluated by Pearson correlation.
     let profiles = [
         [
@@ -149,9 +211,6 @@ fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
         ],
     ];
     let mean = chroma.iter().sum::<f64>() / 12.;
-    if chroma.iter().copied().fold(0., f64::max) < mean * 1.4 {
-        return (None, 0.);
-    }
     let mut candidates = Vec::new();
     for (minor, profile) in profiles.iter().enumerate() {
         let pm = profile.iter().sum::<f64>() / 12.;
@@ -175,7 +234,7 @@ fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
     }
     candidates.sort_by(|a, b| b.0.total_cmp(&a.0));
     let confidence = ((candidates[0].0 - candidates[1].0) * 3.).clamp(0., 1.) as f32;
-    if candidates[0].0 < 0.45 {
+    if candidates[0].0 < MIN_KEY_CORRELATION {
         (None, confidence)
     } else {
         (Some(candidates[0].1), confidence)

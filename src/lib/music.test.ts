@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { harmony, isDownbeat, keyLabel, transposeKey } from './music';
+import { harmony, isDownbeat, isMapDownbeat, keyLabel, transposeKey } from './music';
 import { promoteBundle } from '../../scripts/install-local';
 test('Camelot covers all 24 keys and transposition preserves mode', () => {
   const codes = new Set<string>();
@@ -59,4 +59,10 @@ test('harmony follows the Camelot wheel, including across 12 and 1', () => {
   expect(harmony(key(1, true), key(8, true))).toBe('compatible'); // 12A and 1A
   expect(harmony(key(9, true), key(10, true))).toBe('clash');
   expect(harmony(key(9, true), null)).toBeNull();
+});
+
+test('bars on a beat map count from the beat nearest the downbeat', () => {
+  const beats = [0.2, 0.7, 1.21, 1.73, 2.24, 2.77, 3.29, 3.8];
+  const bars = beats.map((_, n) => isMapDownbeat(beats, n, 0.71));
+  expect(bars).toEqual([false, true, false, false, false, true, false, false]);
 });

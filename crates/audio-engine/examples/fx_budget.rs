@@ -14,6 +14,7 @@ fn clip(id: u64, seconds: usize) -> Arc<Clip> {
         .collect();
     Arc::new(Clip {
         loudness: Some(-12.),
+        beats: None,
         id,
         cues: Arc::new(CueState::default()),
         samples,

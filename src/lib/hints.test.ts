@@ -11,6 +11,7 @@ const audio = (): Audio => ({
   beatFx: [],
   sampler: 1,
   autoGain: false,
+  crossfaderCurve: 1,
   masterDeck: 0,
   slots: Array.from({ length: 6 }, (_, index) => ({ ...EMPTY_SLOT, id: index + 1 })),
   peak: 0,

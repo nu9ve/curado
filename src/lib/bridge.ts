@@ -3,6 +3,7 @@ import { listen } from '@tauri-apps/api/event';
 import { useSyncExternalStore } from 'react';
 import type { Action, AppSnapshot, DeviceInfo } from './types';
 import { tr } from './language';
+import { receivePositions } from './position';
 export const native = isTauri();
 let snapshot: AppSnapshot = {
   devices: [],
@@ -52,13 +53,20 @@ function update(s: AppSnapshot) {
 export async function connect() {
   if (!native) return () => {};
   const unlisten = await listen<AppSnapshot>('engine:state', (e) => update(e.payload));
+  const unlistenPosition = await listen<number[]>('engine:position', (e) =>
+    receivePositions(e.payload),
+  );
+  const stop = () => {
+    unlisten();
+    unlistenPosition();
+  };
   try {
     update(await invoke<AppSnapshot>('status'));
   } catch (e) {
-    unlisten();
+    stop();
     throw e;
   }
-  return unlisten;
+  return stop;
 }
 export async function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   if (!native)

@@ -77,11 +77,12 @@ impl AppState {
             &|| replaced() || !self.running.load(Ordering::Relaxed),
         )
         .map_err(|error| memory::explain(error, room))?;
-        if music.is_none() {
-            self.db
-                .lock()
-                .unwrap()
-                .save(&format!("music:{id}"), &clip.music)?;
+        {
+            let db = self.db.lock().unwrap();
+            if music.is_none() {
+                db.save(&format!("music:{id}"), &clip.music)?;
+            }
+            clip.beats = db.beats(id).map(Into::into);
         }
         clip.cues = self.annotations.lock().unwrap().state(id, cues, ends);
         {
@@ -120,6 +121,11 @@ impl AppState {
             .ok_or("Motor de audio no disponible")?
             .handle
             .action(action)
+    }
+    /// For a MIDI button: the value that flips an on/off control.
+    fn toggled(&self, action: &Action) -> Option<f64> {
+        let output = self.output.lock().unwrap();
+        midi::flipped(&output.as_ref()?.handle.snapshot(), action)
     }
     fn status(&self) -> AppSnapshot {
         let (audio, output) = {
@@ -506,6 +512,49 @@ async fn device_load_file(
     })
     .await
 }
+/// Opt-in per track: finds whether its tempo moves and keeps the beats, or removes them. Takes
+/// effect the next time the track loads, because PCM on a deck never changes under it.
+#[tauri::command]
+async fn track_follow_tempo(
+    id: u64,
+    enabled: bool,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<bool, String> {
+    let s = state.inner().clone();
+    work(move || {
+        if !enabled {
+            s.db.lock().unwrap().forget(&format!("beats:{id}"))?;
+            return Ok(false);
+        }
+        let (path, music) = {
+            let db = s.db.lock().unwrap();
+            (db.path(id)?, db.music(id))
+        };
+        let music = music.ok_or("Analiza la pista primero")?;
+        let clip = curado_audio::decode::decode(&path, id)?;
+        let beats = curado_audio::music::follow_tempo(&clip.samples, clip.sample_rate, &music);
+        let db = s.db.lock().unwrap();
+        match beats {
+            Some(beats) => {
+                db.save(&format!("beats:{id}"), &beats)?;
+                Ok(true)
+            }
+            None => {
+                db.forget(&format!("beats:{id}"))?;
+                Ok(false)
+            }
+        }
+    })
+    .await
+}
+#[tauri::command]
+async fn track_beats(
+    id: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<Vec<f64>>, String> {
+    let s = state.inner().clone();
+    work(move || Ok(s.db.lock().unwrap().beats(id))).await
+}
 #[tauri::command]
 async fn track_cue_info(
     id: u64,
@@ -793,13 +842,29 @@ pub fn run() {
             std::thread::Builder::new()
                 .name("curado-telemetry".into())
                 .spawn(move || {
+                    // Three position updates per full state: about 60 Hz, and only while a deck
+                    // moves, against 20 Hz for everything else.
+                    let mut tick = 0_u32;
                     while telemetry.running.load(Ordering::Relaxed) {
-                        let snap = telemetry.status();
-                        if let Some(o) = telemetry.output.lock().unwrap().as_ref() {
-                            o.handle.collect();
+                        if tick.is_multiple_of(3) {
+                            let snap = telemetry.status();
+                            if let Some(o) = telemetry.output.lock().unwrap().as_ref() {
+                                o.handle.collect();
+                            }
+                            let _ = handle.emit("engine:state", snap);
+                        } else {
+                            let live = telemetry
+                                .output
+                                .lock()
+                                .unwrap()
+                                .as_ref()
+                                .and_then(|o| o.handle.live_positions());
+                            if let Some(positions) = live {
+                                let _ = handle.emit("engine:position", positions);
+                            }
                         }
-                        let _ = handle.emit("engine:state", snap);
-                        std::thread::sleep(Duration::from_millis(50));
+                        tick = tick.wrapping_add(1);
+                        std::thread::sleep(Duration::from_millis(16));
                     }
                 })?;
             let autosave = state.clone();
@@ -868,6 +933,8 @@ pub fn run() {
                 edit_library,
                 import_media,
                 export_rekordbox_xml,
+                track_beats,
+                track_follow_tempo,
                 create_demo,
                 load_track,
                 device_library,

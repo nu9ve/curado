@@ -8,7 +8,6 @@ export interface Workspace {
   panelOpen: boolean;
   panel: SidePanel;
   info: boolean;
-  platters: boolean;
   autoGain: boolean;
   /** Part of the width that goes to the console when the side panel is open. */
   split: number;
@@ -19,13 +18,12 @@ export const DEFAULT_WORKSPACE: Workspace = {
   panelOpen: true,
   panel: 'library',
   info: true,
-  platters: true,
   autoGain: false,
-  split: 0.62,
+  split: 0.72,
 };
 export const MIN_SPLIT = 0.35;
 export const MAX_SPLIT = 0.82;
-const key = 'curado.workspace.v1';
+const key = 'curado.workspace.v2';
 
 export function clampSplit(split: number): number {
   if (!Number.isFinite(split)) return DEFAULT_WORKSPACE.split;
@@ -41,9 +39,7 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
   } catch {
     return DEFAULT_WORKSPACE;
   }
-  const flag = (
-    name: 'railMix' | 'railPlayer' | 'panelOpen' | 'info' | 'platters' | 'autoGain',
-  ) => {
+  const flag = (name: 'railMix' | 'railPlayer' | 'panelOpen' | 'info' | 'autoGain') => {
     const value = saved[name];
     return typeof value === 'boolean' ? value : DEFAULT_WORKSPACE[name];
   };
@@ -53,15 +49,19 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
     panelOpen: flag('panelOpen'),
     panel: saved.panel === 'tools' || saved.panel === 'keyboard' ? saved.panel : 'library',
     info: flag('info'),
-    platters: flag('platters'),
     autoGain: flag('autoGain'),
     split: typeof saved.split === 'number' ? clampSplit(saved.split) : DEFAULT_WORKSPACE.split,
   };
 }
 
+/** On a window too small for both, the panel would open over the console until closed. */
+const NARROW_WINDOW = 1120;
 function read(): Workspace {
   try {
-    return parseWorkspace(globalThis.localStorage?.getItem(key));
+    const stored = globalThis.localStorage?.getItem(key);
+    if (!stored && globalThis.innerWidth < NARROW_WINDOW)
+      return { ...DEFAULT_WORKSPACE, panelOpen: false };
+    return parseWorkspace(stored);
   } catch {
     return DEFAULT_WORKSPACE;
   }

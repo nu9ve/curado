@@ -105,6 +105,11 @@ const descriptions: Record<string, [string, string]> = {
     'Añade echo a este canal.',
     'El tiempo sigue el BPM de salida y la división elegida en beats; sin análisis usa 120 BPM. Doble clic elimina el efecto.',
   ],
+  clearCue: ['Borra este hot cue.', 'Con SHIFT sobre un pad, como en el equipo.'],
+  crossfaderCurve: [
+    'Cambia la curva del crossfader.',
+    'THRU lo ignora, la curva suave mezcla sin perder nivel y la recta corta de golpe en los extremos.',
+  ],
   trim: [
     'Ajusta la ganancia de entrada del canal, antes del EQ.',
     'Centro: 0 dB. Úsala para igualar pistas; si AUTO GAIN está activo, se suma a su corrección.',
@@ -295,6 +300,11 @@ const englishDescriptions: Record<string, [string, string]> = {
     'Reduce highs with a low-pass filter.',
     'Fully right is open (OFF). A closed filter can make a track nearly silent.',
   ],
+  clearCue: ['Deletes this hot cue.', 'With SHIFT on a pad, as on the hardware.'],
+  crossfaderCurve: [
+    'Changes the crossfader curve.',
+    'THRU ignores it, the smooth curve mixes without losing level and the sharp one cuts at the ends.',
+  ],
   trim: [
     "Sets the channel's input gain, before the EQ.",
     'Center is 0 dB. Use it to match tracks; with AUTO GAIN on, it adds to that correction.',
@@ -421,6 +431,10 @@ export function deckStatus(audio: Audio | null, index: number): string {
   return tr('Reproduciendo', 'Playing');
 }
 const sections: Record<string, [string, string]> = {
+  jog: [
+    'El plato de este deck.',
+    'Con VINYL, arrastrar en círculo sobre el disco hace scratch; el borde y la rueda doblan el tempo para ajustar a oído. Sin VINYL, todo el plato dobla el tempo. Con la pista en pausa, mueve la posición. JOG ADJUST cambia cuánto avanza por vuelta.',
+  ],
   'web-explorer': [
     'Abre el panel de radio y servicios web.',
     'El navegador integrado tiene audio independiente. Salir de esta vista detiene el audio web y conserva los decks locales.',
@@ -464,6 +478,10 @@ const sections: Record<string, [string, string]> = {
 };
 
 const englishSections: Record<string, [string, string]> = {
+  jog: [
+    "This deck's platter.",
+    'With VINYL on, dragging around the record scratches; the edge and the scroll wheel bend the tempo to adjust by ear. With it off, the whole platter bends. On a paused track it moves the position. JOG ADJUST sets how far a turn goes.',
+  ],
   'web-explorer': [
     'Open radio and web services.',
     'The integrated browser has independent audio. Leaving this view stops web audio and preserves local decks.',
@@ -528,9 +546,17 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
   const action = actions[0];
   const global =
     action &&
-    (['master', 'panic', 'crossfader', 'playBoth', 'pauseBoth', 'cueBoth', 'sampler', 'autoGain'].includes(
-      action.kind,
-    ) ||
+    ([
+      'master',
+      'panic',
+      'crossfader',
+      'crossfaderCurve',
+      'playBoth',
+      'pauseBoth',
+      'cueBoth',
+      'sampler',
+      'autoGain',
+    ].includes(action.kind) ||
       (action.kind.startsWith('beatFx') && action.slot === 2));
   const tone = action && !global && action.slot < 2 ? (action.slot ? 'b' : 'a') : 'master';
   const scope =

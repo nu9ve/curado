@@ -398,6 +398,18 @@ fn extended_cue(entry: &[u8]) -> Option<(usize, Cue)> {
     Some((index, cue))
 }
 
+/// Every beat in seconds, when the stored grid has more than one tempo. A spread this small is
+/// rounding: rekordbox writes tempos with two decimals.
+pub fn variable_beats(beats: &[(u16, u16, u32)]) -> Option<Vec<f64>> {
+    let lowest = beats.iter().map(|beat| beat.1).min()?;
+    let highest = beats.iter().map(|beat| beat.1).max()?;
+    (highest - lowest > 10 && beats.len() >= 2).then(|| {
+        let mut times: Vec<f64> = beats.iter().map(|beat| beat.2 as f64 / 1000.).collect();
+        times.dedup();
+        times
+    })
+}
+
 /// One BPM, grid start and bar start. A grid with several tempos keeps its most common one.
 pub fn constant_grid(beats: &[(u16, u16, u32)]) -> Option<(f64, f64, f64)> {
     let first = beats.first()?;
@@ -955,5 +967,102 @@ mod tests {
         println!(
             "cues compared {compared}; on a grid line {on_grid}; on rekordbox's beat 1 {on_bar}"
         );
+    }
+
+    struct Rng(u64);
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+        fn below(&mut self, limit: usize) -> usize {
+            (self.next() % limit.max(1) as u64) as usize
+        }
+    }
+    /// `CURADO_TEST_DEVICE=/Volumes/X cargo test --release -p curado real_parser_fuzz -- --ignored
+    /// --nocapture`. Damages copies in memory; the drive is only read.
+    #[test]
+    #[ignore = "needs a real rekordbox USB"]
+    fn real_parser_fuzz() {
+        let root = std::path::PathBuf::from(std::env::var("CURADO_TEST_DEVICE").unwrap());
+        let export = std::fs::read(root.join("PIONEER/rekordbox/export.pdb")).unwrap();
+        let parsed = parse_export(&export).unwrap();
+        let mut rng = Rng(0xFACE_FEED_1234_5671);
+        let started = std::time::Instant::now();
+        let (mut accepted, mut refused) = (0, 0);
+        for round in 0..300 {
+            let mut data = export.clone();
+            for _ in 0..1 + rng.below(64) {
+                // Page headers and row indexes are what the reader trusts most.
+                let at = if round % 2 == 0 {
+                    rng.below(data.len())
+                } else {
+                    rng.below(data.len() / 4096) * 4096 + rng.below(64)
+                };
+                data[at] = rng.next() as u8;
+            }
+            if round % 5 == 0 {
+                data.truncate(rng.below(data.len()).max(1));
+            }
+            match parse_export(&data) {
+                Ok(_) => accepted += 1,
+                Err(_) => refused += 1,
+            }
+        }
+        println!(
+            "export.pdb: 300 mutations in {:.1} s: {accepted} accepted, {refused} refused",
+            started.elapsed().as_secs_f64()
+        );
+        let mut seeds = Vec::new();
+        for track in parsed.tracks.iter().take(40) {
+            let path = root.join(track.analysis_path.trim_start_matches('/'));
+            if let Ok(dat) = std::fs::read(&path) {
+                seeds.push((dat, std::fs::read(path.with_extension("EXT")).ok()));
+            }
+        }
+        assert!(!seeds.is_empty());
+        let started = std::time::Instant::now();
+        for round in 0..20_000 {
+            let (dat, ext) = &seeds[round % seeds.len()];
+            let (mut dat, mut ext) = (dat.clone(), ext.clone());
+            for _ in 0..1 + rng.below(16) {
+                let at = rng.below(dat.len());
+                dat[at] = rng.next() as u8;
+            }
+            if let Some(ext) = &mut ext {
+                for _ in 0..rng.below(16) {
+                    let at = rng.below(ext.len());
+                    ext[at] = rng.next() as u8;
+                }
+            }
+            if round % 5 == 0 {
+                dat.truncate(rng.below(dat.len()).max(1));
+            }
+            let analysis = parse_analysis(&dat, ext.as_deref());
+            for cue in analysis.hot.iter().flatten().chain(&analysis.memory) {
+                assert!(cue.start.is_finite());
+            }
+            let _ = constant_grid(&analysis.beats);
+        }
+        println!(
+            "analysis files: 20000 mutations of {} seeds in {:.1} s, no crash",
+            seeds.len(),
+            started.elapsed().as_secs_f64()
+        );
+    }
+
+    #[test]
+    fn only_a_real_change_of_tempo_makes_a_variable_grid() {
+        let steady: Vec<(u16, u16, u32)> = (0..8)
+            .map(|i| (1, 12400 + (i % 2), i as u32 * 484))
+            .collect();
+        assert_eq!(variable_beats(&steady), None);
+        let moving: Vec<(u16, u16, u32)> = (0..8)
+            .map(|i| (1, 12000 + i * 20, i as u32 * 500))
+            .collect();
+        assert_eq!(variable_beats(&moving).unwrap().len(), 8);
+        assert_eq!(variable_beats(&[]), None);
     }
 }

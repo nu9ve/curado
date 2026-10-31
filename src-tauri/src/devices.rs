@@ -400,6 +400,10 @@ pub fn import_track(
         .as_deref()
         .map(|dat| rekordbox::parse_analysis(dat, ext.as_deref()))
         .unwrap_or_default();
+    match rekordbox::variable_beats(&analysis.beats) {
+        Some(beats) => db.save(&format!("beats:{id}"), &beats)?,
+        None => db.forget(&format!("beats:{id}"))?,
+    }
     if let Some((bpm, beat_offset, downbeat)) = rekordbox::constant_grid(&analysis.beats) {
         let music = MusicAnalysis {
             version: ANALYSIS_VERSION,
@@ -422,8 +426,11 @@ pub fn import_track(
         && saved_ends.as_slice() == record.imported_ends.as_slice();
     let empty = saved_cues.iter().all(|cue| *cue == 0.);
     if empty || unchanged {
-        let cues: [f64; HOT_CUES] =
-            std::array::from_fn(|i| analysis.hot[i].as_ref().map_or(0., |cue| cue.start));
+        let cues: [f64; HOT_CUES] = std::array::from_fn(|i| {
+            analysis.hot[i].as_ref().map_or(0., |cue| {
+                cue.start.max(curado_audio::annotations::CUE_AT_START)
+            })
+        });
         let ends: [f64; HOT_CUES] = std::array::from_fn(|i| {
             analysis.hot[i]
                 .as_ref()
@@ -738,6 +745,7 @@ mod tests {
         let db = Database::open(Path::new(":memory:")).unwrap();
         let clip = curado_audio::decode::Clip {
             loudness: None,
+            beats: None,
             id: 0,
             cues: Default::default(),
             samples: vec![[0.; 2]; 48000],
@@ -843,6 +851,73 @@ mod tests {
                 phase.len()
             );
         }
+    }
+
+    /// Writes one JSON line per track to `CURADO_TEST_EVAL`: only numbers, no titles or paths.
+    /// Used to measure key and grid against a USB's rekordbox data; the drive is only read.
+    #[test]
+    #[ignore = "needs a real rekordbox USB"]
+    fn real_analysis_eval() {
+        use std::io::Write;
+        let root = PathBuf::from(std::env::var("CURADO_TEST_DEVICE").unwrap());
+        let output = std::env::var("CURADO_TEST_EVAL").unwrap();
+        let limit: usize = std::env::var("CURADO_TEST_LIMIT").map_or(800, |v| v.parse().unwrap());
+        let data = fs::read(root.join(EXPORT_FILE)).unwrap();
+        let export = rekordbox::parse_export(&data).unwrap();
+        let step = (export.tracks.len() / limit.max(1)).max(1);
+        let tracks: Vec<_> = export.tracks.iter().step_by(step).take(limit).collect();
+        let next = std::sync::atomic::AtomicUsize::new(0);
+        let file = std::sync::Mutex::new(fs::File::create(output).unwrap());
+        std::thread::scope(|scope| {
+            for _ in 0..6 {
+                scope.spawn(|| loop {
+                    let i = next.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    let Some(track) = tracks.get(i) else {
+                        break;
+                    };
+                    let path = exported(&root, &track.path);
+                    let Ok(clip) = curado_audio::decode::decode(&path, 1) else {
+                        continue;
+                    };
+                    let dat = exported(&root, &track.analysis_path);
+                    let analysis = fs::read(&dat)
+                        .map(|dat| rekordbox::parse_analysis(&dat, None))
+                        .unwrap_or_default();
+                    let beats = &analysis.beats;
+                    let tempos: Vec<u16> = beats.iter().map(|b| b.1).collect();
+                    let reference = track.key.as_deref().and_then(rekordbox::parse_key);
+                    let raw = curado_audio::music::evaluate(
+                        &clip.samples,
+                        clip.sample_rate,
+                        clip.music.bpm,
+                    );
+                    let line = serde_json::json!({
+                        "i": track.id,
+                        "duration": clip.duration(),
+                        "rate": clip.sample_rate,
+                        "ext": path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase(),
+                        "refKey": reference.map(|k| (k.tonic, k.minor)),
+                        "keyName": track.key.as_deref().map(|name| name.len()),
+                        "key": clip.music.key.map(|k| (k.tonic, k.minor)),
+                        "keyConfidence": clip.music.key_confidence,
+                        "notes": raw.notes.map(|v| v.round()).to_vec(),
+                        "folds": raw.folds,
+                        "bpm": clip.music.bpm,
+                        "offset": clip.music.beat_offset,
+                        "downbeat": clip.music.downbeat,
+                        "confidence": clip.music.bpm_confidence,
+                        "refBeats": beats.len(),
+                        "refFirst": beats.first().map(|b| b.2),
+                        "refLast": beats.last().map(|b| b.2),
+                        "refTempoMin": tempos.iter().min(),
+                        "refTempoMax": tempos.iter().max(),
+                        "refFirstBar": beats.iter().take(8).find(|b| b.0 == 1).map(|b| b.2),
+                        "refTimes": beats.iter().step_by(8).map(|b| b.2).collect::<Vec<_>>(),
+                    });
+                    writeln!(file.lock().unwrap(), "{line}").unwrap();
+                });
+            }
+        });
     }
 
     /// `CURADO_TEST_DEVICE=/Volumes/USB cargo test -p curado real_import -- --ignored --nocapture`

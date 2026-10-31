@@ -58,6 +58,8 @@ export function bindingLabel(binding: KeyBinding) {
 export function actionLabel(kind: string) {
   if (currentLanguage() === 'en') {
     const english: Record<string, string> = {
+      clearCue: 'Delete cue',
+      crossfaderCurve: 'Crossfader curve',
       trim: 'Trim',
       color: 'Color FX knob',
       colorFx: 'Color FX on this channel',
@@ -117,6 +119,8 @@ export function actionLabel(kind: string) {
   return (
     (
       {
+        clearCue: 'Borrar cue',
+        crossfaderCurve: 'Curva del crossfader',
         trim: 'Trim',
         color: 'Perilla Color FX',
         colorFx: 'Color FX de este canal',

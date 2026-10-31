@@ -145,6 +145,7 @@ mod tests {
     fn clip(source_rate: u32, samples: Vec<[f32; 2]>) -> Arc<Clip> {
         Arc::new(Clip {
             loudness: None,
+            beats: None,
             id: 1,
             cues: Default::default(),
             samples,

@@ -207,6 +207,9 @@ function AnalysisEditor({
   const [offset, setOffset] = useState('');
   const [downbeat, setDownbeat] = useState('');
   const [key, setKey] = useState('');
+  const [following, setFollowing] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [followNote, setFollowNote] = useState('');
   const reset = () => {
     setBpm(music.bpm?.toFixed(3) ?? '');
     setOffset(music.beatOffset.toFixed(4));
@@ -285,6 +288,49 @@ function AnalysisEditor({
         <button type="button" onClick={() => setOffset(position.toFixed(4))}>
           {tr('beat aquí', 'beat here')}{' '}
         </button>
+        <button
+          type="button"
+          disabled={!bpm}
+          title={tr(
+            'Mueve el grid medio beat: para cuando cae en los contratiempos',
+            'Moves the grid half a beat: for when it lands on the off-beats',
+          )}
+          onClick={() => {
+            const beat = 60 / +bpm;
+            setOffset((((+offset + beat / 2) % beat) as number).toFixed(4));
+          }}
+        >
+          ½ beat
+        </button>
+        <button
+          type="button"
+          disabled={following}
+          title={tr(
+            'Para tracks tocados en vivo: busca si el tempo se mueve y sigue cada beat. Se aplica al volver a cargar. En pistas estables puede equivocarse.',
+            'For tracks played live: finds whether the tempo moves and follows each beat. Applies on the next load. It can be wrong on steady tracks.',
+          )}
+          onClick={() => {
+            setFollowing(true);
+            call<boolean>('track_follow_tempo', { id, enabled: !followed })
+              .then((found) => {
+                setFollowed(found);
+                setFollowNote(
+                  found
+                    ? tr('Tempo variable: recarga la pista', 'Variable tempo: reload the track')
+                    : tr('Un solo tempo', 'One tempo'),
+                );
+              })
+              .catch(onError)
+              .finally(() => setFollowing(false));
+          }}
+        >
+          {following
+            ? tr('buscando…', 'searching…')
+            : followed
+              ? tr('quitar tempo variable', 'remove variable tempo')
+              : tr('seguir tempo variable', 'follow variable tempo')}
+        </button>
+        {followNote && <small>{followNote}</small>}
         <label>
           {tr('Primer beat de compás (s)', 'Bar start (s)')}{' '}
           <input

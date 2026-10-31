@@ -38,6 +38,20 @@ pub struct Midi {
     dropped: Arc<AtomicU64>,
     connection: Option<MidiInputConnection<()>>,
 }
+/// On/off controls: the engine takes the state to set, and a button only knows it was pressed.
+fn is_toggle(kind: &str) -> bool {
+    matches!(kind, "slip" | "reverse" | "beatFxOn")
+}
+/// The value that flips a toggle from what the engine reports now.
+pub fn flipped(snapshot: &curado_audio::Snapshot, action: &Action) -> Option<f64> {
+    let on = match action.kind.as_str() {
+        "slip" => snapshot.slots.get(action.slot)?.slip,
+        "reverse" => snapshot.slots.get(action.slot)?.reverse,
+        "beatFxOn" => snapshot.beat_fx.get(action.slot)?.on,
+        _ => return None,
+    };
+    Some(if on { 0. } else { 1. })
+}
 impl Midi {
     pub fn new(bindings: Vec<Binding>) -> Self {
         Self {
@@ -107,10 +121,28 @@ impl Midi {
             let mut state = self.state.lock().unwrap();
             let kind = raw.status & 0xf0;
             let channel = raw.status & 0xf;
-            if kind == 0x90 && raw.value == 0 {
+            let device = state.connected.clone().unwrap_or_default();
+            if kind == 0x80 || (kind == 0x90 && raw.value == 0) {
+                // A release only matters to what is held, like a roll pad.
+                let held = state.bindings.iter().find(|b| {
+                    b.device == device
+                        && b.status == 0x90
+                        && b.channel == channel
+                        && b.number == raw.number
+                        && b.action.kind == "roll"
+                });
+                if let Some(slot) = held.map(|b| b.action.slot) {
+                    let release = Action {
+                        slot,
+                        kind: "rollEnd".into(),
+                        value: 0.,
+                    };
+                    if let Err(e) = app.action(release) {
+                        state.error = Some(e);
+                    }
+                }
                 continue;
             }
-            let device = state.connected.clone().unwrap_or_default();
             state.last_message = Some(format!(
                 "CH {} · {} {} · {}",
                 channel + 1,
@@ -144,7 +176,16 @@ impl Midi {
                     && binding.number == raw.number
                 {
                     let mut action = binding.action.clone();
-                    if kind == 0xb0 {
+                    if is_toggle(&action.kind) {
+                        // One press flips it, whether the control sends a note or a CC.
+                        if kind == 0xb0 && raw.value < 64 {
+                            continue;
+                        }
+                        let Some(value) = app.toggled(&action) else {
+                            continue;
+                        };
+                        action.value = value;
+                    } else if kind == 0xb0 {
                         action.value = match action.kind.as_str() {
                             "gain" => raw.value as f64 / 127. * 1.5,
                             // EQ range is 0..2 with unity at the centre detent (CC 64).
@@ -152,6 +193,7 @@ impl Midi {
                             "rate" => 0.8 + raw.value as f64 / 127. * 0.4,
                             "master" | "crossfader" | "filter" | "echo" | "highPass"
                             | "colorParam" | "beatFxDepth" => raw.value as f64 / 127.,
+                            "sampler" => raw.value as f64 / 127. * 1.5,
                             "trim" => raw.value as f64 / 64.,
                             // Bipolar with its center at the detent (CC 64).
                             "color" => ((raw.value as f64 - 64.) / 63.).clamp(-1., 1.),
@@ -169,5 +211,40 @@ impl Midi {
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use curado_audio::{engine, Control};
+
+    #[test]
+    fn a_button_flips_what_the_engine_reports() {
+        let (handle, mut renderer) = engine(48000);
+        let action = |slot, kind: &str| Action {
+            slot,
+            kind: kind.into(),
+            value: 0.,
+        };
+        let mut output = vec![0_f32; 512];
+        let snapshot = |renderer: &mut curado_audio::Renderer, output: &mut [f32]| {
+            renderer.render(output, 2);
+            handle.snapshot()
+        };
+        let before = snapshot(&mut renderer, &mut output);
+        for (slot, kind) in [(0, "slip"), (1, "reverse"), (2, "beatFxOn")] {
+            assert!(is_toggle(kind));
+            assert_eq!(flipped(&before, &action(slot, kind)), Some(1.));
+        }
+        handle.control(0, Control::Slip(true)).unwrap();
+        handle.control(1, Control::Reverse(true)).unwrap();
+        handle.control(2, Control::BeatFxOn(true)).unwrap();
+        let after = snapshot(&mut renderer, &mut output);
+        for (slot, kind) in [(0, "slip"), (1, "reverse"), (2, "beatFxOn")] {
+            assert_eq!(flipped(&after, &action(slot, kind)), Some(0.));
+        }
+        assert_eq!(flipped(&after, &action(0, "gain")), None);
+        assert!(!is_toggle("gain"));
     }
 }

@@ -20,6 +20,8 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S2 · Position clock and smooth playhead (P0/UX)
 
+**Implemented 2026-10-30:** a 60 Hz position stream, see ADR-025. IPC cost and drift are not yet measured in the running app.
+
 - **Context:** 20 Hz telemetry moves waveform/platters/playhead in 50 ms steps; UI must not invent progress.
 - **Scope:** decide between 60 Hz position-only lightweight telemetry, or callback timestamp/rate snapshots with bounded extrapolation corrected every snapshot. Record ADR; UI must never lead engine by more than one interval.
 - **Done when:** 60 FPS detail/platter without measurable drift (extrapolated versus snapshot test), measured IPC cost.

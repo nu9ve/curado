@@ -3,7 +3,9 @@ import { tr } from '../lib/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useTheme, currentPalette } from '../lib/theme-store';
-import { isDownbeat } from '../lib/music';
+import { isDownbeat, isMapDownbeat } from '../lib/music';
+import { useBeatMap } from '../lib/beats';
+import { useLivePosition } from '../lib/position';
 import { drawOverview, drawWindow, renderTiles, useWaveform } from '../lib/waveform';
 import type { WaveColors } from '../lib/waveform';
 import type { Slot } from '../lib/types';
@@ -171,6 +173,8 @@ export function ZoomWave({
 }) {
   const wave = useWaveform(trackId);
   const cueInfo = useCueInfo(trackId);
+  const position = useLivePosition(tone === 'b' ? 1 : 0, slot.position);
+  const beatMap = useBeatMap(trackId, slot.loadTicket);
   const { colors, style, crisp, key } = useColors(tone);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [box, size] = useSize<HTMLDivElement>();
@@ -194,34 +198,44 @@ export function ZoomWave({
     const rate = wave?.rate ?? 50;
     const pxPerBin = w / (WINDOW_SECONDS * rate);
     const centre = w / 2;
-    const toX = (seconds: number) => centre + (seconds - slot.position) * rate * pxPerBin;
+    const toX = (seconds: number) => centre + (seconds - position) * rate * pxPerBin;
     if (slot.loopOut > slot.loopIn) {
       ctx.fillStyle = slot.looping ? `${p.accent}33` : `${p.text}14`;
       ctx.fillRect(toX(slot.loopIn), 0, (slot.loopOut - slot.loopIn) * rate * pxPerBin, h);
     }
     if (tiles.length) {
       ctx.imageSmoothingEnabled = !crisp;
-      drawWindow(ctx, tiles, slot.position * rate - centre / pxPerBin, pxPerBin, w, h);
+      drawWindow(ctx, tiles, position * rate - centre / pxPerBin, pxPerBin, w, h);
     } else {
       ctx.fillStyle = `${p.text}22`;
       ctx.fillRect(0, h / 2 - 0.5, w, 1);
     }
-    if (slot.music.bpm) {
+    const drawBeat = (seconds: number, bar: boolean) => {
+      const x = Math.round(toX(seconds));
+      if (x < 0 || x > w) return;
+      ctx.globalAlpha = bar ? 0.85 : 0.4;
+      ctx.fillRect(x, 0, bar ? 2 : 1, h);
+      ctx.globalAlpha = 1;
+      ctx.fillRect(x, h - (bar ? 10 : 6), bar ? 2 : 1, bar ? 10 : 6);
+    };
+    if (beatMap && !slot.music.manual) {
+      ctx.fillStyle = p.tokens['--text-muted'];
+      const left = position - WINDOW_SECONDS / 2;
+      const first = beatMap.findIndex((seconds) => seconds >= left);
+      for (let n = Math.max(first, 0); n < beatMap.length; n++) {
+        if (beatMap[n] > left + WINDOW_SECONDS) break;
+        drawBeat(beatMap[n], isMapDownbeat(beatMap, n, slot.music.downbeat));
+      }
+    } else if (slot.music.bpm) {
       const beat = 60 / slot.music.bpm;
       const first = Math.max(
         0,
-        Math.ceil((slot.position - WINDOW_SECONDS / 2 - slot.music.beatOffset) / beat),
+        Math.ceil((position - WINDOW_SECONDS / 2 - slot.music.beatOffset) / beat),
       );
       ctx.fillStyle = p.tokens['--text-muted'];
       for (let n = first; n < first + WINDOW_SECONDS / beat + 2; n++) {
         const time = slot.music.beatOffset + n * beat;
-        const x = Math.round(toX(time));
-        if (x < 0 || x > w) continue;
-        const bar = isDownbeat(time, beat, slot.music.downbeat);
-        ctx.globalAlpha = bar ? 0.85 : 0.4;
-        ctx.fillRect(x, 0, bar ? 2 : 1, h);
-        ctx.globalAlpha = 1;
-        ctx.fillRect(x, h - (bar ? 10 : 6), bar ? 2 : 1, bar ? 10 : 6);
+        drawBeat(time, isDownbeat(time, beat, slot.music.downbeat));
       }
     }
     // Played side slightly dimmed so the direction of travel reads at a glance.
@@ -247,9 +261,10 @@ export function ZoomWave({
   }, [
     tiles,
     size,
-    slot.position,
+    position,
     slot.cues,
     cueInfo,
+    beatMap,
     slot.loopIn,
     slot.loopOut,
     slot.looping,

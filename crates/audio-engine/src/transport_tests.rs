@@ -12,6 +12,7 @@ const GAIN: f32 = 0.8 * 0.75;
 fn clip_of(id: u64, samples: Vec<[f32; 2]>, grid: bool) -> Arc<Clip> {
     Arc::new(Clip {
         loudness: None,
+        beats: None,
         id,
         cues: Default::default(),
         samples,
@@ -843,7 +844,10 @@ fn each_channel_and_the_master_keep_their_own_effects() {
         .is_err()
     };
     assert!(rejected(0, "colorFx", 7.));
-    assert!(rejected(0, "beatFx", 9.));
+    assert!(rejected(0, "beatFx", 14.));
+    assert!(!rejected(0, "beatFx", 13.));
+    assert!(rejected(0, "crossfaderCurve", 3.));
+    assert!(rejected(0, "clearCue", 8.));
     assert!(rejected(0, "beatFxBeats", 3.));
     assert!(rejected(0, "color", 1.5));
     assert!(rejected(2, "roll", 1.));
@@ -877,6 +881,7 @@ fn auto_gain_brings_tracks_to_the_same_level_and_is_off_by_default() {
         let samples = sine(4, 997., amplitude);
         let clip = Clip {
             loudness: crate::loudness::integrated(&samples, SR),
+            beats: None,
             id: 1,
             cues: Default::default(),
             samples,
@@ -921,4 +926,161 @@ fn eight_samples_play_under_a_shared_level() {
     };
     assert!(level(1.) > 0.01);
     assert!(level(0.) < 1e-3);
+}
+
+#[test]
+fn a_cue_saved_at_the_start_is_a_cue() {
+    let mut samples = vec![[0.; 2]; SR as usize * 2];
+    samples[0] = [0.5; 2];
+    samples[SR as usize / 2..].fill([0.2; 2]);
+    let (h, mut r) = settled();
+    let clip = clip_of(1, samples, false);
+    let mut music = clip.music;
+    music.first_sound = 0.5;
+    h.load(0, clip.clone()).unwrap();
+    render(&mut r, 256);
+    h.set_music(1, music).unwrap();
+    render(&mut r, 256);
+    // Unset, a cue goes to the first sound; saved at 0:00, it stays there.
+    h.control(0, Control::Cue(0)).unwrap();
+    render(&mut r, 256);
+    assert!((position(&h) - 0.5).abs() < 0.02, "{}", position(&h));
+    h.control(0, Control::Pause).unwrap();
+    h.control(0, Control::Seek(0.)).unwrap();
+    render(&mut r, 256);
+    h.control(0, Control::SetCue(0)).unwrap();
+    render(&mut r, 256);
+    let saved = h.snapshot().slots[0].cues[0];
+    assert!(saved > 0. && saved < 1e-3, "{saved}");
+    h.control(0, Control::Seek(1.)).unwrap();
+    render(&mut r, 256);
+    h.control(0, Control::Cue(0)).unwrap();
+    render(&mut r, 256);
+    assert!(position(&h) < 0.02, "{}", position(&h));
+}
+
+#[test]
+fn live_positions_follow_the_engine_and_stop_with_it() {
+    let (h, mut r) = playing_deck(10);
+    let first = h.live_positions().unwrap();
+    assert_eq!(first[0], position(&h));
+    render(&mut r, 2400);
+    let second = h.live_positions().unwrap();
+    assert!((second[0] - first[0] - 0.05).abs() < 1e-3);
+    h.control(0, Control::Pause).unwrap();
+    render(&mut r, 2400);
+    assert_eq!(h.live_positions(), None);
+}
+
+#[test]
+fn a_hot_cue_can_be_deleted() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Quantize(false)).unwrap();
+    h.control(0, Control::SetCue(2)).unwrap();
+    render(&mut r, 512);
+    assert!(h.snapshot().slots[0].cues[2] > 0.);
+    h.control(0, Control::ClearCue(2)).unwrap();
+    render(&mut r, 512);
+    assert_eq!(h.snapshot().slots[0].cues[2], 0.);
+}
+
+fn mapped(id: u64, seconds: usize, beats: Vec<f64>) -> Arc<Clip> {
+    let clip = clip_of(id, sine(seconds, 110., 0.5), true);
+    let clip = Arc::try_unwrap(clip).unwrap_or_else(|_| unreachable!());
+    Arc::new(Clip {
+        beats: Some(beats.into()),
+        music: MusicAnalysis {
+            manual: false,
+            ..clip.music
+        },
+        ..clip
+    })
+}
+/// Beats that speed up from 120 to about 132 BPM over the track.
+fn rising(seconds: f64) -> Vec<f64> {
+    let (mut time, mut beats) = (OFFSET, Vec::new());
+    while time < seconds {
+        beats.push(time);
+        time += 60. / (120. + 12. * time / seconds);
+    }
+    beats
+}
+
+#[test]
+fn a_beat_map_drives_quantize_loops_and_jumps() {
+    let beats = rising(30.);
+    let (h, mut r) = settled();
+    h.load_and_play(0, mapped(1, 30, beats.clone())).unwrap();
+    render(&mut r, SR as usize * 20);
+    h.control(0, Control::LoopBeats(4.)).unwrap();
+    render(&mut r, 256);
+    let s = h.snapshot().slots[0].clone();
+    assert!(s.looping);
+    // The loop starts on a real beat and lasts exactly four of them, wherever the tempo is.
+    let at = beats
+        .iter()
+        .position(|b| (b - s.loop_in).abs() < 1e-3)
+        .expect("on a beat");
+    assert!(
+        (s.loop_out - beats[at + 4]).abs() < 1e-3,
+        "{} {}",
+        s.loop_out,
+        beats[at + 4]
+    );
+    h.control(0, Control::Loop).unwrap();
+    render(&mut r, 256);
+    let before = position(&h);
+    let index = beats.partition_point(|b| *b <= before) - 1;
+    let inside = before - beats[index];
+    h.control(0, Control::BeatJump(-8.)).unwrap();
+    render(&mut r, 256);
+    let expected = beats[index - 8]
+        + inside / (beats[index + 1] - beats[index]) * (beats[index - 7] - beats[index - 8]);
+    assert!(
+        (position(&h) - expected).abs() < 0.02,
+        "{} {expected}",
+        position(&h)
+    );
+}
+
+#[test]
+fn a_correction_by_hand_replaces_a_beat_map() {
+    let (h, mut r) = settled();
+    let clip = mapped(1, 20, rising(20.));
+    h.load_and_play(0, clip.clone()).unwrap();
+    render(&mut r, SR as usize);
+    assert!(r.decks[0].beat_map().is_some());
+    h.set_music(
+        1,
+        MusicAnalysis {
+            version: crate::music::ANALYSIS_VERSION,
+            bpm: Some(120.),
+            manual: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    render(&mut r, 512);
+    assert!(r.decks[0].beat_map().is_none());
+}
+
+#[test]
+fn sync_stays_on_the_beat_of_a_moving_tempo() {
+    let (h, mut r) = engine(SR);
+    h.load_and_play(0, mapped(1, 40, rising(40.))).unwrap();
+    render(&mut r, 512);
+    h.load_and_play(1, clip_of(2, sine(60, 110., 0.5), true))
+        .unwrap();
+    render(&mut r, 512);
+    h.control(1, Control::Sync(true)).unwrap();
+    render(&mut r, SR as usize * 30);
+    let s = h.snapshot();
+    assert!(s.slots[1].sync);
+    // The follower has moved off its own 120 BPM to keep up.
+    assert!(s.slots[1].tuning.rate > 1.03, "{}", s.slots[1].tuning.rate);
+    let lead = r.decks[0].beats_position().unwrap();
+    let follow = r.decks[1].beats_position().unwrap();
+    let gap = (follow - lead + 0.5).rem_euclid(1.) - 0.5;
+    let beat_ms = 60_000. / r.decks[0].local_bpm().unwrap();
+    assert!(gap.abs() * beat_ms < 15., "{} ms apart", gap * beat_ms);
 }

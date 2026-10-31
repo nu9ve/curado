@@ -15,7 +15,7 @@ test('console fits within both dimensions when available space permits', () => {
 });
 
 test('console keeps a usable minimum with scroll fallback and handles invalid measurements', () => {
-  expect(consoleScale(320, 300, 1170, 900)).toBe(0.65);
+  expect(consoleScale(320, 300, 1170, 900)).toBe(0.5);
   expect(consoleScale(0, 300, 1170, 900)).toBe(1);
   expect(consoleScale(500, Number.NaN, 1170, 900)).toBe(1);
 });

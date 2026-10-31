@@ -11,11 +11,12 @@ pub mod output;
 mod pitch;
 pub mod resample;
 pub mod tuning;
+use annotations::CUE_AT_START;
 use annotations::HOT_CUES;
 use crossbeam_queue::ArrayQueue;
 use decode::Clip;
 use dsp::{Effects, Params};
-use fx::{BeatFx, BeatKind, BeatSettings, ColorKind};
+use fx::{BeatFx, BeatKind, BeatSettings, ColorKind, BEAT_DIVISIONS};
 use limiter::Limiter;
 use music::MusicAnalysis;
 use pitch::PitchVoice;
@@ -30,7 +31,6 @@ pub const SLOTS: usize = 10;
 /// Beat FX units: one per music channel, then the master's, addressed as slot 2.
 pub const BEAT_UNITS: usize = 3;
 pub const MASTER_UNIT: usize = 2;
-const BEAT_DIVISIONS: [f64; 11] = [0.0625, 0.125, 0.25, 0.5, 0.75, 1., 2., 4., 8., 16., 32.];
 /// Loudness that auto gain brings tracks to, and how far it may move them.
 const AUTO_GAIN_TARGET: f32 = -14.;
 const AUTO_GAIN_RANGE: f32 = 12.;
@@ -69,6 +69,8 @@ pub enum Control {
     Nudge(f64),
     Cue(usize),
     SetCue(usize),
+    ClearCue(usize),
+    CrossfaderCurve(u8),
     Loop,
     LoopIn,
     LoopOut,
@@ -139,6 +141,14 @@ impl Action {
                 if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
             {
                 Control::SetCue(self.value as usize)
+            }
+            "clearCue"
+                if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
+            {
+                Control::ClearCue(self.value as usize)
+            }
+            "crossfaderCurve" if matches!(self.value, 0.0 | 1.0 | 2.0) => {
+                Control::CrossfaderCurve(self.value as u8)
             }
             "loop" => Control::Loop,
             "loopIn" => Control::LoopIn,
@@ -319,6 +329,7 @@ pub struct Shared {
     beat_meters: [BeatMeter; BEAT_UNITS],
     sampler: AtomicU32,
     auto_gain: AtomicBool,
+    crossfader_curve: AtomicU32,
 }
 #[derive(Clone)]
 pub struct EngineHandle(Arc<Shared>);
@@ -392,6 +403,7 @@ pub struct Snapshot {
     pub beat_fx: Vec<BeatFxSnapshot>,
     pub sampler: f32,
     pub auto_gain: bool,
+    pub crossfader_curve: u8,
 }
 impl EngineHandle {
     /// Called by the visual worker only. Returns one complete mono master window and
@@ -491,7 +503,7 @@ impl EngineHandle {
     }
     pub fn control(&self, slot: usize, control: Control) -> Result<(), String> {
         if slot >= SLOTS
-            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::CueBoth(i) if i>=HOT_CUES)
+            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::ClearCue(i)|Control::CueBoth(i) if i>=HOT_CUES)
             || (slot >= 2
                 && matches!(
                     control,
@@ -654,7 +666,17 @@ impl EngineHandle {
                 .collect(),
             sampler: f(&self.0.sampler),
             auto_gain: self.0.auto_gain.load(Relaxed),
+            crossfader_curve: self.0.crossfader_curve.load(Relaxed) as u8,
         }
+    }
+    /// Just the music decks' positions, or nothing while neither moves. Cheap enough to read far
+    /// more often than a full snapshot.
+    pub fn live_positions(&self) -> Option<[f64; 2]> {
+        let decks = &self.0.meters[..2];
+        decks
+            .iter()
+            .any(|m| m.playing.load(Relaxed))
+            .then(|| std::array::from_fn(|i| f64::from_bits(decks[i].position.load(Relaxed))))
     }
     pub fn fail(&self) {
         self.0.stream_error.store(true, Relaxed);
@@ -718,16 +740,23 @@ struct Deck {
 impl Deck {
     /// Output frames per beat at the current speed, with 120 BPM standing in for an unknown one.
     fn clock(&self, sr: u32) -> f32 {
-        60. / (self.music.bpm.unwrap_or(120.) as f32 * self.params.rate.max(0.01)) * sr as f32
+        60. / (self.local_bpm().unwrap_or(120.) as f32 * self.params.rate.max(0.01)) * sr as f32
     }
     /// How many beats into the track the read head is, when it has a grid to count on.
     fn beats_position(&self) -> Option<f64> {
-        self.grid()
-            .map(|(offset, beat)| (self.position - offset) / beat)
+        let (offset, beat) = self.grid()?;
+        let inside = (self.position - offset) / beat;
+        Some(match self.beat_map() {
+            Some(beats) => {
+                let rate = self.clip.as_ref()?.sample_rate as f64;
+                map_index(beats, self.position / rate) as f64 + inside
+            }
+            None => inside,
+        })
     }
     fn make_loop(&mut self, beats: f64, len: f64, rate: f64) {
-        let span = self.grid().map_or(rate * beats * 0.5, |(_, b)| b * beats);
         let mut start = self.snap(self.position, f64::round).min(len);
+        let span = self.span_from(start, beats, rate);
         if self.quantize && self.grid().is_some() && start + span > len {
             start = self.snap((len - span).max(0.), f64::floor);
         }
@@ -739,9 +768,47 @@ impl Deck {
         self.loop_out = (start + span).min(len);
         self.looping = self.loop_out > self.loop_in;
     }
+    /// A correction by hand is one tempo, whatever the analysis found before it.
+    fn beat_map(&self) -> Option<&[f64]> {
+        self.clip
+            .as_ref()?
+            .beats
+            .as_deref()
+            .filter(|_| !self.music.manual)
+            .filter(|beats| beats.len() >= 2)
+    }
+    /// The beat around the read head: where it starts and how long it lasts, in source frames.
+    /// With one tempo those hold for the whole track; on a map they hold for this beat, which
+    /// is why anything counting beats across a distance uses `span_from` or `beats_position`.
     fn grid(&self) -> Option<(f64, f64)> {
         let rate = self.clip.as_ref()?.sample_rate as f64;
+        if let Some(beats) = self.beat_map() {
+            let at = map_index(beats, self.position / rate);
+            return Some((beats[at] * rate, (beats[at + 1] - beats[at]) * rate));
+        }
         Some((self.music.beat_offset * rate, 60. / self.music.bpm? * rate))
+    }
+    /// The tempo under the read head.
+    fn local_bpm(&self) -> Option<f64> {
+        if let Some(beats) = self.beat_map() {
+            let rate = self.clip.as_ref()?.sample_rate as f64;
+            let at = map_index(beats, self.position / rate);
+            return Some(60. / (beats[at + 1] - beats[at]));
+        }
+        self.music.bpm
+    }
+    /// Source frames from `start` to `beats` beats later (or earlier, when negative).
+    fn span_from(&self, start: f64, beats: f64, rate: f64) -> f64 {
+        let Some(map) = self.beat_map() else {
+            return self
+                .grid()
+                .map_or(rate * beats * 0.5, |(_, beat)| beat * beats);
+        };
+        let at = map_index(map, start / rate);
+        let index = at as f64 + (start / rate - map[at]) / (map[at + 1] - map[at]) + beats;
+        let whole = (index.floor().max(0.) as usize).min(map.len() - 2);
+        let target = map[whole] + (index - whole as f64) * (map[whole + 1] - map[whole]);
+        target * rate - start
     }
     fn snap(&self, position: f64, to_beat: fn(f64) -> f64) -> f64 {
         if !self.quantize {
@@ -760,10 +827,6 @@ impl Deck {
     fn step(&self, sr: u32) -> f64 {
         let direction = if self.reverse { -1. } else { 1. };
         self.forward_step(sr) * (1. + self.bend as f64) * self.ramp * direction
-    }
-    fn beat_frames(&self, beats: f64, rate: f64) -> f64 {
-        self.grid()
-            .map_or(rate * beats * 0.5, |(_, beat)| beat * beats)
     }
     /// Anything that takes the read head away from where the track would be. With slip on, or
     /// during a roll, the track carries on silently underneath and resumes from there.
@@ -805,8 +868,8 @@ impl Deck {
             };
             self.excursion = true;
         }
-        let span = self.beat_frames(beats, rate);
         let anchor = self.shadow;
+        let span = self.span_from(anchor, beats, rate);
         let start = match self.grid().filter(|_| self.quantize) {
             Some((offset, _)) => (offset + ((anchor - offset) / span).floor() * span).max(0.),
             None => anchor,
@@ -1001,11 +1064,15 @@ impl Deck {
             return;
         };
         let len = clip.samples.len() as f64;
-        let stored = (clip.cues.get(index) * clip.sample_rate as f64).clamp(0., len);
+        let saved = clip.cues.get(index);
+        let stored = (saved * clip.sample_rate as f64).clamp(0., len);
         let loop_end = (clip.cues.end(index) * clip.sample_rate as f64).clamp(0., len);
-        let target = if stored == 0. {
+        let target = if saved <= 0. {
             let first = self.music.first_sound * clip.sample_rate as f64;
             self.snap(first.min(len), f64::round).min(len)
+        } else if stored < 1. {
+            // Saved at the very start of the file.
+            0.
         } else if on_grid {
             self.snap(stored, f64::round).min(len)
         } else {
@@ -1239,7 +1306,7 @@ impl Deck {
             Control::Roll(beats) => self.start_roll(beats, len, rate),
             Control::RollEnd => self.end_roll(sr),
             Control::BeatJump(beats) => {
-                let delta = beats * self.beat_frames(1., rate);
+                let delta = self.span_from(self.position, beats, rate);
                 let target = (self.position + delta).clamp(0., len);
                 if self.looping && (self.loop_in + delta < 0. || self.loop_out + delta > len) {
                     self.looping = false;
@@ -1305,8 +1372,13 @@ impl Deck {
             }
             Control::SetCue(i) => {
                 if let Some(clip) = &self.clip {
-                    clip.cues
-                        .set(i, self.snap(self.position, f64::round).min(len) / rate);
+                    let at = self.snap(self.position, f64::round).min(len) / rate;
+                    clip.cues.set(i, at.max(CUE_AT_START));
+                }
+            }
+            Control::ClearCue(i) => {
+                if let Some(clip) = &self.clip {
+                    clip.cues.set(i, 0.);
                 }
             }
             Control::Cue(i) => self.trigger_cue(i, false, sr),
@@ -1374,6 +1446,13 @@ impl Deck {
         self.sync_slip(sr);
     }
 }
+/// The beat at or before a time, always leaving a next one to measure against.
+fn map_index(beats: &[f64], seconds: f64) -> usize {
+    beats
+        .partition_point(|beat| *beat <= seconds)
+        .saturating_sub(1)
+        .min(beats.len() - 2)
+}
 pub struct Renderer {
     shared: Arc<Shared>,
     decks: [Deck; SLOTS],
@@ -1397,6 +1476,7 @@ pub struct Renderer {
     sampler_level: f32,
     auto_gain: bool,
     bend_relax: f32,
+    crossfader_curve: u8,
 }
 pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
     resample::prepare();
@@ -1424,6 +1504,7 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
         beat_meters: Default::default(),
         sampler: AtomicU32::new(1_f32.to_bits()),
         auto_gain: AtomicBool::new(false),
+        crossfader_curve: AtomicU32::new(1),
     });
     (
         EngineHandle(shared.clone()),
@@ -1432,7 +1513,8 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
             decks: std::array::from_fn(|slot| Deck::new(sample_rate, slot < 2)),
             sample_rate,
             crossfader: 0.5,
-            mix: dsp::crossfade(0.5),
+            mix: dsp::crossfade(0.5, 1),
+            crossfader_curve: 1,
             master: 0.,
             master_target: 0.75,
             level_smoothing: 1. - (-1. / (sample_rate as f32 * 0.005)).exp(),
@@ -1460,11 +1542,25 @@ impl Renderer {
         if !self.decks[other].sync {
             return;
         }
-        let (Some(a), Some(b)) = (self.decks[master].music.bpm, self.decks[other].music.bpm) else {
+        let (Some(a), Some(b)) = (
+            self.decks[master].local_bpm(),
+            self.decks[other].local_bpm(),
+        ) else {
             self.decks[other].sync = false;
             return;
         };
-        let rate = (a * self.decks[master].tuning.rate as f64 / b) as f32;
+        let mut rate = (a * self.decks[master].tuning.rate as f64 / b) as f32;
+        // On a moving tempo, matching speeds alone would let the beats wander apart. A small
+        // pull closes the gap without a jump, and a steady grid has no use for it.
+        if self.decks[master].beat_map().is_some() || self.decks[other].beat_map().is_some() {
+            if let (Some(lead), Some(follow)) = (
+                self.decks[master].beats_position(),
+                self.decks[other].beats_position(),
+            ) {
+                let gap = (follow - lead + 0.5).rem_euclid(1.) - 0.5;
+                rate *= 1. - (gap as f32 * 0.05).clamp(-0.01, 0.01);
+            }
+        }
         if !(0.5..=1.5).contains(&rate) {
             self.decks[other].sync = false;
             return;
@@ -1651,6 +1747,9 @@ impl Renderer {
                 Command::Control(_, Control::Master(v)) => self.master_target = v,
                 Command::Control(_, Control::Sampler(v)) => self.sampler_level = v,
                 Command::Control(_, Control::AutoGain(on)) => self.auto_gain = on,
+                Command::Control(_, Control::CrossfaderCurve(curve)) => {
+                    self.crossfader_curve = curve;
+                }
                 Command::Control(
                     slot,
                     c @ (Control::BeatFx(_)
@@ -1744,7 +1843,12 @@ impl Renderer {
                         && self.decks[self.master_deck].playing
                     {
                         if let Some((offset, beat)) = self.decks[self.master_deck].grid() {
-                            let current = (self.scheduled_master_position(slot) - offset) / beat;
+                            let lead = self.scheduled_master_position(slot)
+                                - self.decks[self.master_deck].position;
+                            let current = self.decks[self.master_deck]
+                                .beats_position()
+                                .unwrap_or((self.decks[self.master_deck].position - offset) / beat)
+                                + lead / beat;
                             if current.rem_euclid(1.) > 1. / beat {
                                 self.decks[slot].scheduled = Some((c, current.floor() as i64));
                                 continue;
@@ -1788,7 +1892,7 @@ impl Renderer {
         if align {
             self.align_sync();
         }
-        let target_mix = dsp::crossfade(self.crossfader);
+        let target_mix = dsp::crossfade(self.crossfader, self.crossfader_curve);
         let mut peak = 0.0_f32;
         let mut squares = 0.0_f64;
         let mut clipped = 0;
@@ -1819,7 +1923,7 @@ impl Renderer {
                 d.bend = 0.;
             }
             d.effects.set_echo_time(
-                60. / (d.music.bpm.unwrap_or(120.) as f32 * d.params.rate) * d.echo_beats,
+                60. / (d.local_bpm().unwrap_or(120.) as f32 * d.params.rate) * d.echo_beats,
             );
             d.refresh_pitch(self.sample_rate);
             d.params.auto = match (
@@ -1864,11 +1968,13 @@ impl Renderer {
                 if !master.playing {
                     self.decks[follower].scheduled = None;
                 }
-                let position = self.scheduled_master_position(follower);
+                let lead = self.scheduled_master_position(follower)
+                    - self.decks[self.master_deck].position;
                 let master = &self.decks[self.master_deck];
                 if master.playing
-                    && master.grid().is_some_and(|(offset, beat)| {
-                        ((position - offset) / beat).floor() as i64 != queued_beat
+                    && master.grid().is_some_and(|(_, beat)| {
+                        let current = master.beats_position().unwrap_or(0.) + lead / beat;
+                        current.floor() as i64 != queued_beat
                     })
                 {
                     self.decks[follower].scheduled = None;
@@ -1998,6 +2104,9 @@ impl Renderer {
             .store(self.sampler_level.to_bits(), Relaxed);
         self.shared.auto_gain.store(self.auto_gain, Relaxed);
         self.shared
+            .crossfader_curve
+            .store(self.crossfader_curve as u32, Relaxed);
+        self.shared
             .crossfader
             .store(self.crossfader.to_bits(), Relaxed);
         self.shared
@@ -2089,6 +2198,7 @@ mod tests {
     fn clip(id: u64) -> Arc<Clip> {
         Arc::new(Clip {
             loudness: None,
+            beats: None,
             id,
             samples: vec![[0.25, 0.25]; 48000],
             sample_rate: 48000,
@@ -2144,7 +2254,7 @@ mod tests {
         let out = render(&mut r, 10000);
         assert!(out.last().unwrap().abs() < 0.0001);
         assert!(out.iter().all(|v| v.is_finite() && v.abs() <= 0.98));
-        let weights = dsp::crossfade(0.5);
+        let weights = dsp::crossfade(0.5, 1);
         assert!((weights[0].powi(2) + weights[1].powi(2) - 1.).abs() < 0.00001);
     }
     #[test]

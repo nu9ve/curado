@@ -9,20 +9,20 @@ test('mix layout persists independently and handles unavailable or invalid stora
       data.set(key, value);
     },
   };
-  expect(readMixLayout(storage)).toBe('classic');
+  expect(readMixLayout(storage)).toBe('console');
   saveMixLayout(storage, 'console');
   expect(readMixLayout(storage)).toBe('console');
   saveMixLayout(storage, 'classic');
   expect(readMixLayout(storage)).toBe('classic');
   data.set('curado.mix-layout.v1', 'unknown');
-  expect(readMixLayout(storage)).toBe('classic');
+  expect(readMixLayout(storage)).toBe('console');
   expect(
     readMixLayout({
       getItem: () => {
         throw new Error('blocked');
       },
     }),
-  ).toBe('classic');
+  ).toBe('console');
   expect(() =>
     saveMixLayout(
       {

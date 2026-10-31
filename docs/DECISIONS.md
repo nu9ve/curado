@@ -1,12 +1,35 @@
 # Technical decisions
 
+## ADR-025 · Tempo maps, decode limits and a position stream — accepted (2026-10-30)
+
+- **Beat maps next to the one-tempo grid.** A track whose tempo moves carries every beat, from a rekordbox grid with more than 0.1 BPM of spread or, when requested, from analysis that follows the pulse in overlapping windows. Everything local (quantize, loops, jumps, FX clock) reads the beat around the read head. A correction by hand wins, since it is one tempo. Sync matches local tempos and adds a small pull, at most 1 %, because matching speeds alone lets beats wander.
+- **curado's own detector only runs when asked, per track.** On 348 tracks of the maintainer's USB it answered yes on 27 %, even after being tightened from 47 %. rekordbox has a constant grid on all of them, so most of those are probably false alarms, and a wrong map would damage a good grid. rekordbox's own variable grids apply automatically.
+- **60 Hz position, not extrapolation.** The S2 choice: only the two positions, only while a deck moves, drawn once per screen refresh. Nothing predicts, so invariant 2 holds and the display cannot lead the engine. When reports stop for 120 ms the full state speaks again. IPC cost has not been measured in the running app.
+- **Files are outside data.** Decoding stops at 180 s, a decoder panic becomes an error for that file, damaged frames are skipped up to 500 in a row, and a sample rate out of range or changing partway is refused.
+- **Key:** measured against rekordbox on 986 tracks of a USB, it now always answers instead of on a quarter of tracks. A filter on correlation was refusing most tracks. Limiting notes to 65 Hz–1 kHz and removing third harmonics took exact agreement on tracks not used for tuning from 31 % to 41–45 %, and fifths from 26 % to 15 %. rekordbox is a reference, and this USB's keys may come from other tools.
+- **Phase, not changed.** Five other ways to choose the beat were compared on 524 tracks. The most promising cut half-beat errors on the tuning set but not on the rest in the real pipeline, so it was reverted. About 11 % of same-tempo tracks still disagree by half a beat and 10 % by a quarter, with nothing to say who is right, so the grid editor gained a **½ beat** button.
+- **Cues at 0:00 sit a microsecond in.** Zero means "no cue" in every store, in exports and in the interface. A sentinel changes nothing else and needs no migration.
+
+## ADR-024 · The console follows the hardware's plan — accepted (2026-10-30)
+
+The maintainer rejected an arrangement that only resembled an all-in-one, sent the product page, and asked for platters always present and playable. The console now follows the official [hardware diagram](https://downloads.support.alphatheta.com/software_info/all-in-one-dj-systems/XDJ-RX3/XDJ-RX3_HardwareDiagram_rekordbox_E1.pdf), with control positions measured from it.
+
+- **Plan copied, identity not.** Layout, control names and their order follow the hardware, which the maintainer asked for explicitly. Logos, photos and artwork are not used, and the brand printed is curado's. Commercial distribution would still need the brand and design review noted in Mixer views.
+- **Fixed coordinates, scaled as a whole,** like the object it follows. Below half size the console scrolls in its panel.
+- **Platters always, and they behave like platters.** The top scratches with VINYL on and bends with it off, the edge always bends, a scroll gesture bends, and a stopped record moves under the hand. A click no longer plays or pauses here, since the hardware's platter does not.
+- **Pads as printed:** HOT CUE, BEAT LOOP, SLIP LOOP, BEAT JUMP, and with SHIFT or their second label KEYBOARD, KEY SHIFT, PAD FX and SAMPLER. An empty hot cue pad saves, a saved one calls and SHIFT deletes.
+- **Sound Color per channel stays,** which the maintainer asked for and the hardware does not do: each button applies to both channels, and its 1 and 2 to one.
+- **What has no hardware function here stays visible and labelled unavailable:** mic, AUX, input switches, booth, headphones and channel cue. They need input and output routing that cannot be checked without that equipment.
+- **curado's own tools moved to the side panel:** LP/HP, beat echo, grid and key editing, linked transport and the full mixer.
+- **Differs on purpose:** MEMORY and DELETE act on hot cues because memory cues are not in the transport yet; KEYBOARD transposes and plays hot cue A; Release FX, X-Pad, Touch Preview and phrase display do not exist.
+
 ## ADR-023 · Effects per channel, and a transparent path — accepted (2026-10-30)
 
 The maintainer asked for the RX3's missing effects and functions, with different effects on different channels, plus the audio quality items.
 
 - **Each channel owns its effects.** Hardware shares one Sound Color selection and one Beat FX unit. Here each music channel has its own color effect, and CH 1, CH 2 and master each have a Beat FX unit, so they can differ and run at once. One panel edits the unit it shows.
 - **Signal path:** trim, EQ, LP/HP, color, fader, echo, beat, then crossfader, master unit, master, limiter. Color goes before the fader and beat after it, as on a mixer, so a closed fader still lets a tail ring out.
-- **Effects implemented:** Space, Dub Echo, Sweep, Noise, Crush, Filter; Delay, Echo, Ping Pong, Reverb, Flanger, Phaser, Filter, Trans, Roll. Original algorithms named for what they do. Their sound was not compared with hardware. Spiral, Helix, Pitch, Slip Roll and Vinyl Brake as Beat FX are not implemented, though roll pads and the vinyl brake exist in the transport.
+- **Effects implemented:** Space, Dub Echo, Sweep, Noise, Crush, Filter; Delay, Echo, Ping Pong, Spiral, Reverb, Trans, Filter, Flanger, Phaser, Pitch, Slip Roll, Roll, Vinyl Brake, Helix. Original algorithms named for what they do, based on public descriptions. Their sound was not compared with hardware.
 - **Real-time rules:** every buffer is written once at creation, so the callback neither allocates nor takes a first-write page fault; work per frame is fixed; the allocator audit covers every effect and transport mode. Selecting Reverb clears about 120 KB, which is bounded and only happens on a command.
 - **A centered EQ leaves the path.** Linkwitz-Riley crossovers give a real kill and a flat sum, but even flat they spread an attack in time: transport tests caught a first sample at 0.18 instead of 0.3. So bands at unity bypass them and transients stay sample-exact. Moving a band crossfades them in over about 5 ms. LP and HP bypass the same way.
 - **Sinc instead of linear interpolation:** 24 taps, Kaiser window, six tables by read speed so nothing folds back above the new Nyquist. A sample read in place at normal speed is untouched. Tables build before the first callback, and reading them takes no lock.
@@ -19,9 +42,9 @@ The maintainer asked for the RX3's missing effects and functions, with different
 The maintainer showed the console cut off by a scrolling page, with the library far below, and asked for a fixed view with internal scrolling and a compact sidebar.
 
 - **Nothing scrolls but lists.** In Mix the sheet stops scrolling. The console fits its panel through the existing scale, and the panel's lists and tools scroll inside themselves. Below 0.65 scale the console scrolls in its own panel, because controls that small stop being usable.
-- **Console left, side panel right,** with a draggable divider. Tabs hold library, tools and keyboard, so opening one never shrinks the console, which is why deck tools moved out of it. The panel collapses for a mixing focus, and hiding the platters gives waveforms and pads more room.
+- **Console left, side panel right,** with a draggable divider. Tabs hold library, tools and keyboard. The panel collapses for a mixing focus. An earlier version also let the platters be hidden; the maintainer asked for them always, so that option is gone (ADR-024).
 - **The rail is per mode:** on by default in Mix, off in Player, since mixing needs the room and listening does not. Playlists show two letters because many lists sharing one icon cannot be told apart. A source selector in the panel reaches everything the rail abbreviates, including a drive's nested playlists.
-- **Removed from the console:** its decorative header and footer, an explanatory sentence and the duplicate mixer, which all took height. The footer's playback row is hidden in Mix, since the decks already have transport.
+- **The footer's playback row is hidden in Mix,** since the decks already have transport.
 - **Preferences stay in local storage,** like the existing layout choice, because they are one viewer's conveniences. Each field falls back on its own if the stored data is old or wrong.
 
 ## ADR-021 · rekordbox.xml export, conservative by default — accepted (2026-10-30)

@@ -47,7 +47,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
 - **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
 - **Trae tu USB:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists, y las pistas cargan con sus grids, tonalidades y hot cues. Cualquier disco se puede explorar para buscar audio. curado solo los lee.
-- **Efectos en cada canal:** seis efectos de color y nueve de beat, distintos por canal y en el master, más roll, beat jump, slip, reversa, scratch y freno de vinilo.
+- **Efectos en cada canal:** seis efectos de color y catorce de beat, distintos por canal y en el master, más roll, beat jump, slip, reversa, scratch y freno de vinilo.
 - **De vuelta a rekordbox:** guarda un `rekordbox.xml` con tus cues, loops y grids corregidos, e impórtalo desde rekordbox.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 

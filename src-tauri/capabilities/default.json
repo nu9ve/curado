@@ -17,6 +17,8 @@
     "allow-edit-library",
     "allow-import-media",
     "allow-export-rekordbox-xml",
+    "allow-track-beats",
+    "allow-track-follow-tempo",
     "allow-create-demo",
     "allow-load-track",
     "allow-device-library",

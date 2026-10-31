@@ -20,6 +20,7 @@ fn main() {
     let analysis_ms = started.elapsed().as_secs_f64() * 1000.;
     let source = Arc::new(Clip {
         loudness: None,
+        beats: None,
         id: 1,
         cues: Default::default(),
         samples,

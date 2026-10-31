@@ -114,7 +114,9 @@ test('the export destination comes from the native dialog alone', () => {
   const signature = command.slice(0, command.indexOf('->'));
   expect(signature).not.toContain('path');
   expect(command).toContain('save_file()');
-  expect(readFileSync('src/App.tsx', 'utf8')).toContain("call<RekordboxExportReport>('export_rekordbox_xml')");
+  expect(readFileSync('src/App.tsx', 'utf8')).toContain(
+    "call<RekordboxExportReport>('export_rekordbox_xml')",
+  );
   const source = readFileSync('src-tauri/src/rekordbox_xml.rs', 'utf8').split('#[cfg(test)]')[0];
   // The only write in the export goes through the destination it was handed.
   expect(source.match(/fs::write|File::create|OpenOptions/g)).toEqual(['fs::write']);

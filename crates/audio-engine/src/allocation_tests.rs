@@ -72,6 +72,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     let clip = || {
         Arc::new(crate::decode::Clip {
             loudness: None,
+            beats: None,
             id: 1,
             sample_rate: 48000,
             samples: vec![[0.2, 0.2]; 4800],
@@ -173,6 +174,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     let long = || {
         Arc::new(crate::decode::Clip {
             loudness: None,
+            beats: None,
             id: 2,
             sample_rate: 44100,
             samples: vec![[0.2, -0.2]; 44100],

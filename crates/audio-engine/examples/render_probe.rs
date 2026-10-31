@@ -5,6 +5,7 @@ fn main() {
     let (handle, mut renderer) = engine(48000);
     let clip = Arc::new(Clip {
         loudness: None,
+        beats: None,
         id: 1,
         sample_rate: 48000,
         samples: (0..48000)

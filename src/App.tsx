@@ -55,6 +55,7 @@ import type { MixLayout } from './lib/mix-layout';
 import { Deck } from './components/Deck';
 import { Mixer, SampleBank } from './components/Mixer';
 import { DeckTools, HardwareConsole, KeyboardGuide } from './components/HardwareConsole';
+import type { ScreenKey } from './components/HardwareConsole';
 import { Library } from './components/Library';
 import { DeviceBrowser } from './components/DeviceBrowser';
 import { Visual } from './components/Visual';
@@ -65,6 +66,7 @@ import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
 import { TrackInfo } from './components/TrackInfo';
+import { BeatFxPanel, ColorFxPanel } from './components/Performance';
 import { clampSplit, DEFAULT_WORKSPACE, useWorkspace } from './lib/workspace';
 import type { SidePanel, Workspace } from './lib/workspace';
 
@@ -329,6 +331,34 @@ export default function App() {
       </div>
     );
 
+  /** The keys above the console's screen drive the side panel, which is where lists live. */
+  const screenKey = (key: ScreenKey) => {
+    if (key === 'menu') {
+      setSettings(true);
+      return;
+    }
+    updateWorkspace({ panelOpen: true, panel: 'library' });
+    if (key === 'tag') setView('favorites');
+    if (key === 'playlist' && library.playlists[0]) setView(`playlist:${library.playlists[0].id}`);
+    if (key === 'search' || key === 'source') {
+      const target =
+        key === 'search' ? '.mix-panel .search input' : '.mix-panel .source-select select';
+      requestAnimationFrame(() => document.querySelector<HTMLElement>(target)?.focus());
+    }
+  };
+  /** The selector moves through what the panel lists, in its order. */
+  const browseBy = (delta: number) => {
+    const active = library.playlists.find((p) => `playlist:${p.id}` === view);
+    const listed = active
+      ? active.tracks.flatMap((id) => localLibrary.tracks.filter((t) => t.id === id))
+      : view === 'favorites'
+        ? localLibrary.tracks.filter((t) => t.favorite)
+        : localLibrary.tracks;
+    if (!listed.length) return;
+    const at = listed.findIndex((t) => t.id === selected);
+    const next = at < 0 ? 0 : Math.max(0, Math.min(listed.length - 1, at + delta));
+    setSelected(listed[next].id);
+  };
   const rail = mode === 'mix' ? workspace.railMix : workspace.railPlayer;
   const inWorkspace = mode === 'mix' && view !== 'web';
   const browser = (
@@ -666,6 +696,8 @@ export default function App() {
               workspace={workspace}
               onWorkspace={updateWorkspace}
               browser={browser}
+              onScreenKey={screenKey}
+              onBrowse={browseBy}
             />
           ) : (
             <div className="listen-stage">
@@ -825,6 +857,8 @@ function MixView({
   workspace,
   onWorkspace,
   browser,
+  onScreenKey,
+  onBrowse,
 }: {
   library: LibraryData;
   keys: KeyBinding[];
@@ -838,6 +872,8 @@ function MixView({
   workspace: Workspace;
   onWorkspace: (change: Partial<Workspace>) => void;
   browser: ReactNode;
+  onScreenKey: (key: ScreenKey) => void;
+  onBrowse: (delta: number) => void;
 }) {
   const { audio } = useSnapshot();
   const [layout, setLayout] = useState<MixLayout>(() => {
@@ -894,7 +930,11 @@ function MixView({
       style={{ '--split': workspace.split } as CSSProperties}
     >
       <section className="mix-main">
-        <div className="mix-layout-bar" role="toolbar" aria-label={tr('Vista de mezcla', 'Mix layout')}>
+        <div
+          className="mix-layout-bar"
+          role="toolbar"
+          aria-label={tr('Vista de mezcla', 'Mix layout')}
+        >
           <button
             type="button"
             aria-pressed={layout === 'classic'}
@@ -909,19 +949,6 @@ function MixView({
           >
             {tr('cabina', 'console')}
           </button>
-          {layout === 'console' && (
-            <button
-              type="button"
-              aria-pressed={workspace.platters}
-              title={tr(
-                'Oculta los platos para dar más lugar a waveforms y pads',
-                'Hides the platters to give waveforms and pads more room',
-              )}
-              onClick={() => onWorkspace({ platters: !workspace.platters })}
-            >
-              {tr('platos', 'platters')}
-            </button>
-          )}
           <span className="mix-bar-gap" />
           <button
             type="button"
@@ -930,7 +957,10 @@ function MixView({
             aria-label={tr('Panel lateral', 'Side panel')}
             title={
               workspace.panelOpen
-                ? tr('Ocultar el panel para enfocarte en la mezcla', 'Hide the panel to focus on mixing')
+                ? tr(
+                    'Ocultar el panel para enfocarte en la mezcla',
+                    'Hide the panel to focus on mixing',
+                  )
                 : tr('Mostrar el panel', 'Show the panel')
             }
             onClick={() => onWorkspace({ panelOpen: !workspace.panelOpen })}
@@ -947,10 +977,11 @@ function MixView({
               onError={onError}
               selected={selected}
               onLoad={onLoad}
-              platters={workspace.platters}
               onEdit={onEdit}
               autoGain={workspace.autoGain}
               onAutoGain={(autoGain) => onWorkspace({ autoGain })}
+              onScreenKey={onScreenKey}
+              onBrowse={onBrowse}
             />
           ) : (
             <div className="mix-classic">
@@ -989,7 +1020,10 @@ function MixView({
             aria-valuemax={82}
             aria-valuenow={Math.round(workspace.split * 100)}
             tabIndex={0}
-            title={tr('Arrastra para ajustar · doble clic: restablecer', 'Drag to adjust · double-click: reset')}
+            title={tr(
+              'Arrastra para ajustar · doble clic: restablecer',
+              'Drag to adjust · double-click: reset',
+            )}
             onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
             onPointerMove={(e) => {
               if (e.currentTarget.hasPointerCapture(e.pointerId)) moveSplit(e.clientX);
@@ -1029,13 +1063,42 @@ function MixView({
               {workspace.panel === 'library' && browser}
               {workspace.panel === 'tools' && (
                 <div className="mix-tools">
-                  {layout === 'console' && (
+                  {layout === 'console' ? (
                     <DeckTools
                       library={library}
                       loading={loading}
                       onError={onError}
                       onLibrary={onLibrary}
                     />
+                  ) : (
+                    <div className="classic-fx">
+                      <div>
+                        <ColorFxPanel slots={slots} onError={onError} />
+                      </div>
+                      <div>
+                        <BeatFxPanel units={audio?.beatFx ?? []} onError={onError} />
+                        <button
+                          className="rx-fx-on"
+                          aria-pressed={workspace.autoGain}
+                          title={tr(
+                            'Iguala el nivel de las pistas a −14 LUFS, hasta ±12 dB',
+                            'Matches track levels to −14 LUFS, up to ±12 dB',
+                          )}
+                          onClick={() => {
+                            onWorkspace({ autoGain: !workspace.autoGain });
+                            call('audio_action', {
+                              action: {
+                                slot: 0,
+                                kind: 'autoGain',
+                                value: workspace.autoGain ? 0 : 1,
+                              },
+                            }).catch(onError);
+                          }}
+                        >
+                          AUTO GAIN
+                        </button>
+                      </div>
+                    </div>
                   )}
                   <SampleBank
                     tracks={library.tracks}
@@ -1044,6 +1107,12 @@ function MixView({
                     onLoad={onLoad}
                     selected={selected}
                   />
+                  {layout === 'console' && (
+                    <details className="rx-extra">
+                      <summary>{tr('Mixer completo de curado', 'Full curado mixer')}</summary>
+                      <Mixer keys={keys} onError={onError} />
+                    </details>
+                  )}
                 </div>
               )}
               {workspace.panel === 'keyboard' && (

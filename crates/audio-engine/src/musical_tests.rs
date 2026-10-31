@@ -32,6 +32,7 @@ fn synced_quantized_cue_waits_for_the_master_beat_and_panic_cancels_it() {
 fn clip(id: u64, bpm: f64) -> Arc<Clip> {
     Arc::new(Clip {
         loudness: None,
+        beats: None,
         id,
         cues: Default::default(),
         samples: vec![[0.1, 0.1]; 480000],

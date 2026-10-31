@@ -70,9 +70,7 @@ export function TrackInfo({
               <b>▸</b>
               <span>
                 <strong>{choice.title}</strong>
-                <small>
-                  {matchText(choice, slots[audio?.masterDeck ?? 0]) || choice.artist}
-                </small>
+                <small>{matchText(choice, slots[audio?.masterDeck ?? 0]) || choice.artist}</small>
               </span>
               <em>{choice.music?.bpm?.toFixed(1) ?? '—'}</em>
               <em>{keyLabel(choice.music?.key ?? null, 'camelot')}</em>

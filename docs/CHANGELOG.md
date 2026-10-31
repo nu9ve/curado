@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Console as an RX3, measured key, tempo maps and damaged files
+
+Rebuilt **cabina** from the official RX3 diagram with always-present, playable platters. Completed the 14 Beat FX, added MIDI toggles, the new controls in the classic view, cues at 0:00, a 60 Hz position stream, beat maps and decode limits with fuzzing. The key now always answers and agrees more with rekordbox. See [Status](STATUS.md), ADR-024 and ADR-025. Lessons: a maintainer's eye catches what tests cannot, because a console that fit and worked was still the wrong console; and measuring stops bad ideas, because a tempo detector that passed its tests fired on nearly half of a real library, and a phase change that looked better on tuning data did nothing on the rest.
+
 ## 2026-10-30 · Fixed mixing screen and channel effects
 
 Mix became a fixed screen with the console on the left, a collapsible side panel with library, tools and keyboard, and a compact sidebar rail. Added per-channel Sound Color FX, Beat FX on CH 1, CH 2 and master, trim, beat loop, beat jump and roll pads, slip, reverse, scratch, vinyl brake, eight samples and auto gain. Replaced the EQ with Linkwitz-Riley isolators, filters with 24 dB slopes and linear interpolation with windowed sinc. See [Status](STATUS.md), ADR-022 and ADR-023. Lessons: an existing test protected what mattered, because attack tests caught that even a flat crossover smears a kick, which led to bypassing it when centered; and a measurement needs its control case, because 40 ms spikes that looked like the effects also appeared with none.

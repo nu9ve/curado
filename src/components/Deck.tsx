@@ -1,6 +1,10 @@
 import { cueColor, useCueInfo } from '../lib/cues';
 import { tr } from '../lib/language';
+import { useState } from 'react';
+import { useLivePosition } from '../lib/position';
 import type { CSSProperties } from 'react';
+import type { PadMode } from '../lib/console-pads';
+import { PerformancePads, useJog } from './Performance';
 import { Play, Pause, Repeat2, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useSnapshot, control, parameter } from '../lib/bridge';
 import type { KeyBinding, Track, Library } from '../lib/types';
@@ -28,19 +32,31 @@ function Platter({
   index,
   disabled,
   onToggle,
+  onError,
 }: {
   slot: typeof EMPTY_SLOT;
   index: number;
   disabled: boolean;
   onToggle: () => void;
+  onError: (e: unknown) => void;
 }) {
-  const turn = slot.position * 200;
+  const turn = useLivePosition(index, slot.position) * 200;
+  const jog = useJog(index, slot.playing, true, 1, onError);
   return (
     <button
       className={`platter ${slot.playing ? 'spinning' : ''}`}
       disabled={disabled}
-      onClick={onToggle}
+      ref={jog.ref}
+      {...jog.handlers}
+      onPointerCancel={jog.handlers.onPointerUp}
+      onClick={() => {
+        if (!jog.wasDragged()) onToggle();
+      }}
       aria-label={`${slot.playing ? tr('Pausar', 'Pause') : tr('Reproducir', 'Play')} deck ${index ? 'B' : 'A'}`}
+      title={tr(
+        'Clic: reproducir o pausar · arrastrar en círculo: scratch',
+        'Click: play or pause · drag around: scratch',
+      )}
       data-action={actionKey({ slot: index, kind: 'toggle', value: 0 })}
     >
       <span className="platter-disc" style={{ '--turn': `${turn}deg` } as CSSProperties}>
@@ -76,6 +92,7 @@ export function Deck({
   const act = (kind: string, value = 0) => actionKey({ slot: index, kind, value });
   const tag = (kind: string, value = 0, digit = false) => keyFor(keys, index, kind, value, digit);
   const empty = !track || loading;
+  const [padMode, setPadMode] = useState<'cue' | 'loop' | 'jump' | 'roll'>('cue');
   return (
     <section
       className={`deck deck-${index} tone-${tone} ${slot.playing ? 'is-playing' : ''}`}
@@ -120,31 +137,68 @@ export function Deck({
         onSeek={!empty ? (s) => send('seek', s) : undefined}
       />
       <div className="deck-body">
-        <Platter slot={slot} index={index} disabled={!!empty} onToggle={() => send('toggle')} />
+        <Platter
+          slot={slot}
+          index={index}
+          disabled={!!empty}
+          onToggle={() => send('toggle')}
+          onError={onError}
+        />
         <div className="deck-pads">
-          <div className="cue-pads">
-            {slot.cues.map((position, i) => (
+          <div className="pad-tabs" role="group" aria-label={tr('Modo de pads', 'Pad mode')}>
+            {(
+              [
+                ['cue', 'CUE'],
+                ['loop', 'LOOP'],
+                ['jump', 'JUMP'],
+                ['roll', 'ROLL'],
+              ] as const
+            ).map(([mode, label]) => (
               <button
-                key={i}
-                className={`cue-pad ${position > 0 ? 'set' : ''} ${slot.cueEnds[i] > 0 ? 'loop' : ''}`}
-                style={{ '--cue-color': cueColor(cueInfo.hot[i]) } as CSSProperties}
-                title={
-                  cueInfo.hot[i]?.label ??
-                  tr(
-                    'Clic para saltar y reproducir · Shift + clic para guardar',
-                    'Click to jump and play · Shift-click to save',
-                  )
-                }
-                aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}${cueInfo.hot[i]?.label ? ` · ${cueInfo.hot[i]?.label}` : ''}`}
-                disabled={!!empty}
-                data-action={`${act('cue', i)} ${act('setCue', i)}`}
-                onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
+                key={mode}
+                type="button"
+                aria-pressed={padMode === mode}
+                onClick={() => setPadMode(mode)}
               >
-                <span>CUE {i + 1}</span>
-                <b>{time(position)}</b>
-                {tag('cue', i, true)}
+                {label}
               </button>
             ))}
+          </div>
+          <div className="cue-pads">
+            {padMode !== 'cue' && (
+              <PerformancePads
+                mode={padMode}
+                index={index}
+                slot={slot}
+                disabled={!!empty}
+                padClass="cue-pad"
+                activeClass="set"
+                onError={onError}
+              />
+            )}
+            {padMode === 'cue' &&
+              slot.cues.map((position, i) => (
+                <button
+                  key={i}
+                  className={`cue-pad ${position > 0 ? 'set' : ''} ${slot.cueEnds[i] > 0 ? 'loop' : ''}`}
+                  style={{ '--cue-color': cueColor(cueInfo.hot[i]) } as CSSProperties}
+                  title={
+                    cueInfo.hot[i]?.label ??
+                    tr(
+                      'Clic para saltar y reproducir · Shift + clic para guardar',
+                      'Click to jump and play · Shift-click to save',
+                    )
+                  }
+                  aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}${cueInfo.hot[i]?.label ? ` · ${cueInfo.hot[i]?.label}` : ''}`}
+                  disabled={!!empty}
+                  data-action={`${act('cue', i)} ${act('setCue', i)}`}
+                  onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
+                >
+                  <span>CUE {i + 1}</span>
+                  <b>{time(position)}</b>
+                  {tag('cue', i, true)}
+                </button>
+              ))}
           </div>
           <div className="transport">
             <button
@@ -198,6 +252,40 @@ export function Deck({
             </button>
             <button disabled={!track} onClick={() => send('loopOut')} data-action={act('loopOut')}>
               OUT{tag('loopOut')}
+            </button>
+            <button
+              disabled={!track || slot.loopOut <= slot.loopIn}
+              onClick={() => send('loopScale', 0.5)}
+              data-action={act('loopScale', 0.5)}
+            >
+              1/2X
+            </button>
+            <button
+              disabled={!track || slot.loopOut <= slot.loopIn}
+              onClick={() => send('loopScale', 2)}
+              data-action={act('loopScale', 2)}
+            >
+              2X
+            </button>
+          </div>
+          <div className="loop-row">
+            <button
+              className={slot.slip ? 'selected' : ''}
+              aria-pressed={slot.slip}
+              disabled={!track}
+              onClick={() => send('slip', slot.slip ? 0 : 1)}
+              data-action={act('slip', slot.slip ? 0 : 1)}
+            >
+              SLIP
+            </button>
+            <button
+              className={slot.reverse ? 'selected' : ''}
+              aria-pressed={slot.reverse}
+              disabled={!track}
+              onClick={() => send('reverse', slot.reverse ? 0 : 1)}
+              data-action={act('reverse', slot.reverse ? 0 : 1)}
+            >
+              REV
             </button>
           </div>
         </div>

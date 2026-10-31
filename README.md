@@ -49,7 +49,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
 - **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
 - **Bring your USB:** connected drives appear in the sidebar. A rekordbox USB shows its playlists, and tracks load with their grids, keys and hot cues. Any drive can be browsed for audio. curado only reads them.
-- **Effects on every channel:** six color effects and nine beat effects, different per channel and on the master, plus roll, beat jump, slip, reverse, scratch and vinyl brake.
+- **Effects on every channel:** six color effects and fourteen beat effects, different per channel and on the master, plus roll, beat jump, slip, reverse, scratch and vinyl brake.
 - **Back to rekordbox:** save a `rekordbox.xml` with your cues, loops and corrected grids, and import it from rekordbox.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
