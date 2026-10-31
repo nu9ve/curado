@@ -48,8 +48,8 @@ export const BEAT_DIVISIONS = [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8, 16, 3
 export const COLOR_FX = ['SPACE', 'DUB ECHO', 'SWEEP', 'NOISE', 'CRUSH', 'FILTER'];
 /** Semitones on the pads for KEY SHIFT and KEYBOARD. */
 export const KEY_PADS = [-3, -2, -1, 0, 1, 2, 3, 4];
-/** Beat FX held under the pads: echo, reverb, ping pong, flanger, phaser, filter, trans, roll. */
-export const TRIGGER_FX = [1, 3, 2, 4, 5, 6, 7, 8];
+/** Beat FX held under the pads: echo, reverb, flanger, phaser, trans, roll, stutter, recycler. */
+export const TRIGGER_FX = [1, 3, 4, 5, 7, 8, 14, 15];
 export const BEAT_FX = [
   'DELAY',
   'ECHO',
@@ -65,9 +65,11 @@ export const BEAT_FX = [
   'SPIRAL',
   'HELIX',
   'VINYL BRAKE',
+  'STUTTER',
+  'RECYCLER',
 ];
 /** The order printed around the hardware's dial. `BEAT_FX` follows the engine's numbering. */
-export const BEAT_FX_ORDER = [0, 1, 2, 11, 3, 7, 6, 4, 5, 10, 9, 8, 13, 12];
+export const BEAT_FX_ORDER = [0, 1, 2, 11, 3, 7, 6, 4, 5, 10, 9, 8, 13, 12, 14, 15];
 export const COLOR_FX_LABELS = COLOR_FX;
 export const PITCH_FX = BEAT_FX.indexOf('PITCH');
 /** What each division means on PITCH: the engine holds the same list. */

@@ -52,6 +52,8 @@ The following is a **plan**, not a completed test record. Respect current author
 
 12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
 
+18. **TODO** with a real camera: CPU against hands alone, pinch and lean used together without interfering, nearness as a usable axis, and Stutter and Recycler by ear.
+
 17. Trigger FX by pressure and by ear, loop cues sent through `rekordbox.xml` to rekordbox, and the key colors and differences read during a real transition.
 
 16. Touch: taps per control on a Force Touch trackpad and their timing, whether `webkitForce` arrives and a deep press stays comfortable and does not open a lookup, and no effect on audio at the fastest drag.

@@ -141,6 +141,8 @@ The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular
 
 `native/CuradoTracker.swift` is a separate process: AVFoundation at 640×480, Vision at most 15 times a second, and JSON lines on its output. `tracking.rs` supervises it and passes checked frames as `tracking:frame`. `lib/tracking.ts` steadies them into points for the XY surfaces, which use the same moves as a finger. It never touches the audio path.
 
+Mode `all` runs both Vision requests on each frame. `Follower` adds `z`, relative to where a pinch began. `faceUnit` in `lib/xy.ts` decides where a face plays from what the hands are doing, and all of this goes through the same moves and release as a finger.
+
 ## Keyboard and pointer together
 
 `keyIsForTheMix` in `lib/keyboard.ts` decides who owns a key: fields keep all of them, a control reached with Tab keeps Space, Enter and arrows, and focus left by a click claims nothing. `:focus-visible` cannot decide this, since browsers turn it on at the first key pressed, so `reachedWithTab` tracks it: Tab sets it, a pointer press clears it. Controls check the same thing in their own key handlers. `App` counts pointers down, so `matchKey` can ignore a modifier that means nothing during a drag, and blurs whatever held focus when something else is pressed.

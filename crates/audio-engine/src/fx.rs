@@ -468,9 +468,13 @@ pub enum BeatKind {
     Spiral,
     Helix,
     VinylBrake,
+    /// A slice struck again on each division, with air between hits and a fresh slice now and then.
+    Stutter,
+    /// The last moments cut up and played back out of order, some of them backward.
+    Recycler,
 }
 impl BeatKind {
-    pub const COUNT: u8 = 14;
+    pub const COUNT: u8 = 16;
     pub fn from_index(index: u8) -> Self {
         match index {
             0 => Self::Delay,
@@ -486,6 +490,8 @@ impl BeatKind {
             11 => Self::Spiral,
             12 => Self::Helix,
             13 => Self::VinylBrake,
+            14 => Self::Stutter,
+            15 => Self::Recycler,
             _ => Self::Echo,
         }
     }
@@ -519,6 +525,13 @@ impl Default for BeatSettings {
         }
     }
 }
+/// A Stutter keeps one slice for this many hits, so it follows the track instead of freezing it.
+const STUTTER_HITS: i64 = 4;
+/// Part of each division a Stutter hit sounds.
+const STUTTER_OPEN: f32 = 0.7;
+const RECYCLER_SECONDS: f32 = 8.;
+/// How far back a Recycler reaches, in slices of the current division.
+const RECYCLER_SLICES: usize = 16;
 /// One Beat FX unit. A channel and the master each own one, so they can differ.
 pub struct BeatFx {
     sr: f32,
@@ -556,6 +569,17 @@ pub struct BeatFx {
     roll_seam: f32,
     /// A Slip Roll takes a new slice when its division changes.
     roll_beats: f32,
+    stutter_index: i64,
+    recycle: Vec<[f32; 2]>,
+    recycle_head: usize,
+    recycle_filled: usize,
+    recycle_index: i64,
+    recycle_start: usize,
+    recycle_length: usize,
+    recycle_read: usize,
+    recycle_backward: bool,
+    recycle_playing: bool,
+    noise: u32,
     grains: Vec<[f32; 2]>,
     grain_head: usize,
     grain_phase: f32,
@@ -608,6 +632,17 @@ impl BeatFx {
             roll_read: 0,
             roll_seam: (rate * ROLL_SEAM_SECONDS).max(1.),
             roll_beats: 0.,
+            stutter_index: i64::MIN,
+            recycle: preallocated((rate * RECYCLER_SECONDS) as usize),
+            recycle_head: 0,
+            recycle_filled: 0,
+            recycle_index: i64::MIN,
+            recycle_start: 0,
+            recycle_length: 1,
+            recycle_read: 0,
+            recycle_backward: false,
+            recycle_playing: false,
+            noise: 0x9e37_79b9,
             grains: preallocated((rate * GRAIN_SECONDS * 2.) as usize + 4),
             grain_head: 0,
             grain_phase: 0.,
@@ -669,6 +704,8 @@ impl BeatFx {
             if self.switch < 0.001 {
                 self.kind = target;
                 self.rolling = false;
+                self.recycle_filled = 0;
+                self.recycle_playing = false;
                 if self.kind == BeatKind::Reverb {
                     self.reverb.clear();
                 }
@@ -856,6 +893,92 @@ impl BeatFx {
                 let wet = self.gate * inline + (1. - inline);
                 [input[0] * wet, input[1] * wet]
             }
+            BeatKind::Stutter => {
+                let length = (cycle as usize).clamp(2, self.roll.len());
+                let index = (self.phase / self.settings.beats as f64).floor() as i64;
+                if !on {
+                    self.rolling = false;
+                } else if !self.rolling || index != self.stutter_index {
+                    if !self.rolling || index.rem_euclid(STUTTER_HITS) == 0 {
+                        self.roll_filled = 0;
+                        self.roll_length = length;
+                    }
+                    self.rolling = true;
+                    self.stutter_index = index;
+                    self.roll_read = 0;
+                }
+                if self.rolling && self.roll_filled < self.roll_length {
+                    self.roll[self.roll_filled] = input;
+                    self.roll_filled += 1;
+                }
+                let mut held = [0.; 2];
+                if self.rolling && self.roll_read < self.roll_filled {
+                    let open = cycle * STUTTER_OPEN - self.roll_read as f32;
+                    let seam = (open / self.roll_seam)
+                        .min((self.roll_read as f32 + 1.) / self.roll_seam)
+                        .clamp(0., 1.);
+                    let sample = self.roll[self.roll_read];
+                    held = [sample[0] * seam, sample[1] * seam];
+                }
+                if self.rolling {
+                    self.roll_read += 1;
+                }
+                [
+                    mix(input[0], held[0], inline),
+                    mix(input[1], held[1], inline),
+                ]
+            }
+            BeatKind::Recycler => {
+                // Recording starts when it is chosen, so there is history once it comes on.
+                let size = self.recycle.len();
+                self.recycle[self.recycle_head] = input;
+                self.recycle_head = (self.recycle_head + 1) % size;
+                self.recycle_filled = (self.recycle_filled + 1).min(size);
+                let length = (cycle as usize).clamp(2, size / 2);
+                let index = (self.phase / self.settings.beats as f64).floor() as i64;
+                if !on {
+                    self.recycle_playing = false;
+                    self.recycle_index = i64::MIN;
+                } else if index != self.recycle_index {
+                    self.recycle_index = index;
+                    self.noise ^= self.noise << 13;
+                    self.noise ^= self.noise >> 17;
+                    self.noise ^= self.noise << 5;
+                    // Leaves one slice of room, so what plays is not overwritten while it does.
+                    let room =
+                        (self.recycle_filled.saturating_sub(length) / length).min(RECYCLER_SLICES);
+                    self.recycle_playing = room > 0;
+                    if room > 0 {
+                        let back = 1 + self.noise as usize % room;
+                        self.recycle_start = (self.recycle_head + size - back * length) % size;
+                        self.recycle_length = length;
+                        self.recycle_read = 0;
+                        self.recycle_backward = (self.noise >> 8) & 3 == 0;
+                    }
+                }
+                let mut held = input;
+                if self.recycle_playing && self.recycle_read < self.recycle_length {
+                    let read = self.recycle_read;
+                    let offset = if self.recycle_backward {
+                        self.recycle_length - 1 - read
+                    } else {
+                        read
+                    };
+                    let sample = self.recycle[(self.recycle_start + offset) % size];
+                    let seam = ((read as f32 + 1.) / self.roll_seam)
+                        .min((self.recycle_length - read) as f32 / self.roll_seam)
+                        .min(1.);
+                    held = [
+                        mix(input[0], sample[0], seam),
+                        mix(input[1], sample[1], seam),
+                    ];
+                    self.recycle_read += 1;
+                }
+                [
+                    mix(input[0], held[0], inline),
+                    mix(input[1], held[1], inline),
+                ]
+            }
             BeatKind::Roll | BeatKind::SlipRoll => {
                 let length = (cycle as usize).clamp(2, self.roll.len());
                 let new_slice =
@@ -919,7 +1042,7 @@ mod tests {
         ColorKind::Crush,
         ColorKind::Filter,
     ];
-    const ALL_BEAT: [BeatKind; 14] = [
+    const ALL_BEAT: [BeatKind; 16] = [
         BeatKind::Delay,
         BeatKind::Echo,
         BeatKind::PingPong,
@@ -934,6 +1057,8 @@ mod tests {
         BeatKind::Spiral,
         BeatKind::Helix,
         BeatKind::VinylBrake,
+        BeatKind::Stutter,
+        BeatKind::Recycler,
     ];
     fn sine(i: usize, hz: f32) -> f32 {
         (std::f32::consts::TAU * hz * i as f32 / SR as f32).sin() * 0.5
@@ -955,6 +1080,88 @@ mod tests {
     fn power(values: impl Iterator<Item = f32>) -> f32 {
         let (sum, n) = values.fold((0., 0), |(s, n), v| (s + v * v, n + 1));
         (sum / n.max(1) as f32).sqrt()
+    }
+
+    #[test]
+    fn a_stutter_strikes_the_same_slice_with_air_between_and_then_takes_a_new_one() {
+        const HIT: usize = 6000; // A quarter of a beat at 120.
+        let mut fx = unit(BeatKind::Stutter, 0.25);
+        let quiet_from = HIT * 41;
+        let run = HIT * 49;
+        let mut out = vec![0.; run];
+        for (i, frame) in out.iter_mut().enumerate() {
+            let amplitude = if i < quiet_from { 1. } else { 0.2 };
+            *frame = fx.process([sine(i, 500.) * amplitude; 2])[0];
+        }
+        let hit = |k: usize, n: usize| out[k * HIT + n];
+        // Hits 37 and 38 repeat the slice taken at 36, 40 takes a new one.
+        for n in (500..3500).step_by(7) {
+            assert!((hit(37, n) - hit(38, n)).abs() < 0.05, "{n}");
+        }
+        let peak = |k: usize, from: usize, to: usize| {
+            (from..to).map(|n| hit(k, n).abs()).fold(0., f32::max)
+        };
+        assert!(peak(37, 500, 3500) > 0.4);
+        assert!(peak(37, 4600, 5900) < 1e-3, "air after each hit");
+        // The input already dropped at 41, and the kept slice has not noticed.
+        assert!(peak(42, 500, 3500) > 0.4);
+        // 44 listens again.
+        assert!(peak(45, 500, 3500) < 0.15);
+    }
+
+    #[test]
+    fn a_recycler_plays_earlier_slices_out_of_order_and_some_backward() {
+        const SLICE: usize = 6000;
+        const SCALE: f32 = 1. / (1 << 22) as f32;
+        let mut fx = unit(BeatKind::Recycler, 0.25);
+        let total = SLICE * 300;
+        let (mut origins, mut forward, mut backward) = (Vec::new(), 0, 0);
+        let mut previous = 0.;
+        for i in 0..total {
+            let out = fx.process([i as f32 * SCALE; 2])[0];
+            let at = i % SLICE;
+            if i > SLICE * 40 && (1000..5000).contains(&at) {
+                let source = out / SCALE;
+                assert!(
+                    source < i as f32 - 0.,
+                    "only what has already been heard: {i}"
+                );
+                assert!(
+                    source > i as f32 - (SLICE * 18) as f32,
+                    "from recent history: {i}"
+                );
+                if at == 1000 {
+                    origins.push((i as f32 - source) as usize / SLICE);
+                }
+                if at == 1001 {
+                    if out > previous {
+                        forward += 1;
+                    } else {
+                        backward += 1;
+                    }
+                }
+            }
+            previous = out;
+        }
+        origins.sort_unstable();
+        origins.dedup();
+        assert!(origins.len() > 5, "{origins:?}");
+        assert!(forward > backward && backward > 20, "{forward} {backward}");
+    }
+
+    #[test]
+    fn a_recycler_changes_slice_without_a_jump() {
+        let mut fx = unit(BeatKind::Recycler, 0.25);
+        let mut previous = 0.;
+        let mut largest: f32 = 0.;
+        for i in 0..SR as usize * 6 {
+            let out = fx.process([sine(i, 80.); 2])[0];
+            if i > SR as usize * 2 {
+                largest = largest.max((out - previous).abs());
+            }
+            previous = out;
+        }
+        assert!(largest < 0.12, "{largest}");
     }
 
     #[test]

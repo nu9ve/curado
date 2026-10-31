@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · Stutter, Recycler and three-way camera control
+
+Added **STUTTER** and **RECYCLER** Beat FX, four more XY surfaces, a hand's nearness as a third axis, and **TODO**, which tracks hands and face at once so each hand and the face drive a separate effect. See [Status](STATUS.md) and [ADR-031](DECISIONS.md).
+
 ## 2026-10-31 · Loop cues, Trigger FX, mixer keys and keys in color
 
 Added a third row of pad modes with **LOOP CUE** and **TRIGGER FX**, the mixer under Option with arrows, and each deck's key in color on the screen with the semitones to the other deck, ready to press. Held pads can no longer stay stuck. See [Status](STATUS.md) and [ADR-030](DECISIONS.md).

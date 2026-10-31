@@ -1,6 +1,14 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { assignSources, Follower, LOST_MS, overlayPlacement, shouldRun } from './tracking';
+import {
+  assignSources,
+  faceSource,
+  Follower,
+  inView,
+  LOST_MS,
+  overlayPlacement,
+  shouldRun,
+} from './tracking';
 import type { Source } from './tracking';
 
 const hand = (x: number, pinch = 1): Source => ({ x, y: 0.5, press: pinch, kind: 'hand' });
@@ -98,4 +106,54 @@ test('the camera is opt-in, off on launch, and needs a statement of its use', ()
   // Nothing goes anywhere but out on its own pipe to the app.
   expect(capture).not.toMatch(/URLSession|URLRequest|\.write\(to:/);
   expect(capture).toContain('alwaysDiscardsLateVideoFrames');
+});
+
+test('hands and a face at once are separate sources', () => {
+  const frame = {
+    hands: [{ x: 0.8, y: 0.5, pinch: 0.2, size: 0.2 }],
+    face: { x: 0.3, y: 0.6, size: 0.3 },
+  };
+  const [left, right] = assignSources(frame, 'all');
+  expect(left?.kind).toBe('hand');
+  expect(left?.x).toBeCloseTo(0.4);
+  expect(right).toBeNull();
+  const face = faceSource(frame);
+  expect(face?.kind).toBe('face');
+  expect(face?.x).toBeCloseTo(0.7);
+  expect(faceSource({ hands: [] })).toBeNull();
+  // Asked for a face alone, it still takes the first surface.
+  expect(assignSources(frame, 'face')[0]?.kind).toBe('face');
+});
+
+test('nearness starts from where the pinch began', () => {
+  const follower = new Follower();
+  const hand = (size: number, press = 0.2) =>
+    ({ x: 0.5, y: 0.5, press, size, kind: 'hand' }) as const;
+  expect(follower.update(hand(0.3), 0)?.z).toBe(0.5);
+  let z = 0;
+  for (let t = 1; t < 30; t++) z = follower.update(hand(0.42), t)!.z;
+  expect(z).toBeGreaterThan(0.9);
+  for (let t = 30; t < 60; t++) z = follower.update(hand(0.2), t)!.z;
+  expect(z).toBeLessThan(0.15);
+  // Letting go and starting again from far away is a new middle.
+  follower.update(hand(0.2, 0.9), 60);
+  expect(follower.update(hand(0.1), 61)?.z).toBeCloseTo(0.5, 0);
+});
+
+test('a face comes nearer past leaning in', () => {
+  const follower = new Follower();
+  const face = (press: number) => ({ x: 0.5, y: 0.5, press, kind: 'face' }) as const;
+  expect(follower.update(face(0.28), 0)?.z).toBeCloseTo(0.5);
+  let z = 0;
+  for (let t = 1; t < 30; t++) z = follower.update(face(0.43), t)!.z;
+  expect(z).toBeGreaterThan(0.95);
+});
+
+test('points land where they are in the whole picture', () => {
+  const middle = { x: 0.5, y: 0.5, z: 0.5, engaged: true };
+  expect(inView(0, middle, 'hands').left).toBeCloseTo(25);
+  expect(inView(1, middle, 'hands').left).toBeCloseTo(75);
+  expect(inView(0, middle, 'face').left).toBeCloseTo(50);
+  expect(inView(2, middle, 'all').left).toBeCloseTo(50);
+  expect(inView(0, middle, 'hands').bottom).toBeCloseTo(50);
 });

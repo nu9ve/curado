@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-031 · Stutter and Recycler, more surfaces, and a third axis and a third source for the camera — accepted (2026-10-31)
+
+The maintainer asked for more effects on the XY surfaces, distance as a third axis, hands and face at once for three separate effects, and an effect like Denon's Recycler or a beat stutter.
+
+- **Stutter and Recycler are Beat FX,** so channels, master, pads, MIDI and surfaces all get them. Stutter strikes a slice on each division with air between, taking a new one every four hits so it follows the track, unlike Roll, which holds one. Recycler cuts recent audio into slices of the division and plays earlier ones out of order, a quarter of them backward, crossfading to the live signal at each seam.
+- **The name is an interpretation.** A search did not turn up what Denon's Recycler does, so this is built from what the name suggests, and should change if the maintainer finds it behaves differently.
+- **New DSP review.** Parameters: depth uses the unit's smoothing, and a division change applies at the next slice. Latency: none. Bypass: the existing test covers every kind, and it passes the input exactly when off. Denormals: no feedback path. Allocation: 8 s is preallocated per unit for Recycler, about 9 MB for three, and the audio allocation audit runs over every kind. Budget: on all three units at once at 256 frames, about 5.6 % median, the same as no effect, measured off a real-time thread.
+- **Surfaces gain STUTTER, RECYCLE, GATE and PITCH,** each picking its effect and turning it off on release. Unlike Trigger FX they leave that effect selected on the channel's dial.
+- **Nearness is relative.** A hand's z starts at 0.5 where the pinch began, since apparent size varies by person, camera and distance. Vision gives no depth here, only size, so turning the hand also moves it. It moves a filter or echo, or nothing, per surface, and a surface already on those leaves them alone. Mouse and touch have no third axis.
+- **`TODO` runs hand and face detection together,** about twice the Vision work at the same 15 a second. The face is a third source with its own effect: leaning in plays it, with x for division, y for level and nearness adding depth. It goes to the one channel being worked as a second effect, or to the master with none or both, and never takes a unit a hand is playing on. Losing sight of it lets go through the same path as everything else.
+- **Fixed on the way:** the camera panel drew hands by their surface position after each got its own half, so they appeared in the wrong place.
+- **Not verified:** all of it was driven by invented frames, so whether nearness feels controllable, whether pinch and lean interfere when used together, the CPU cost and how the effects sound are unknown.
+
 ## ADR-030 · Loop cues in one bank, an effect while held, a mixer under Option, keys in color — accepted (2026-10-31)
 
 The maintainer asked for hot cue loops, an effect like Release FX that follows pressure without stopping the track, a third row of pad modes for curado's own, keyboard shortcuts for the mixer, and a quicker read of each deck's key and distance.

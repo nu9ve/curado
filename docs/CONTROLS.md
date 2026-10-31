@@ -36,6 +36,14 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 
 **Camera:** in **CONEXIONES**, **MANOS** or **CARA** drive the XY surfaces; off every time curado opens. Each hand moves the surface on its side and acts while pinching; a face moves XY 1 and acts on leaning in. **VER** shows the picture in the panel and **XY** shows each side faintly inside its surface. Each half of the view is a whole surface, so a hand reaches all of its own. It stops by itself when you leave Mix or switch to another app, the camera light goes off, and it comes back on return. Images stay on your Mac.
 
+**Surfaces:** each XY has **COLOR, FILTER, BEAT FX, EQ** and **STUTTER, RECYCLE, GATE, PITCH**. In these last four, x is the division and y the level, and letting go turns the effect off, leaving it selected on the dial.
+
+**Stutter and Recycler:** two Beat FX. **STUTTER** strikes a slice on each division with air between, and takes a new one every four hits. **RECYCLER** plays earlier slices of the last moments out of order, some backward. It records from when it is chosen, so it needs a moment of history. **TIME** sets the slice in both. Also on **TRIGGER FX**.
+
+**Nearness:** while pinching, bringing a hand nearer or farther than where the pinch began is a third axis. With the camera running, the **Z** button on each surface chooses filter (farther low pass, nearer high pass), echo (nearer is more) or nothing.
+
+**TODO:** tracks hands and face at once, for three effects, at about twice the CPU. Each hand works its surface. Leaning in plays the effect chosen under **CARA**: x for division, y for level, nearer for more depth. It goes to the channel whose hand is pinching, as a second effect, or to the master when no hand or both are. If that hand is already on a Beat FX surface, it goes to the master too.
+
 **Touch:** on a Force Touch trackpad, controls tap as they move: a light notch per step, a snap at a center or origin, a stop at each end. Dials, the XY grid and platter dimples have their own. **toques** turns them off. Pressing harder on a knob or slider moves it up to 4× more finely, like Shift, and both multiply. A Magic Mouse has no way to tap or sense pressure.
 
 **Headphones:** with an output of 4 or more channels, 3 and 4 are the cue: channel **CUE**, **MASTER**, **MIXING** and **LEVEL**. Holding the waveform of the selected track in **información** is **TOUCH PREVIEW**: it goes to the headphones, or at half level through the speakers on a stereo output, and says so.

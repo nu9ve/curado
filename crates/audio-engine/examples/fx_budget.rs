@@ -97,6 +97,19 @@ fn main() {
     );
     measure("all reverbs, EQ and filters", &everything, 256);
     measure("all reverbs, EQ and filters", &everything, 64);
+    // The slicing effects on every unit, the heaviest way to use them.
+    let mut slicing = Vec::new();
+    for (name, kind) in [("Stutter", 14), ("Recycler", 15)] {
+        slicing.clear();
+        for unit in 0..3 {
+            slicing.extend([
+                (unit, C::BeatFx(kind)),
+                (unit, C::BeatFxBeats(0.25)),
+                (unit, C::BeatFxOn(true)),
+            ]);
+        }
+        measure(&format!("{name} on all three units"), &slicing, 256);
+    }
     let mut locked = everything.to_vec();
     locked.extend([(0, C::KeyLock(true)), (1, C::KeyLock(true))]);
     measure("all of that with key lock on both", &locked, 256);

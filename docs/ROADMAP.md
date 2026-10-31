@@ -24,6 +24,15 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 4. **OS/device resilience:** hotplug/sleep-wake, controlled reconnect without surprise volume; deterministic thread teardown/join; recoverable DB errors. Measure UI/input/DAC/callback under load.
 5. **Distribution/physical testing (S10):** executed three-OS CI, signed in-bundle helper, signing/notarization, dependency/license audit, two-hour stress; explicit Linux exit without usable tray. Project license decision is documented in [Licensing](LICENSING.md), still unapplied.
 
+## P1 · Small open items
+
+- Keys that act on the pad mode shown, so Trigger FX, loops and rolls can be held from the keyboard. Keys always mean hot cues today.
+- Option targets in **Settings → Keyboard**, and badges for the effect targets, which only appear in the keyboard tab.
+- Surfaces and the face returning the channel's dial to its effect on release, as Trigger FX does, and remembering their modes and Z between launches.
+- Thresholds for pinch, lean and nearness tuned on a real camera, and a calibration if they differ too much per person.
+- Taps' strength and density once felt on a trackpad; hints in the footer for the newest controls.
+- Dimmed RX3 controls that need other inputs and outputs: mic, AUX, input switches, booth and LINK.
+
 ## P1 · Complete player
 
 - Editable queue/shuffle; next-track prefetch exists. Real gapless depends on the native clock.

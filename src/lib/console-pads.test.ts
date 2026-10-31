@@ -91,7 +91,7 @@ test('every pad value is one the engine accepts', () => {
   expect(ROLL_PADS).toHaveLength(8);
   expect(JUMP_PADS).toHaveLength(8);
   expect(COLOR_FX).toHaveLength(6);
-  expect(BEAT_FX).toHaveLength(14);
+  expect(BEAT_FX).toHaveLength(16);
   expect([...BEAT_FX_ORDER].sort((a, b) => a - b)).toEqual(BEAT_FX.map((_, i) => i));
   expect(BEAT_FX_ORDER.map((kind) => BEAT_FX[kind])).toEqual([
     'DELAY',
@@ -108,6 +108,8 @@ test('every pad value is one the engine accepts', () => {
     'ROLL',
     'VINYL BRAKE',
     'HELIX',
+    'STUTTER',
+    'RECYCLER',
   ]);
   for (const kind of TRIGGER_FX) expect(BEAT_FX[kind]).toBeDefined();
   expect(KEY_PADS).toHaveLength(8);

@@ -15,7 +15,7 @@ _The console with invented tracks. Each pale badge is the key for that control._
 
 **A console to play.** Platters you can scratch, hot cues, slip, reverse, beat jump, and pads for cues, loops, rolls, samples, key shifts and Release FX. Save hot cues that loop, hold a **TRIGGER FX** that follows your pressure, and press **AUTO LOOP** for a loop with no IN or OUT to mark, and pick its length from 1/4 to 32 beats, even while it plays.
 
-**Effects on every channel.** Six color effects and fourteen beat effects, different per channel and on the master.
+**Effects on every channel.** Six color effects and sixteen beat effects, including Stutter and Recycler, different per channel and on the master.
 
 **Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or use MIDI Learn. Hold Option to reach the whole mixer with arrows. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
 
@@ -46,7 +46,7 @@ _A separate window on macOS with seven scenes, including a spectral city and a c
 - **Match keys at a glance:** each deck's key in color on the screen, with the semitones to the other deck, one press away.
 - **Prepare:** BPM, grid, bars and key estimated over the whole track, in letter notation and Camelot. Correct any of them by hand. Key lock and ±12-semitone transposition. Tracks whose tempo moves can follow their own beats.
 - **Headphones:** with an output of four or more channels, 3 and 4 become a cue bus with mix and level, plus Touch Preview for the selected track.
-- **Extra surfaces:** two XY pads for effects by finger, pointer or, if you want, by hand or face through the camera, which is off until you ask and stays on your Mac.
+- **Extra surfaces:** two XY pads with eight modes, by finger, pointer or, if you want, by camera, which is off until you ask and stays on your Mac. Each hand drives its side, nearness is a third axis, and hands and face together run three effects.
 - **Bring your drive:** connected drives appear in the sidebar. A rekordbox USB shows its playlists; any other drive can be browsed for audio.
 - **Make it yours:** five styles, your own color, light/dark/system themes and waveform options.
 - **Visualize:** a reactive visual in the player and, on macOS, a Metal window with seven scenes. Adjust glow, reactivity, speed and color, drag the camera, H hides controls and F is fullscreen.

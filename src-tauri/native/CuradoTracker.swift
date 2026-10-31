@@ -17,6 +17,7 @@ final class Tracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let session = AVCaptureSession()
     private let queue = DispatchQueue(label: "curado.tracker.frames")
     private let tracksHands: Bool
+    private let tracksFace: Bool
     private let hands = VNDetectHumanHandPoseRequest()
     private let faces = VNDetectFaceRectanglesRequest()
     private let images = CIContext(options: [.useSoftwareRenderer: false])
@@ -28,8 +29,9 @@ final class Tracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let frameInterval = CMTime(value: 1, timescale: 15)
     private let previewInterval = CMTime(value: 1, timescale: 8)
 
-    init(tracksHands: Bool) {
+    init(tracksHands: Bool, tracksFace: Bool) {
         self.tracksHands = tracksHands
+        self.tracksFace = tracksFace
         hands.maximumHandCount = 2
     }
     func setPreview(_ on: Bool) {
@@ -80,17 +82,18 @@ final class Tracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         guard let pixels = CMSampleBufferGetImageBuffer(buffer) else { return }
         let handler = VNImageRequestHandler(cvPixelBuffer: pixels, orientation: .up, options: [:])
         var frame: [String: Any] = [:]
+        var requests: [VNRequest] = []
+        if tracksHands { requests.append(hands) }
+        if tracksFace { requests.append(faces) }
+        try? handler.perform(requests)
         if tracksHands {
-            try? handler.perform([hands])
             frame["hands"] = (hands.results ?? []).compactMap(handPoint)
-        } else {
-            try? handler.perform([faces])
-            if let face = (faces.results ?? []).max(by: {
-                $0.boundingBox.width < $1.boundingBox.width
-            }) {
-                let box = face.boundingBox
-                frame["face"] = ["x": Double(box.midX), "y": Double(box.midY), "size": Double(box.width)]
-            }
+        }
+        if tracksFace, let face = (faces.results ?? []).max(by: {
+            $0.boundingBox.width < $1.boundingBox.width
+        }) {
+            let box = face.boundingBox
+            frame["face"] = ["x": Double(box.midX), "y": Double(box.midY), "size": Double(box.width)]
         }
         lock.lock()
         let wantsPreview = previewing
@@ -134,7 +137,8 @@ final class Tracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     }
 }
 
-let tracker = Tracker(tracksHands: CommandLine.arguments.dropFirst().first != "face")
+let mode = CommandLine.arguments.dropFirst().first
+let tracker = Tracker(tracksHands: mode != "face", tracksFace: mode == "face" || mode == "all")
 switch AVCaptureDevice.authorizationStatus(for: .video) {
 case .authorized: tracker.start()
 case .notDetermined:

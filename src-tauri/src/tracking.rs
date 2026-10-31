@@ -18,12 +18,15 @@ use std::{
 pub enum Mode {
     Hands,
     Face,
+    /// Both at once, which costs about twice the Vision work.
+    All,
 }
 impl Mode {
     fn argument(self) -> &'static str {
         match self {
             Self::Hands => "hands",
             Self::Face => "face",
+            Self::All => "all",
         }
     }
 }

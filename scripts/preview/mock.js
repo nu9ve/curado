@@ -173,6 +173,7 @@
   window.__state = state;
   window.__calls = [];
   const emit = {};
+  window.__track = (payload) => emit.frame?.({ event: 'tracking:frame', id: 2, payload });
   window.__emit = () =>
     emit.state?.({ event: 'engine:state', id: 1, payload: JSON.parse(JSON.stringify(state)) });
   const noise = (seed) => {
@@ -250,6 +251,7 @@
       if (cmd === 'get_theme') return THEME;
       if (cmd === 'plugin:event|listen') {
         if (args.event === 'engine:state') emit.state = cbs[args.handler];
+        if (args.event === 'tracking:frame') emit.frame = cbs[args.handler];
         return 1;
       }
       if (cmd === 'device_library')

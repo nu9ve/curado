@@ -13,7 +13,7 @@ _La consola con pistas inventadas. Cada etiqueta clara es la tecla de ese contro
 
 **Una consola para tocar.** Platos para hacer scratch, hot cues, slip, reversa, beat jump y pads de cues, loops, rolls, samples, cambios de tono y Release FX. Guarda hot cues que hacen loop, mantén un **TRIGGER FX** que sigue tu presión y presiona **AUTO LOOP** para hacer un loop sin marcar IN ni OUT, y elige su duración de 1/4 a 32 beats, incluso mientras suena.
 
-**Efectos en cada canal.** Seis efectos de color y catorce de beat, distintos por canal y en el master.
+**Efectos en cada canal.** Seis efectos de color y dieciséis de beat, incluidos Stutter y Recycler, distintos por canal y en el master.
 
 **El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o usa MIDI Learn. Mantén Option para llegar a todo el mixer con flechas. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
 
@@ -44,7 +44,7 @@ _Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el os
 - **Iguala tonalidades de un vistazo:** la tonalidad de cada deck en color en la pantalla, con los semitonos hasta el otro, a una pulsación.
 - **Preparar:** BPM, grid, compases y tonalidad estimados sobre toda la pista, en notación americana y Camelot. Corrígelos a mano. Key lock y transposición de ±12 semitonos. Las pistas cuyo tempo se mueve pueden seguir sus propios beats.
 - **Audífonos:** con una salida de cuatro canales o más, el 3 y el 4 se vuelven un bus de cue con mezcla y nivel, más Touch Preview de la pista seleccionada.
-- **Superficies extra:** dos pads XY para efectos con el dedo, el puntero o, si quieres, con la mano o la cara por cámara, que está apagada hasta que la pidas y se queda en tu Mac.
+- **Superficies extra:** dos pads XY con ocho modos, con el dedo, el puntero o, si quieres, por cámara, que está apagada hasta que la pidas y se queda en tu Mac. Cada mano mueve su lado, la cercanía es un tercer eje, y manos y cara juntas dan tres efectos.
 - **Trae tu disco:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists; en cualquier otro puedes buscar audio.
 - **Personalizar:** cinco estilos, tu propio color, temas claro/oscuro/sistema y opciones de waveform.
 - **Visualizar:** un visual reactivo en el reproductor y, en macOS, una ventana Metal con siete escenas. Ajusta brillo, reactividad, velocidad y color, arrastra la cámara, H oculta controles y F es pantalla completa.

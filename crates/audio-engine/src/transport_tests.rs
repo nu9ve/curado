@@ -844,8 +844,8 @@ fn each_channel_and_the_master_keep_their_own_effects() {
         .is_err()
     };
     assert!(rejected(0, "colorFx", 7.));
-    assert!(rejected(0, "beatFx", 14.));
-    assert!(!rejected(0, "beatFx", 13.));
+    assert!(rejected(0, "beatFx", 16.));
+    assert!(!rejected(0, "beatFx", 15.));
     assert!(rejected(0, "crossfaderCurve", 3.));
     assert!(rejected(0, "clearCue", 8.));
     assert!(rejected(0, "beatFxBeats", 3.));

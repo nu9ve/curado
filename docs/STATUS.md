@@ -1,5 +1,23 @@
 # curado status
 
+## Stutter, Recycler and three-way camera control · 2026-10-31
+
+See [ADR-031](DECISIONS.md) and [Controls](CONTROLS.md).
+
+**Automatically tested:** Stutter repeats a slice with silence between hits and takes a new one on time; Recycler plays only past audio from recent history, out of order and sometimes backward, with no jump at slice changes; both pass the input when off and stay inside the allocation audit. Surface moves, nearness from the pinch's start, a face's target and depth, separate sources, and points placed in the picture.
+
+**With invented camera frames through the real interface (`check:input`):** `TODO` asking the helper for both; each hand on its channel; a far face idle; nearer and farther moving the filter; the face following the active side and moving to the master; three at once; a hand on Stutter keeping its unit; the face's chosen effect; everything released on losing sight; new buttons fitting.
+
+**Measured:** `fx_budget`, off a real-time thread, 256 frames: Stutter on three units 5.6 % median, 8.2 % p99; Recycler 5.6 % and 6.7 %; two decks without effects 5.5 %. One run of all reverbs read a 141 % worst block while the machine was busy, against 36 % for a heavier setup in the same run, so that reading says more about scheduling, but it should be repeated on a quiet machine.
+
+**Not tried:** a real camera with `TODO`, Swift's two requests running together beyond compiling, how either effect sounds, and CPU use. Denon's Recycler was not found described, so this one may differ from it.
+
+Verification: `bun run check` passed (114 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (199 tests, 8 more ignored that need real data), `cargo clippy --workspace --all-targets -- -D warnings` and `bun run check:input` passed. Pictures remade with `bun run docs:pictures`.
+
+**Installation:** curado was closed, so `bun run desktop:install` built, verified, installed and registered the app without launching it, SHA-256 `96e2e9be…`.
+
+**Next:** [small open items](ROADMAP.md) and the hardware list in [Quality](QUALITY.md).
+
 ## Loop cues, Trigger FX, mixer keys and keys in color · 2026-10-31
 
 See [ADR-030](DECISIONS.md) and [Controls](CONTROLS.md).

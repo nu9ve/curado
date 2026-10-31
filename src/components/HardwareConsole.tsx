@@ -38,6 +38,8 @@ import { WaveOverview, ZoomWave } from './Waveform';
 import { bindingLabel, keyLabel as keyLabel_, TOGGLE_KINDS } from '../lib/keyboard';
 import { mixerTargetFor } from '../lib/mixer-keys';
 import {
+  inView,
+  useTrackedFace,
   overlayPlacement,
   setTrackingOverlay,
   useTrackedPoint,
@@ -47,8 +49,20 @@ import {
   useTrackingStatus,
 } from '../lib/tracking';
 import type { TrackMode } from '../lib/tracking';
-import { XY_MODES, xyMoves, xyPoint, xyRelease } from '../lib/xy';
-import type { XYMode } from '../lib/xy';
+import {
+  FACE_MODES,
+  faceMoves,
+  faceUnit,
+  XY_MODES,
+  xyModesNow,
+  xyMoves,
+  xyPoint,
+  xyRelease,
+  Z_TARGETS,
+  zMoves,
+  zRelease,
+} from '../lib/xy';
+import type { XYMode, ZTarget } from '../lib/xy';
 import { UnavailableControl } from './UnavailableControl';
 import './hardware-console.css';
 
@@ -1459,6 +1473,8 @@ function XYPad({
   onError: (e: unknown) => void;
 }) {
   const [mode, setMode] = useState<XYMode>('color');
+  const [zTarget, setZTarget] = useState<ZTarget>('filter');
+  const cameraOn = useTrackingStatus() === 'running';
   const [touching, setTouching] = useState(false);
   const send = (moves: { kind: string; value: number }[]) => {
     for (const { kind, value } of moves) parameter(index, kind, value, onError);
@@ -1481,15 +1497,21 @@ function XYPad({
   const held = useRef(false);
   const modeNow = useRef(mode);
   modeNow.current = mode;
+  xyModesNow[index] = mode;
+  const zNow = useRef(zTarget);
+  zNow.current = zTarget;
   useEffect(() => {
     if (engaged && tracked) {
       held.current = true;
-      for (const { kind, value } of xyMoves(modeNow.current, tracked.x, tracked.y))
-        parameter(index, kind, value, onError);
+      const moves = [
+        ...xyMoves(modeNow.current, tracked.x, tracked.y),
+        ...zMoves(zNow.current, modeNow.current, tracked.z),
+      ];
+      for (const { kind, value } of moves) parameter(index, kind, value, onError);
     } else if (held.current) {
       held.current = false;
-      for (const { kind, value } of xyRelease(modeNow.current))
-        parameter(index, kind, value, onError);
+      const moves = [...xyRelease(modeNow.current), ...zRelease(zNow.current, modeNow.current)];
+      for (const { kind, value } of moves) parameter(index, kind, value, onError);
     }
   }, [engaged, tracked, index, onError]);
   const finish = () => {
@@ -1521,6 +1543,21 @@ function XYPad({
             {entry.label}
           </button>
         ))}
+        {cameraOn && (
+          <button
+            className="rx-xy-z"
+            title={tr(
+              'Qué mueve acercar o alejar la mano, desde donde empezó el pellizco',
+              'What bringing the hand nearer or farther moves, from where the pinch began',
+            )}
+            onClick={() => {
+              const at = Z_TARGETS.findIndex((entry) => entry.target === zTarget);
+              setZTarget(Z_TARGETS[(at + 1) % Z_TARGETS.length].target);
+            }}
+          >
+            {Z_TARGETS.find((entry) => entry.target === zTarget)?.label}
+          </button>
+        )}
       </div>
       <div
         className={`rx-xy-surface ${touching ? 'is-touched' : ''}`}
@@ -1546,7 +1583,7 @@ function XYPad({
         onPointerUp={finish}
         onPointerCancel={finish}
       >
-        {overlayMode !== 'off' && image && (overlayMode === 'hands' || index === 0) && (
+        {overlayMode !== 'off' && image && (overlayMode !== 'face' || index === 0) && (
           <img
             className="rx-xy-camera"
             alt=""
@@ -1563,7 +1600,13 @@ function XYPad({
         {tracked && (
           <i
             className={`rx-xy-hand ${engaged ? 'is-pressed' : ''}`}
-            style={{ left: `${tracked.x * 100}%`, bottom: `${tracked.y * 100}%` }}
+            style={
+              {
+                left: `${tracked.x * 100}%`,
+                bottom: `${tracked.y * 100}%`,
+                '--z': tracked.z,
+              } as CSSProperties
+            }
           />
         )}
       </div>
@@ -1685,6 +1728,7 @@ function CameraControls({
           ['off', 'OFF'],
           ['hands', tr('MANOS', 'HANDS')],
           ['face', tr('CARA', 'FACE')],
+          ['all', tr('TODO', 'ALL')],
         ] as const
       ).map(([value, label]) => (
         <button
@@ -1696,9 +1740,14 @@ function CameraControls({
                   'Pellizca para accionar XY: cada mano mueve su lado',
                   'Pinch to work XY: each hand moves its side',
                 )
-              : value === 'face'
-                ? tr('Acércate para accionar XY 1', 'Lean in to work XY 1')
-                : tr('Apaga la cámara', 'Turns the camera off')
+              : value === 'all'
+                ? tr(
+                    'Manos y cara a la vez, tres efectos: usa cerca del doble de CPU',
+                    'Hands and face at once, three effects: uses about twice the CPU',
+                  )
+                : value === 'face'
+                  ? tr('Acércate para accionar XY 1', 'Lean in to work XY 1')
+                  : tr('Apaga la cámara', 'Turns the camera off')
           }
           onClick={() => onMode(value)}
         >
@@ -1732,31 +1781,91 @@ function CameraControls({
 }
 function CameraView({ mode }: { mode: TrackMode }) {
   const image = useTrackingPreview();
-  const points = [useTrackedPoint(0), useTrackedPoint(1)];
+  const points = [useTrackedPoint(0), useTrackedPoint(1), useTrackedFace()];
   return (
     <div className="rx-camera-view">
       {image && <img alt="" src={`data:image/jpeg;base64,${image}`} />}
-      {points.map(
-        (point, i) =>
-          point && (
-            <i
-              key={i}
-              className={point.engaged ? 'is-pressed' : ''}
-              style={{ left: `${point.x * 100}%`, bottom: `${point.y * 100}%` }}
-            />
-          ),
-      )}
+      {points.map((point, i) => {
+        if (!point) return null;
+        const place = inView(i, point, mode);
+        return (
+          <i
+            key={i}
+            className={`${point.engaged ? 'is-pressed' : ''} ${i === 2 ? 'is-face' : ''}`}
+            style={{ left: `${place.left}%`, bottom: `${place.bottom}%` }}
+          />
+        );
+      })}
       <span>
-        {mode === 'hands'
-          ? tr('pellizca para accionar', 'pinch to work')
-          : tr('acércate para accionar', 'lean in to work')}
+        {mode === 'all'
+          ? tr('pellizca y acércate', 'pinch and lean in')
+          : mode === 'hands'
+            ? tr('pellizca para accionar', 'pinch to work')
+            : tr('acércate para accionar', 'lean in to work')}
       </span>
     </div>
   );
 }
 
+/**
+ * The third effect: with hands and face at once, leaning in plays this on the channel being worked
+ * or the master, with its own x, y and nearness. Off as soon as the face leaves or leans back.
+ */
+function FaceFx({ onError }: { onError: (e: unknown) => void }) {
+  const [mode, setMode] = useState<XYMode>('stutter');
+  const face = useTrackedFace();
+  const left = useTrackedPoint(0)?.engaged ?? false;
+  const right = useTrackedPoint(1)?.engaged ?? false;
+  const held = useRef<number | null>(null);
+  const release = () => {
+    if (held.current === null) return;
+    for (const { kind, value } of xyRelease(mode)) parameter(held.current, kind, value, onError);
+    held.current = null;
+  };
+  const engaged = face?.engaged ?? false;
+  useEffect(() => {
+    if (!engaged || !face) {
+      release();
+      return;
+    }
+    const target = faceUnit([left, right], xyModesNow);
+    if (held.current !== target) release();
+    held.current = target;
+    for (const { kind, value } of faceMoves(mode, face.x, face.y, face.z))
+      parameter(target, kind, value, onError);
+    // Only what the camera says moves it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [engaged, face, left, right, mode]);
+  useEffect(() => release, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <div
+      className="rx-face-fx"
+      role="group"
+      aria-label={tr('Efecto de la cara', 'Face effect')}
+      data-on={engaged}
+    >
+      <b>{tr('CARA', 'FACE')}</b>
+      {FACE_MODES.map((entry) => (
+        <button
+          key={entry.mode}
+          aria-pressed={mode === entry.mode}
+          onClick={() => setMode(entry.mode)}
+        >
+          {entry.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** What is connected, and what it is doing right now. */
-function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
+function ConnectionsPanel({
+  onSettings,
+  onError,
+}: {
+  onSettings: () => void;
+  onError: (e: unknown) => void;
+}) {
   const { midi, output } = useSnapshot();
   const devices = useDevices();
   const lastMidi = useRef('');
@@ -1782,6 +1891,7 @@ function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
         <button onClick={onSettings}>MIDI LEARN</button>
       </div>
       <CameraControls mode={mode} onMode={setMode} view={view} onView={setView} />
+      {mode === 'all' && <FaceFx onError={onError} />}
       {mode !== 'off' && view === 'panel' ? (
         <CameraView mode={mode} />
       ) : (
@@ -2095,7 +2205,7 @@ export function HardwareConsole({
           </div>
           <div className="rx-top rx-top-right">
             <XYPad index={1} slot={slots[1]} fx={audio?.beatFx?.[1] ?? IDLE_FX} onError={onError} />
-            <ConnectionsPanel onSettings={() => onScreenKey('menu')} />
+            <ConnectionsPanel onSettings={() => onScreenKey('menu')} onError={onError} />
           </div>
           <div className="rx-chassis" />
           <div className="rx-band rx-band-left" aria-label="MIC">
