@@ -17,3 +17,14 @@ export function isDownbeat(time: number, beat: number, downbeat: number, beatsPe
   const beats = Math.round((time - downbeat) / beat);
   return ((beats % beatsPerBar) + beatsPerBar) % beatsPerBar === 0;
 }
+
+export type Harmony = 'same' | 'compatible' | 'clash';
+/** The Camelot rule mixes use: the same number or letter one step away on the wheel. */
+export function harmony(a: MusicalKey | null, b: MusicalKey | null): Harmony | null {
+  if (!a || !b) return null;
+  if (a.tonic === b.tonic && a.minor === b.minor) return 'same';
+  const number = (key: MusicalKey) => (key.minor ? MINOR : MAJOR)[key.tonic];
+  const distance = Math.abs(number(a) - number(b));
+  if (a.minor !== b.minor) return distance === 0 ? 'compatible' : 'clash';
+  return distance === 1 || distance === 11 ? 'compatible' : 'clash';
+}

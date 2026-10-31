@@ -135,6 +135,16 @@ export interface MidiState {
   dropped: number;
 }
 export interface Slot {
+  trim: number;
+  /** Bipolar: nothing at center, and a different effect on each side. */
+  color: number;
+  colorParam: number;
+  /** 0 is off; then the order of COLOR_FX, from 1. */
+  colorFx: number;
+  brake: number;
+  slip: boolean;
+  reverse: boolean;
+  rolling: boolean;
   id: number;
   position: number;
   duration: number;
@@ -163,7 +173,18 @@ export interface Slot {
   loopBeats: number;
   queued: boolean;
 }
+export interface BeatFxState {
+  kind: number;
+  on: boolean;
+  beats: number;
+  depth: number;
+  bpm: number;
+}
 export interface Audio {
+  /** Channel A, channel B, master. */
+  beatFx: BeatFxState[];
+  sampler: number;
+  autoGain: boolean;
   slots: Slot[];
   peak: number;
   rms: number;
@@ -226,6 +247,14 @@ export type LibraryEdit =
   | { kind: 'favorite'; track: number; value: boolean }
   | { kind: 'removeTrack'; track: number };
 export const EMPTY_SLOT: Slot = {
+  trim: 1,
+  color: 0,
+  colorParam: 0.5,
+  colorFx: 0,
+  brake: 0,
+  slip: false,
+  reverse: false,
+  rolling: false,
   loadTicket: 0,
   music: EMPTY_MUSIC,
   tuning: DEFAULT_TUNING,

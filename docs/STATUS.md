@@ -1,5 +1,41 @@
 # curado status
 
+## Fixed mixing screen, channel effects and cleaner audio · 2026-10-30
+
+The maintainer confirmed by ear that USB tracks play and control well, then asked for a better mixing layout and the RX3's missing functions, and approved the audio quality list. See [ADR-022, ADR-023](DECISIONS.md) and [Controls](CONTROLS.md).
+
+**Layout (implemented, never seen on screen).** Mix is one fixed screen: console left, with a draggable divider and a collapsible side panel holding library, tools and keyboard; track information with tempo and key against the master; a source selector; a compact sidebar rail, on by default in Mix. Lists scroll inside themselves. No visual test was run, so proportions, overlaps, the rail near the window controls and small knobs may need adjusting.
+
+**Functions (automatically tested, not listened to).** Six Sound Color FX per channel and nine Beat FX on independent CH 1, CH 2 and master units; trim; beat loop, beat jump and roll pad modes; loop 1/2X and 2X; slip; reverse; platter scratch and tempo bend; vinyl brake; tempo range; eight samples with a shared level; TAP; TAG TRACK; auto gain. These effects were not compared with an RX3, and their names describe intent rather than equivalence.
+
+**Audio quality (measured, not listened to).**
+
+| Measurement | Result |
+| --- | --- |
+| EQ, band killed, tone inside that band | under −35 dB, was shallow one-pole |
+| EQ flat through the crossovers | within ±0.1 dB, 30 Hz to 15 kHz |
+| EQ centered | sample-exact, attacks included |
+| LP/HP two octaves past cutoff | −42 to −54 dB, a 24 dB/octave slope |
+| Sinc at 0.97× on a 15 kHz tone | within ±0.2 dB, everything else under −70 dB |
+| 20 kHz tone at 1.5× (it would fold to 18 kHz) | under −60 dB |
+| Loudness of a full-scale 997 Hz tone at 44.1, 48 and 96 kHz | within 0.3 LU of the standard |
+
+**Callback cost on this Mac** (`fx_budget`, normal-priority thread at 48 kHz, 44.1 kHz files, ten voices sounding, three runs and repeats):
+
+| Case | Median | p99 |
+| --- | --- | --- |
+| No effects, 256 frames | 5.4 % | 6.7 % |
+| Tempo moved (sinc), 256 frames | 10 % | 12 % |
+| Three reverbs, EQ, filters, 256 frames | 11 % | 13–27 % |
+| The same, 64 frames | 6.5 % | 28–39 % |
+| The same with key lock, 256 frames | 11 % | 13–25 % |
+
+Single blocks reached 30–45 ms in some runs, in every case including no effects, at different moments, and not in other runs of the same case. That points to the OS preempting a normal-priority thread rather than to this work, but it was not proven on the real-time audio thread, so the maintainer should watch for dropouts.
+
+Limits: the classic layout has no new controls; use **cabina**. MIDI Learn gained continuous controls only, so slip, reverse and Beat FX on/off have no MIDI toggle. Headphone cue, SOURCE, booth, Slip Roll, Pitch, Spiral and Helix do not exist. Effects keep no state between launches, except auto gain. A cue edited here keeps a cached color until its track loads again. Scratching responds to 60 Hz pointer events, with no hardware jog tried. Reverse has not been tried on real music.
+
+Verification: `bun run check` passed (52 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (156 tests, 4 more ignored that need a real USB; `real_import` passes on this one) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit, which now covers every effect and the new transport modes. The macOS `.app` built, passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `515e0503f7d72e67a4778b9d7313c3cda88d552ec748b92e9b60b2e33d57dc23`. `export.pdb` on the USB kept its date. Next: the maintainer should try the screen and rail, then listen to each effect, EQ kills, roll, slip, scratch and brake on real tracks, including with key lock. The rest of the priorities remain in [Roadmap](ROADMAP.md).
+
 ## Export to rekordbox.xml · 2026-10-30
 
 **To rekordbox** in the library saves a `rekordbox.xml` with cues and loops set here, and grids and keys corrected by hand, plus curado's playlists, in a file the user chooses. See [ADR-021](DECISIONS.md) and [Controls](CONTROLS.md). **It has not been imported into rekordbox:** only the maintainer can confirm that it imports, matches tracks and does not disturb the rest.

@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { isDownbeat, keyLabel, transposeKey } from './music';
+import { harmony, isDownbeat, keyLabel, transposeKey } from './music';
 import { promoteBundle } from '../../scripts/install-local';
 test('Camelot covers all 24 keys and transposition preserves mode', () => {
   const codes = new Set<string>();
@@ -48,4 +48,15 @@ test('bars follow the stored downbeat position, whichever grid line it falls on'
   expect(isDownbeat(1.125, 0.5, 1.13)).toBe(true);
   // An analysis without bars reads the first grid line as the start of a bar.
   expect(isDownbeat(0.125, 0.5, 0)).toBe(true);
+});
+
+test('harmony follows the Camelot wheel, including across 12 and 1', () => {
+  const key = (tonic: number, minor: boolean) => ({ tonic, minor });
+  expect(harmony(key(9, true), key(9, true))).toBe('same');
+  expect(harmony(key(9, true), key(0, false))).toBe('compatible'); // 8A and 8B
+  expect(harmony(key(9, true), key(4, true))).toBe('compatible'); // 8A and 9A
+  expect(harmony(key(9, true), key(2, true))).toBe('compatible'); // 8A and 7A
+  expect(harmony(key(1, true), key(8, true))).toBe('compatible'); // 12A and 1A
+  expect(harmony(key(9, true), key(10, true))).toBe('clash');
+  expect(harmony(key(9, true), null)).toBeNull();
 });

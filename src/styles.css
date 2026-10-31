@@ -1366,11 +1366,6 @@ input[type='range']::-moz-range-thumb {
 }
 
 /* ───────────── mix view: a console laid out like the keyboard ───────────── */
-.mix-view {
-  display: grid;
-  gap: 16px;
-  animation: rise 0.4s var(--ease);
-}
 .zoom-stack {
   display: grid;
   gap: 2px;
@@ -2257,7 +2252,7 @@ tr:focus-within .row-load {
 }
 .bottom-playback {
   display: grid;
-  grid-template-columns: var(--sidebar-w) minmax(0, 1fr) 300px;
+  grid-template-columns: 232px minmax(0, 1fr) 300px;
   align-items: center;
   width: 100%;
   height: 64px;
@@ -3172,27 +3167,429 @@ input[type='color'] {
 
 /* Alternate all-in-one surface: presentation only, sharing the native controls. */
 .mix-layout-bar {
+  flex: none;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
+  gap: 4px;
+  padding: 6px 10px;
   color: var(--text-secondary);
   font-size: 11px;
 }
-.mix-layout-bar span {
-  margin-right: 5px;
+.mix-bar-gap {
+  flex: 1;
 }
 .mix-layout-bar button {
-  min-height: 30px;
-  padding: 5px 12px;
+  min-height: 26px;
+  padding: 3px 10px;
+  font-size: 11px;
+}
+.mix-layout-bar button.icon-button {
+  padding: 3px 6px;
 }
 .mix-layout-bar button[aria-pressed='true'] {
   background: var(--accent-soft);
   color: var(--accent-text);
   box-shadow: inset 0 -2px var(--accent);
 }
-.mix-view > .zoom-stack {
+
+/* Mixing is one fixed screen: only the side panel's lists and tools scroll, inside themselves. */
+.app-shell.view-mix.is-workspace {
+  --footer-h: 38px;
+}
+.app-shell.view-mix.is-workspace.help-expanded {
+  --footer-h: calc(38px + min(180px, 24vh));
+}
+.app-shell.is-workspace .bottom-playback {
+  display: none;
+}
+.sheet-scroll.is-workspace {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+.sheet-scroll.is-workspace > * + * {
   margin-top: 0;
+}
+.sheet-scroll.is-workspace > .notice {
+  flex: none;
+  margin: 8px 10px 0;
+}
+.mix-workspace {
+  --split: 0.62;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, calc(var(--split) * 100%)) 7px minmax(0, 1fr);
+  animation: rise 0.4s var(--ease);
+}
+.mix-workspace.panel-closed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.mix-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.mix-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+.mix-classic {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 0 14px 14px;
+}
+.mix-classic .zoom-stack {
+  margin: 0 -14px 12px;
+}
+.mix-classic .console {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  row-gap: 18px;
+}
+.mix-classic .mixer {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  justify-self: center;
+}
+.mix-divider {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+.mix-divider::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 3px;
+  width: 1px;
+  background: var(--line);
+}
+.mix-divider:hover::after,
+.mix-divider:focus-visible::after {
+  left: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.mix-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  container-type: inline-size;
+}
+.track-info {
+  flex: none;
+  padding: 6px 12px 4px 4px;
+}
+.track-info-toggle {
+  min-height: 22px;
+  padding: 0 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-family: var(--font-pixel);
+  letter-spacing: 0.08em;
+}
+.track-info-body {
+  display: grid;
+  gap: 2px;
+  margin-top: 2px;
+}
+.track-info-row {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) repeat(3, auto);
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 2px 6px;
+  border-radius: var(--r);
+  font-size: 11px;
+}
+.track-info-row.track-info-choice {
+  grid-template-columns: 16px minmax(0, 1fr) repeat(3, auto) auto auto;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.track-info-row > b {
+  font-family: var(--font-display);
+  color: var(--tone, var(--accent));
+}
+.track-info-row > span {
+  display: grid;
+  min-width: 0;
+}
+.track-info-row strong,
+.track-info-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.track-info-row small {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+.track-info-row em {
+  font: 11px var(--font-mono);
+  color: var(--text-secondary);
+}
+.track-info-row button {
+  min-height: 22px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+.mix-panel-tabs {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  padding: 2px 12px 0 8px;
+  border-bottom: 1px solid var(--line);
+}
+.mix-panel-tabs button {
+  min-height: 26px;
+  padding: 2px 10px;
+  border-radius: var(--r) var(--r) 0 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.mix-panel-tabs button[aria-selected='true'] {
+  color: var(--text);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.mix-panel-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 8px 12px 8px 8px;
+}
+.mix-tools,
+.mix-panel-body .rx-keyboard {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  margin: 0;
+  padding: 0 4px 0 0;
+  border: 0;
+}
+.source-select {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.source-select select {
+  flex: 1;
+  min-width: 0;
+  min-height: 26px;
+}
+.mix-panel-body .library {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mix-panel-body .library-heading {
+  flex: none;
+  align-items: center;
+  gap: 8px;
+}
+/* The source selector already names what is listed. */
+.mix-panel-body .library-heading > div:first-child,
+.mix-panel-body .library-foot {
+  display: none;
+}
+.mix-panel-body .library-actions {
+  flex: 1;
+  justify-content: flex-end;
+}
+.mix-panel-body .library-actions button {
+  min-height: 26px;
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.mix-panel-body .library-toolbar {
+  flex: none;
+}
+.mix-panel-body .search {
+  max-width: none;
+}
+.mix-panel-body .selection-toolbar {
+  flex: none;
+}
+.mix-panel-body .track-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.mix-panel-body .track-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 4px;
+  background: var(--surface);
+}
+.mix-panel-body .track-table td {
+  padding-block: 4px;
+}
+.mix-panel-body .device-files {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.mix-panel-body .device-note,
+.mix-panel-body .empty {
+  flex: none;
+}
+/* The library and a drive list different columns: both give up the last ones to read first. */
+@container (max-width: 640px) {
+  .library .track-table th:nth-child(1),
+  .library .track-table td:nth-child(1),
+  .library .track-table th:nth-child(3),
+  .library .track-table td:nth-child(3),
+  .device-browser .track-table th:nth-child(1),
+  .device-browser .track-table td:nth-child(1),
+  .device-browser .track-table th:nth-child(3),
+  .device-browser .track-table td:nth-child(3) {
+    display: none;
+  }
+}
+@container (max-width: 480px) {
+  .library .track-table th:nth-child(4),
+  .library .track-table td:nth-child(4),
+  .library .track-table th:nth-child(7),
+  .library .track-table td:nth-child(7),
+  .device-browser .track-table th:nth-child(4),
+  .device-browser .track-table td:nth-child(4) {
+    display: none;
+  }
+  .track-info-row em:last-of-type {
+    display: none;
+  }
+}
+@media (max-width: 1120px) {
+  .mix-workspace,
+  .mix-workspace.panel-closed {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .mix-workspace:not(.panel-closed) {
+    grid-template-rows: minmax(0, 1fr) minmax(0, 45%);
+  }
+  .mix-divider {
+    display: none;
+  }
+}
+
+/* The compact sidebar: a rail that keeps what is needed to choose what is on screen. */
+.app-shell.sidebar-rail {
+  --sidebar-w: 60px;
+}
+.sidebar-rail .sidebar {
+  align-items: center;
+  padding: 0 8px 10px;
+}
+.sidebar-rail .brand {
+  justify-content: center;
+  padding: 0;
+}
+[data-platform='macos'] .sidebar-rail .brand {
+  height: calc(var(--topbar-h) + 26px);
+  padding: var(--topbar-h) 0 0;
+}
+.sidebar-rail .wordmark,
+.sidebar-rail .nav-label,
+.sidebar-rail .nav-count,
+.sidebar-rail .side-nav > .eyebrow,
+.sidebar-rail .section-line .eyebrow,
+.sidebar-rail .nav-folder,
+.sidebar-rail .sidebar-hint,
+.sidebar-rail .demo-button,
+.sidebar-rail .build-label {
+  display: none;
+}
+.sidebar-rail .side-nav {
+  width: 100%;
+  gap: 2px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--chrome-line);
+  scrollbar-width: none;
+}
+.sidebar-rail .side-nav:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.sidebar-rail .side-nav .section-line {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 2px;
+}
+.sidebar-rail .nav-item,
+.sidebar-rail .nav-item.nested,
+.sidebar-rail .settings-button {
+  justify-content: center;
+  width: 44px;
+  min-height: 34px;
+  padding: 0;
+  border-radius: var(--r);
+}
+.sidebar-rail .nav-item.active::after {
+  left: -8px;
+  border-radius: 0 2px 2px 0;
+}
+.sidebar-rail .nav-item.has-chip svg {
+  display: none;
+}
+.nav-chip {
+  display: none;
+}
+.sidebar-rail .nav-chip {
+  display: block;
+  font: 10px var(--font-pixel);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.sidebar-rail .sidebar-bottom {
+  justify-items: center;
+  width: 100%;
+  padding-top: 8px;
+  border-top: 1px solid var(--chrome-line);
+}
+/* The window's native controls sit over the rail, so the header starts clear of them. */
+[data-platform='macos'] .sidebar-rail .topbar {
+  padding-left: 22px;
+}
+.rail-toggle {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  margin-right: 2px;
+}
+
+.sample-bank-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.mix-tools .sample-pads {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 /* Connected devices. */

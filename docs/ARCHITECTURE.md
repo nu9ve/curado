@@ -43,7 +43,7 @@ Mix offers classic and console presentations. `HardwareConsole` renders a separa
 
 ## Waveform and UI rendering
 
-`analysis::WaveformBuilder` consumes each decoded frame without a second pass: 50 bins/s, each `[peak, low, mid, high]` as linear `u8`, using the EQ's one-pole 220/2600 Hz splits. `analysis::encode` prepends `[1, 50, 0, 0]`; SQLite stores the BLOB (~48 KB for four minutes), returned by `track_waveform` as raw `ArrayBuffer` via `tauri::ipc::Response`, not JSON.
+`analysis::WaveformBuilder` consumes each decoded frame without a second pass: 50 bins/s, each `[peak, low, mid, high]` as linear `u8`, using one-pole splits at the EQ's 220/2600 Hz. `analysis::encode` prepends `[1, 50, 0, 0]`; SQLite stores the BLOB (~48 KB for four minutes), returned by `track_waveform` as raw `ArrayBuffer` via `tauri::ipc::Response`, not JSON.
 
 `get_library` excludes peaks. UI requests only displayed track waveforms, with a bounded 24-track FIFO cache. Pre-v3 tracks have `waveform NULL`; the next deck load fills it through non-overwriting `fill_waveform`, and UI requests it again.
 
@@ -51,9 +51,9 @@ Overview canvas repaints only for data, size or theme changes. Position, played 
 
 ## Engine
 
-Slots 0/1 are A/B; 2–5 are one-shots. Each deck uses immutable stereo PCM, fractional position and linear sample-rate interpolation. Rate multiplies the step. A/B key lock and transposition run in real time, described below. Mono outputs downmix L/R; extra output channels are silent. Files with more than two channels are explicitly rejected.
+Slots 0/1 are A/B; 2–9 are one-shots. Each deck uses immutable stereo PCM, fractional position and windowed-sinc interpolation (`resample.rs`). Actions addressing a Beat FX unit use slot 2 for the master unit. Rate multiplies the step. A/B key lock and transposition run in real time, described below. Mono outputs downmix L/R; extra output channels are silent. Files with more than two channels are explicitly rejected.
 
-Signal chain: source → one-pole split EQ at 220/2600 Hz → LP/HP → gain → beat echo using output BPM (feedback ≤.55) → A/B crossfader or .5 sample gain → master → limiter. Gains, crossfader, EQ, wet and filters are smoothed.
+Signal chain: source → trim and auto gain → Linkwitz-Riley EQ at 220/2600 Hz, out of the path when centered → 24 dB LP/HP, likewise → Sound Color FX → gain → beat echo using output BPM (feedback ≤.55) → channel Beat FX → A/B crossfader, or .5 × sampler level for samples → master Beat FX → master → limiter. Gains, crossfader, EQ, wet and filters are smoothed. `fx.rs` holds the effects and `loudness.rs` the BS.1770 measure taken on the loading worker. Slip keeps a shadow position; reverse, scratch and brake use plain playback instead of the stretcher.
 
 `limiter.rs` is stereo-linked with a 1.5 ms look-ahead, 120 ms release and −1 dBTP ceiling (0.891). A 12-tap Hann-sinc detector reads three positions between samples, and a sliding minimum followed by a box average guarantees the gain has reached a peak's requirement when that peak leaves the delay line. It adds a constant 77 frames at 48 kHz (1.6 ms). Below the ceiling its gain is exactly 1, so it only delays. Buffers are sized at engine creation; non-finite samples become silence. A final clamp stays as a safety net, and `clipped` counts only samples it touched. Snapshots expose `limited` frames and `limiterDb`, a reduction held for 200 ms so 20 Hz telemetry cannot miss a short event.
 

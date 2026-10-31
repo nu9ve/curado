@@ -17,7 +17,27 @@ The current UI labels are Spanish. This guide explains them in English and prese
 
 Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 
-The **cabina** layout instead uses the same performance pads for **HOT CUE** or **SAMPLER**, chosen independently on each deck. The sampler references the same four global samples on both decks; the other pad positions are unavailable. Switching pad modes does not change playback or keyboard bindings. The keyboard map in deck B shows the action for a pointed key and the latest keyboard action.
+The **cabina** layout has these pad modes, chosen independently on each deck. Switching them does not change playback or keyboard bindings.
+
+- **HOT CUE:** eight cues. **BEAT LOOP:** press for a loop of that length; press again to end it. **BEAT JUMP:** back on the top row, forward on the bottom. An active loop moves along.
+- **ROLL:** hold to repeat; on release the track returns to where it would have been. Another pad changes the size and keeps that point.
+- **SAMPLER:** the same eight global samples on both decks. Alt-click stops one. Their shared level is in **herramientas**.
+
+Each channel has **TRIM** and a **COLOR** knob. Under **SOUND COLOR FX**, pick an effect per channel with **1** or **2**; press again to turn it off. The knob does nothing at its center and each side differs. **PRM** sets its character.
+
+**BEAT FX** shows one unit at a time: **CH 1**, **CH 2** or **MST**. They run independently, and a line marks a unit left on. **TAP** sets the effect's tempo; Shift-click returns to the track's. Delay, Echo, Ping Pong, Reverb, Dub Echo and Space keep a tail after they stop. **AUTO GAIN** matches levels to −14 LUFS and is off by default.
+
+**SLIP** keeps the track moving silently during a loop, reverse or scratch, then returns to that point. **REVERSE** plays backward. Drag the platter around to scratch, or with **VINYL** off to bend the tempo; a click still plays or pauses. **BRAKE** winds the record down on pause, and play catches it. **1/2X** and **2X** resize a loop. The button above the tempo fader changes its range. **TAG TRACK** toggles the selected track as a favorite.
+
+**SOURCE**, the channel **CUE** and **HEADPHONES** have no function: they need a second audio output.
+
+## Mixing screen
+
+In **Mezcla** nothing scrolls but the lists. The console fills the left and adjusts to the space. Drag the divider, or use arrow keys on it, to change widths; double-click resets it. The panel button collapses the side panel for focus, and **platos** hides the platters to enlarge waveforms and pads.
+
+The side panel has **información** at the top, which also compares the selected track's tempo and key with the master, and tabs for **biblioteca**, **herramientas** (deck effects, tempo, key, linked transport, samples) and **teclado**. **Fuente** reaches any list, including a drive's playlists.
+
+The button in the header compacts the sidebar to a rail. Mezcla and Reproductor each remember their own choice.
 
 - Two detailed waveforms show 8 s with a centered playhead; click to seek relative to center. Bass is blue, mids amber, highs white; RGB/mono alternatives are in Appearance.
 - Each deck has title/remaining time, full waveform with numbered cues/loop, a platter rotating with engine position (click toggles play), eight hot cues, transport, nudge, loop/IN/OUT and an outer vertical pitch control (±50%, double-click resets).

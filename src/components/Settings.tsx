@@ -317,13 +317,17 @@ export function Settings({
                       'filter',
                       'highPass',
                       'echo',
+                      'trim',
+                      'color',
+                      'colorParam',
+                      'beatFxDepth',
                     ].map((kind) => (
                       <option key={`${slot}:${kind}`} value={`${slot}:${kind}`}>
                         Deck {slot ? 'B' : 'A'} · {actionLabel(kind)}
                       </option>
                     )),
                   )}
-                  {[2, 3, 4, 5].map((slot) => (
+                  {[2, 3, 4, 5, 6, 7, 8, 9].map((slot) => (
                     <option key={slot} value={`${slot}:trigger`}>
                       Sample {slot - 1} {tr('· Disparar', '· Trigger')}{' '}
                     </option>

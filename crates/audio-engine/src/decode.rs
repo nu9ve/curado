@@ -22,6 +22,8 @@ pub struct Clip {
     pub title: Option<String>,
     pub artist: Option<String>,
     pub music: crate::music::MusicAnalysis,
+    /// Integrated LUFS, or nothing for silence.
+    pub loudness: Option<f32>,
 }
 impl Clip {
     pub fn duration(&self) -> f64 {
@@ -171,9 +173,11 @@ pub fn decode_bounded(
     if music.imported && music.first_sound == 0. {
         music.first_sound = crate::beat::first_sound(&samples, sample_rate);
     }
+    let loudness = crate::loudness::integrated(&samples, sample_rate);
     Ok(Clip {
         id,
         cues: Arc::new(CueState::default()),
+        loudness,
         samples,
         sample_rate,
         waveform,

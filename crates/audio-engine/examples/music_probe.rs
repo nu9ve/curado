@@ -19,6 +19,7 @@ fn main() {
     let analysis = music::analyze(&samples, sr as u32);
     let analysis_ms = started.elapsed().as_secs_f64() * 1000.;
     let source = Arc::new(Clip {
+        loudness: None,
         id: 1,
         cues: Default::default(),
         samples,

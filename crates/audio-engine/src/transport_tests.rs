@@ -11,6 +11,7 @@ const GAIN: f32 = 0.8 * 0.75;
 
 fn clip_of(id: u64, samples: Vec<[f32; 2]>, grid: bool) -> Arc<Clip> {
     Arc::new(Clip {
+        loudness: None,
         id,
         cues: Default::default(),
         samples,
@@ -526,4 +527,398 @@ fn quiet_mix_never_touches_the_limiter() {
     let s = h.snapshot();
     assert_eq!(s.limited, 0);
     assert_eq!(s.limiter_db, 0.);
+}
+
+fn position(h: &EngineHandle) -> f64 {
+    h.snapshot().slots[0].position
+}
+fn playing_deck(seconds: usize) -> (EngineHandle, Renderer) {
+    let (h, mut r) = settled();
+    h.load_and_play(0, clip_of(1, sine(seconds, 110., 0.5), true))
+        .unwrap();
+    render(&mut r, SR as usize);
+    (h, r)
+}
+
+#[test]
+fn slip_resumes_where_the_track_would_have_been() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::Slip(true)).unwrap();
+    h.control(0, Control::LoopBeats(1.)).unwrap();
+    render(&mut r, 512);
+    let start = position(&h);
+    render(&mut r, SR as usize * 3);
+    assert!(h.snapshot().slots[0].looping);
+    assert!(position(&h) < start + 1., "it stays in the loop");
+    h.control(0, Control::Loop).unwrap();
+    render(&mut r, 512);
+    let after = position(&h);
+    assert!((after - (start + 3.)).abs() < 0.05, "{after} from {start}");
+}
+
+#[test]
+fn without_slip_a_loop_ends_where_it_is() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::LoopBeats(1.)).unwrap();
+    render(&mut r, SR as usize * 3);
+    h.control(0, Control::Loop).unwrap();
+    render(&mut r, 512);
+    assert!(position(&h) < 2.5, "{}", position(&h));
+}
+
+#[test]
+fn a_roll_repeats_on_the_grid_then_returns_and_restores_the_loop() {
+    let (h, mut r) = playing_deck(30);
+    let before = position(&h);
+    h.control(0, Control::Roll(0.25)).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot().slots[0].clone();
+    assert!(s.rolling && s.looping);
+    assert!((s.loop_out - s.loop_in - 0.125).abs() < 1e-6);
+    // Quantized: the slice starts on a multiple of its own length from the grid.
+    let cells = (s.loop_in - OFFSET) / 0.125;
+    assert!((cells - cells.round()).abs() < 1e-6, "{cells}");
+    render(&mut r, SR as usize * 2);
+    assert!(position(&h) < s.loop_out + 0.01);
+    h.control(0, Control::RollEnd).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot().slots[0].clone();
+    assert!(!s.rolling && !s.looping);
+    assert!((s.position - (before + 2.)).abs() < 0.05, "{}", s.position);
+    // A roll on a paused deck has nothing to repeat, and a stray release does nothing.
+    h.control(0, Control::Pause).unwrap();
+    render(&mut r, 512);
+    h.control(0, Control::Roll(1.)).unwrap();
+    h.control(0, Control::RollEnd).unwrap();
+    render(&mut r, 512);
+    assert!(!h.snapshot().slots[0].rolling);
+}
+
+#[test]
+fn a_new_roll_size_keeps_the_same_return_point() {
+    let (h, mut r) = playing_deck(30);
+    let before = position(&h);
+    h.control(0, Control::Roll(1.)).unwrap();
+    render(&mut r, SR as usize);
+    h.control(0, Control::Roll(0.5)).unwrap();
+    render(&mut r, SR as usize);
+    h.control(0, Control::RollEnd).unwrap();
+    render(&mut r, 512);
+    assert!((position(&h) - (before + 2.)).abs() < 0.05);
+}
+
+#[test]
+fn a_beat_jump_moves_whole_beats_and_takes_the_loop_along() {
+    let (h, mut r) = playing_deck(30);
+    let before = position(&h);
+    h.control(0, Control::BeatJump(8.)).unwrap();
+    render(&mut r, 512);
+    assert!((position(&h) - (before + 4.)).abs() < 0.02);
+    h.control(0, Control::LoopBeats(4.)).unwrap();
+    render(&mut r, 512);
+    let loop_in = h.snapshot().slots[0].loop_in;
+    h.control(0, Control::BeatJump(-4.)).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot().slots[0].clone();
+    assert!(s.looping);
+    assert!((s.loop_in - (loop_in - 2.)).abs() < 1e-6);
+    // Off the start of the track the jump lands at zero instead of wrapping.
+    h.control(0, Control::BeatJump(-64.)).unwrap();
+    render(&mut r, 512);
+    assert!(position(&h) < 0.1);
+    assert!(!h.snapshot().slots[0].looping);
+}
+
+#[test]
+fn a_loop_can_double_and_halve_within_reason() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::LoopBeats(4.)).unwrap();
+    render(&mut r, 512);
+    let span = |h: &EngineHandle| {
+        let s = h.snapshot().slots[0].clone();
+        s.loop_out - s.loop_in
+    };
+    h.control(0, Control::LoopScale(0.5)).unwrap();
+    render(&mut r, 512);
+    assert!((span(&h) - 1.).abs() < 1e-6);
+    assert_eq!(h.snapshot().slots[0].loop_beats, 2.);
+    h.control(0, Control::LoopScale(2.)).unwrap();
+    render(&mut r, 512);
+    assert!((span(&h) - 2.).abs() < 1e-6);
+    for _ in 0..12 {
+        h.control(0, Control::LoopScale(0.5)).unwrap();
+    }
+    render(&mut r, 512);
+    assert!(span(&h) * SR as f64 >= (SR as f64 * LOOP_FADE_SECONDS).round() * 2. - 1.);
+}
+
+#[test]
+fn reverse_plays_backward_and_stops_at_the_start() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Reverse(true)).unwrap();
+    let before = position(&h);
+    let output = render(&mut r, SR as usize / 2);
+    assert!(h.snapshot().slots[0].reverse);
+    assert!((position(&h) - (before - 0.5)).abs() < 0.01);
+    assert!(output.iter().skip(1000).any(|v| v.abs() > 0.1));
+    render(&mut r, SR as usize);
+    assert!(!h.snapshot().slots[0].playing);
+    assert_eq!(position(&h), 0.);
+}
+
+#[test]
+fn reverse_stays_inside_a_loop() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::LoopBeats(2.)).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot().slots[0].clone();
+    h.control(0, Control::Reverse(true)).unwrap();
+    for _ in 0..40 {
+        render(&mut r, 2400);
+        let at = position(&h);
+        assert!(at >= s.loop_in - 0.02 && at <= s.loop_out + 0.02, "{at}");
+    }
+    assert!(h.snapshot().slots[0].playing);
+}
+
+#[test]
+fn slip_and_reverse_carry_on_underneath() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::Slip(true)).unwrap();
+    let before = position(&h);
+    h.control(0, Control::Reverse(true)).unwrap();
+    render(&mut r, SR as usize);
+    h.control(0, Control::Reverse(false)).unwrap();
+    render(&mut r, 512);
+    assert!(
+        (position(&h) - (before + 1.)).abs() < 0.05,
+        "{}",
+        position(&h)
+    );
+}
+
+#[test]
+fn key_lock_gives_way_to_reverse_and_comes_back() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::KeyLock(true)).unwrap();
+    h.control(0, Control::Rate(1.1)).unwrap();
+    render(&mut r, 9600);
+    assert!(r.decks[0].main_pitched);
+    h.control(0, Control::Reverse(true)).unwrap();
+    render(&mut r, 4800);
+    assert!(!r.decks[0].main_pitched);
+    h.control(0, Control::Reverse(false)).unwrap();
+    let output = render(&mut r, 48000);
+    assert!(r.decks[0].main_pitched);
+    assert!(output.iter().all(|v| v.is_finite()));
+}
+
+#[test]
+fn a_brake_winds_down_and_play_catches_it() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Brake(1.)).unwrap();
+    h.control(0, Control::Pause).unwrap();
+    render(&mut r, 512);
+    let a = position(&h);
+    render(&mut r, SR as usize / 2);
+    let moved = position(&h) - a;
+    // A linear wind-down over one second covers less than the half second at full speed.
+    assert!(moved > 0.2 && moved < 0.45, "{moved}");
+    assert!(h.snapshot().slots[0].playing);
+    render(&mut r, SR as usize);
+    assert!(!h.snapshot().slots[0].playing);
+    let stopped = position(&h);
+    render(&mut r, 512);
+    assert_eq!(position(&h), stopped);
+
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Brake(1.)).unwrap();
+    h.control(0, Control::Pause).unwrap();
+    render(&mut r, SR as usize / 4);
+    h.control(0, Control::Play).unwrap();
+    render(&mut r, SR as usize);
+    assert!(h.snapshot().slots[0].playing);
+    assert_eq!(r.decks[0].ramp, 1.);
+
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Brake(3.)).unwrap();
+    h.control(0, Control::Panic).unwrap();
+    render(&mut r, 512);
+    assert!(
+        !h.snapshot().slots[0].playing,
+        "panic does not wait for a brake"
+    );
+}
+
+#[test]
+fn the_platter_follows_the_hand_and_lets_go() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Pause).unwrap();
+    render(&mut r, 2048);
+    let start = position(&h);
+    h.control(0, Control::JogTouch(true)).unwrap();
+    h.control(0, Control::JogMove(-0.5)).unwrap();
+    let moving = render(&mut r, SR as usize / 4);
+    assert!(
+        (position(&h) - (start - 0.5)).abs() < 0.02,
+        "{}",
+        position(&h)
+    );
+    assert!(
+        moving.iter().any(|v| v.abs() > 0.05),
+        "a moving record sounds"
+    );
+    let held = render(&mut r, SR as usize / 4);
+    assert!(
+        held[SR as usize / 8..].iter().all(|v| v.abs() < 1e-3),
+        "a held record is silent"
+    );
+    h.control(0, Control::JogMove(100.)).unwrap();
+    render(&mut r, SR as usize);
+    assert!(position(&h) <= h.snapshot().slots[0].duration);
+    h.control(0, Control::JogTouch(false)).unwrap();
+    h.control(0, Control::JogMove(-1.)).unwrap();
+    render(&mut r, 512);
+    assert!(!r.decks[0].jog_touch);
+}
+
+#[test]
+fn a_pitch_bend_speeds_up_and_relaxes_without_a_release() {
+    let (h, mut r) = playing_deck(10);
+    let before = position(&h);
+    h.control(0, Control::JogBend(0.2)).unwrap();
+    render(&mut r, 2400);
+    let bent = position(&h) - before;
+    assert!(bent > 2400. / SR as f64 * 1.02, "{bent}");
+    render(&mut r, SR as usize);
+    assert_eq!(r.decks[0].bend, 0.);
+}
+
+#[test]
+fn the_player_clears_what_it_has_no_controls_for() {
+    let (h, mut r) = playing_deck(10);
+    h.control(0, Control::Slip(true)).unwrap();
+    h.control(0, Control::Reverse(true)).unwrap();
+    h.control(0, Control::Color(0.8)).unwrap();
+    h.control(0, Control::ColorFx(6)).unwrap();
+    h.control(0, Control::BeatFxOn(true)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFxOn(true)).unwrap();
+    render(&mut r, 512);
+    assert!(h.snapshot().beat_fx[2].on);
+    h.control(0, Control::SetMode(false)).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot();
+    assert!(!s.slots[0].slip && !s.slots[0].reverse);
+    assert_eq!((s.slots[0].color, s.slots[0].color_fx), (0., 0));
+    assert!(s.beat_fx.iter().all(|unit| !unit.on));
+}
+
+#[test]
+fn each_channel_and_the_master_keep_their_own_effects() {
+    let (h, mut r) = settled();
+    h.control(0, Control::BeatFx(3)).unwrap();
+    h.control(0, Control::BeatFxBeats(2.)).unwrap();
+    h.control(1, Control::BeatFx(7)).unwrap();
+    h.control(1, Control::BeatFxOn(true)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFx(4)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFxDepth(0.25)).unwrap();
+    h.control(0, Control::ColorFx(1)).unwrap();
+    h.control(1, Control::ColorFx(5)).unwrap();
+    render(&mut r, 512);
+    let s = h.snapshot();
+    let kinds: Vec<u8> = s.beat_fx.iter().map(|unit| unit.kind).collect();
+    assert_eq!(kinds, [3, 7, 4]);
+    assert!(!s.beat_fx[0].on && s.beat_fx[1].on && !s.beat_fx[2].on);
+    assert_eq!((s.beat_fx[0].beats, s.beat_fx[2].depth), (2., 0.25));
+    assert_eq!((s.slots[0].color_fx, s.slots[1].color_fx), (1, 5));
+    // Samples have no channel effects, and only slot 2 stands for the master unit.
+    assert!(h.control(3, Control::BeatFxOn(true)).is_err());
+    assert!(h.control(2, Control::ColorFx(1)).is_err());
+    let rejected = |slot: usize, kind: &str, value: f64| {
+        h.action(Action {
+            slot,
+            kind: kind.into(),
+            value,
+        })
+        .is_err()
+    };
+    assert!(rejected(0, "colorFx", 7.));
+    assert!(rejected(0, "beatFx", 9.));
+    assert!(rejected(0, "beatFxBeats", 3.));
+    assert!(rejected(0, "color", 1.5));
+    assert!(rejected(2, "roll", 1.));
+    assert!(rejected(0, "roll", 3.));
+    assert!(rejected(0, "beatJump", 0.));
+    assert!(rejected(0, "loopScale", 3.));
+    assert!(!rejected(2, "beatFxOn", 1.));
+}
+
+#[test]
+fn a_master_effect_reaches_the_output_of_both_decks() {
+    let (h, mut r) = engine(SR);
+    h.load_and_play(0, clip_of(1, sine(4, 220., 0.5), false))
+        .unwrap();
+    h.control(0, Control::Crossfader(0.)).unwrap();
+    render(&mut r, SR as usize);
+    let plain = largest_step(&render(&mut r, 4800));
+    h.control(MASTER_UNIT, Control::BeatFx(7)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFxDepth(1.)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFxBeats(0.25)).unwrap();
+    h.control(MASTER_UNIT, Control::BeatFxOn(true)).unwrap();
+    let gated = render(&mut r, SR as usize);
+    assert!(gated.iter().filter(|v| v.abs() < 1e-3).count() > SR as usize / 4);
+    assert!(largest_step(&gated) < plain * 3., "the gate does not click");
+}
+
+#[test]
+fn auto_gain_brings_tracks_to_the_same_level_and_is_off_by_default() {
+    let measure = |amplitude: f32, auto: bool| {
+        let (h, mut r) = settled();
+        let samples = sine(4, 997., amplitude);
+        let clip = Clip {
+            loudness: crate::loudness::integrated(&samples, SR),
+            id: 1,
+            cues: Default::default(),
+            samples,
+            sample_rate: SR,
+            waveform: vec![],
+            title: None,
+            artist: None,
+            music: Default::default(),
+        };
+        h.control(0, Control::Master(1.)).unwrap();
+        h.control(0, Control::AutoGain(auto)).unwrap();
+        h.load_and_play(0, Arc::new(clip)).unwrap();
+        render(&mut r, SR as usize);
+        render(&mut r, SR as usize)
+            .iter()
+            .fold(0_f32, |peak, v| peak.max(v.abs()))
+    };
+    let (quiet, loud) = (measure(0.08, false), measure(0.2, false));
+    assert!((loud / quiet - 2.5).abs() < 0.1, "off keeps the difference");
+    let (quiet, loud) = (measure(0.08, true), measure(0.2, true));
+    assert!((loud / quiet - 1.).abs() < 0.02, "{quiet} {loud}");
+}
+
+#[test]
+fn eight_samples_play_under_a_shared_level() {
+    let level = |sampler: f32| {
+        let (h, mut r) = settled();
+        for slot in [2, 9] {
+            h.load(slot, clip_of(slot as u64, sine(2, 440., 0.2), false))
+                .unwrap();
+            render(&mut r, 256);
+            h.control(slot, Control::Trigger).unwrap();
+        }
+        h.control(2, Control::Sampler(sampler)).unwrap();
+        render(&mut r, SR as usize / 4);
+        let snapshot = h.snapshot();
+        assert!(snapshot.slots[9].playing);
+        assert_eq!(snapshot.sampler, sampler);
+        render(&mut r, 4800)
+            .iter()
+            .fold(0_f32, |peak, v| peak.max(v.abs()))
+    };
+    assert!(level(1.) > 0.01);
+    assert!(level(0.) < 1e-3);
 }

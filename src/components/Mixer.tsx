@@ -240,9 +240,21 @@ export function SampleBank({
   const { audio } = useSnapshot();
   return (
     <section className="sample-bank" aria-label="Samples">
-      <span className="eyebrow">SAMPLES</span>
+      <div className="sample-bank-head">
+        <span className="eyebrow">SAMPLES</span>
+        <Knob
+          label={tr('NIVEL', 'LEVEL')}
+          tone="master"
+          action={actionKey({ slot: 2, kind: 'sampler', value: 0 })}
+          max={1.5}
+          defaultValue={1}
+          origin={1}
+          value={audio?.sampler ?? 1}
+          onChange={(v) => parameter(2, 'sampler', v, onError)}
+        />
+      </div>
       <div className="sample-pads">
-        {[2, 3, 4, 5].map((slot, i) => {
+        {[2, 3, 4, 5, 6, 7, 8, 9].map((slot, i) => {
           const state = audio?.slots[slot];
           const track = tracks.find((t) => t.id === state?.id);
           const b = keys.find((k) => k.action.slot === slot && k.action.kind === 'trigger');

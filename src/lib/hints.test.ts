@@ -8,6 +8,9 @@ import { EMPTY_SLOT } from './types';
 import type { AppSnapshot, Audio } from './types';
 
 const audio = (): Audio => ({
+  beatFx: [],
+  sampler: 1,
+  autoGain: false,
   masterDeck: 0,
   slots: Array.from({ length: 6 }, (_, index) => ({ ...EMPTY_SLOT, id: index + 1 })),
   peak: 0,

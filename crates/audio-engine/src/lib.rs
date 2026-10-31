@@ -3,15 +3,19 @@ pub mod annotations;
 mod beat;
 pub mod decode;
 mod dsp;
+pub mod fx;
 pub mod limiter;
+pub mod loudness;
 pub mod music;
 pub mod output;
 mod pitch;
+pub mod resample;
 pub mod tuning;
 use annotations::HOT_CUES;
 use crossbeam_queue::ArrayQueue;
 use decode::Clip;
 use dsp::{Effects, Params};
+use fx::{BeatFx, BeatKind, BeatSettings, ColorKind};
 use limiter::Limiter;
 use music::MusicAnalysis;
 use pitch::PitchVoice;
@@ -22,7 +26,22 @@ use std::sync::{
 };
 use tuning::{MusicMeter, Tuning, TuningMeter};
 
-pub const SLOTS: usize = 6;
+pub const SLOTS: usize = 10;
+/// Beat FX units: one per music channel, then the master's, addressed as slot 2.
+pub const BEAT_UNITS: usize = 3;
+pub const MASTER_UNIT: usize = 2;
+const BEAT_DIVISIONS: [f64; 11] = [0.0625, 0.125, 0.25, 0.5, 0.75, 1., 2., 4., 8., 16., 32.];
+/// Loudness that auto gain brings tracks to, and how far it may move them.
+const AUTO_GAIN_TARGET: f32 = -14.;
+const AUTO_GAIN_RANGE: f32 = 12.;
+/// Revolutions of a 33⅓ record: a turn of the platter moves about this much audio.
+const JOG_RESPONSE_SECONDS: f64 = 0.02;
+const JOG_SMOOTHING_SECONDS: f64 = 0.005;
+const JOG_MAX_SPEED: f64 = 8.;
+/// How fast a held pitch bend relaxes if its release never arrives.
+const BEND_RELAX_SECONDS: f32 = 0.15;
+/// How fast an interrupted brake gets back up to speed.
+const SPIN_UP_SECONDS: f64 = 0.08;
 /// One bounded, on-demand master capture for the visual worker.
 pub const VISUAL_SAMPLES: usize = 2048;
 /// Fade of a transport change. A cue or play reaches its target at full gain when it ends,
@@ -77,6 +96,27 @@ pub enum Control {
     Echo(f32),
     Crossfader(f32),
     Master(f32),
+    Trim(f32),
+    Color(f32),
+    ColorFx(u8),
+    ColorParam(f32),
+    BeatFx(u8),
+    BeatFxOn(bool),
+    BeatFxBeats(f32),
+    BeatFxDepth(f32),
+    BeatFxBpm(f32),
+    Slip(bool),
+    Reverse(bool),
+    Roll(f64),
+    RollEnd,
+    BeatJump(f64),
+    LoopScale(f64),
+    JogTouch(bool),
+    JogMove(f64),
+    JogBend(f32),
+    Brake(f32),
+    Sampler(f32),
+    AutoGain(bool),
     Panic,
     SetMode(bool),
 }
@@ -112,9 +152,62 @@ impl Action {
                 Control::CueBoth(self.value as usize)
             }
             "quantize" if matches!(self.value, 0.0 | 1.0) => Control::Quantize(self.value == 1.),
-            "loopBeats" if [1., 2., 4., 8., 16.].contains(&self.value) => {
+            "loopBeats" if BEAT_DIVISIONS.contains(&self.value) && self.value != 0.75 => {
                 Control::LoopBeats(self.value)
             }
+            "roll" if self.slot < 2 && BEAT_DIVISIONS.contains(&self.value) => {
+                Control::Roll(self.value)
+            }
+            "rollEnd" if self.slot < 2 => Control::RollEnd,
+            "beatJump" if self.slot < 2 && self.value != 0. && self.value.abs() <= 64. => {
+                Control::BeatJump(self.value)
+            }
+            "loopScale" if self.slot < 2 && matches!(self.value, 0.5 | 2.0) => {
+                Control::LoopScale(self.value)
+            }
+            "slip" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
+                Control::Slip(self.value == 1.)
+            }
+            "reverse" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
+                Control::Reverse(self.value == 1.)
+            }
+            "jogTouch" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
+                Control::JogTouch(self.value == 1.)
+            }
+            "jogMove" if self.slot < 2 && self.value.abs() <= 8. => Control::JogMove(self.value),
+            "jogBend" if self.slot < 2 && v.abs() <= 0.5 => Control::JogBend(v),
+            "brake" if self.slot < 2 && (0.0..=3.0).contains(&v) => Control::Brake(v),
+            "trim" if self.slot < 2 && (0.0..=2.0).contains(&v) => Control::Trim(v),
+            "color" if self.slot < 2 && (-1.0..=1.0).contains(&v) => Control::Color(v),
+            "colorFx"
+                if self.slot < 2
+                    && self.value.fract() == 0.
+                    && (0.0..ColorKind::COUNT as f64).contains(&self.value) =>
+            {
+                Control::ColorFx(self.value as u8)
+            }
+            "colorParam" if self.slot < 2 && (0.0..=1.0).contains(&v) => Control::ColorParam(v),
+            "beatFx"
+                if self.slot < BEAT_UNITS
+                    && self.value.fract() == 0.
+                    && (0.0..BeatKind::COUNT as f64).contains(&self.value) =>
+            {
+                Control::BeatFx(self.value as u8)
+            }
+            "beatFxOn" if self.slot < BEAT_UNITS && matches!(self.value, 0.0 | 1.0) => {
+                Control::BeatFxOn(self.value == 1.)
+            }
+            "beatFxBeats" if self.slot < BEAT_UNITS && BEAT_DIVISIONS.contains(&self.value) => {
+                Control::BeatFxBeats(v)
+            }
+            "beatFxDepth" if self.slot < BEAT_UNITS && (0.0..=1.0).contains(&v) => {
+                Control::BeatFxDepth(v)
+            }
+            "beatFxBpm" if self.slot < BEAT_UNITS && (v == 0. || (40.0..=300.0).contains(&v)) => {
+                Control::BeatFxBpm(v)
+            }
+            "sampler" if (0.0..=1.5).contains(&v) => Control::Sampler(v),
+            "autoGain" if matches!(self.value, 0.0 | 1.0) => Control::AutoGain(self.value == 1.),
             "sync" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
                 Control::Sync(self.value == 1.)
             }
@@ -142,7 +235,7 @@ impl Action {
             "mid" if (0.0..=2.0).contains(&v) => Control::Mid(v),
             "high" if (0.0..=2.0).contains(&v) => Control::High(v),
             "filter" if (0.0..=1.0).contains(&v) => Control::Filter(v),
-            "echo" if (0.0..=1.0).contains(&v) => Control::Echo(v),
+            "echo" if self.slot < 2 && (0.0..=1.0).contains(&v) => Control::Echo(v),
             "highPass" if (0.0..=1.0).contains(&v) => Control::HighPass(v),
             "echoBeats" if [0.25, 0.5, 0.75, 1., 2.].contains(&v) => Control::EchoBeats(v),
             "crossfader" if (0.0..=1.0).contains(&v) => Control::Crossfader(v),
@@ -185,6 +278,22 @@ struct Meter {
     sync: AtomicBool,
     loop_beats: AtomicU64,
     queued: AtomicBool,
+    trim: AtomicU32,
+    color: AtomicU32,
+    color_param: AtomicU32,
+    color_fx: AtomicU32,
+    brake: AtomicU32,
+    slip: AtomicBool,
+    reverse: AtomicBool,
+    rolling: AtomicBool,
+}
+#[derive(Default)]
+struct BeatMeter {
+    kind: AtomicU32,
+    on: AtomicBool,
+    beats: AtomicU32,
+    depth: AtomicU32,
+    bpm: AtomicU32,
 }
 pub struct Shared {
     commands: ArrayQueue<Command>,
@@ -207,6 +316,9 @@ pub struct Shared {
     crossfader: AtomicU32,
     master: AtomicU32,
     master_deck: AtomicUsize,
+    beat_meters: [BeatMeter; BEAT_UNITS],
+    sampler: AtomicU32,
+    auto_gain: AtomicBool,
 }
 #[derive(Clone)]
 pub struct EngineHandle(Arc<Shared>);
@@ -240,6 +352,23 @@ pub struct SlotSnapshot {
     pub sync: bool,
     pub loop_beats: f64,
     pub queued: bool,
+    pub trim: f32,
+    pub color: f32,
+    pub color_param: f32,
+    pub color_fx: u8,
+    pub brake: f32,
+    pub slip: bool,
+    pub reverse: bool,
+    pub rolling: bool,
+}
+#[derive(Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BeatFxSnapshot {
+    pub kind: u8,
+    pub on: bool,
+    pub beats: f32,
+    pub depth: f32,
+    pub bpm: f32,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -259,6 +388,10 @@ pub struct Snapshot {
     /// Recent gain reduction in dB, held long enough for 20 Hz telemetry to show it.
     pub limiter_db: f32,
     pub master_deck: usize,
+    /// Channel A, channel B, master.
+    pub beat_fx: Vec<BeatFxSnapshot>,
+    pub sampler: f32,
+    pub auto_gain: bool,
 }
 impl EngineHandle {
     /// Called by the visual worker only. Returns one complete mono master window and
@@ -369,6 +502,29 @@ impl EngineHandle {
                         | Control::TransposeStep(_)
                         | Control::KeyLock(_)
                         | Control::KeySync
+                        | Control::Slip(_)
+                        | Control::Reverse(_)
+                        | Control::Roll(_)
+                        | Control::RollEnd
+                        | Control::BeatJump(_)
+                        | Control::LoopScale(_)
+                        | Control::JogTouch(_)
+                        | Control::JogMove(_)
+                        | Control::JogBend(_)
+                        | Control::Brake(_)
+                        | Control::Trim(_)
+                        | Control::Color(_)
+                        | Control::ColorFx(_)
+                        | Control::ColorParam(_)
+                ))
+            || (slot >= BEAT_UNITS
+                && matches!(
+                    control,
+                    Control::BeatFx(_)
+                        | Control::BeatFxOn(_)
+                        | Control::BeatFxBeats(_)
+                        | Control::BeatFxDepth(_)
+                        | Control::BeatFxBpm(_)
                 ))
         {
             return Err("Deck o cue inválido".into());
@@ -463,6 +619,14 @@ impl EngineHandle {
                     sync: m.sync.load(Relaxed),
                     loop_beats: f64::from_bits(m.loop_beats.load(Relaxed)),
                     queued: m.queued.load(Relaxed),
+                    trim: f(&m.trim),
+                    color: f(&m.color),
+                    color_param: f(&m.color_param),
+                    color_fx: m.color_fx.load(Relaxed) as u8,
+                    brake: f(&m.brake),
+                    slip: m.slip.load(Relaxed),
+                    reverse: m.reverse.load(Relaxed),
+                    rolling: m.rolling.load(Relaxed),
                 })
                 .collect(),
             peak: f(&self.0.peak),
@@ -476,6 +640,20 @@ impl EngineHandle {
             limited: self.0.limited.load(Relaxed),
             limiter_db: f(&self.0.limiter_db),
             master_deck: self.0.master_deck.load(Relaxed),
+            beat_fx: self
+                .0
+                .beat_meters
+                .iter()
+                .map(|m| BeatFxSnapshot {
+                    kind: m.kind.load(Relaxed) as u8,
+                    on: m.on.load(Relaxed),
+                    beats: f(&m.beats),
+                    depth: f(&m.depth),
+                    bpm: f(&m.bpm),
+                })
+                .collect(),
+            sampler: f(&self.0.sampler),
+            auto_gain: self.0.auto_gain.load(Relaxed),
         }
     }
     pub fn fail(&self) {
@@ -519,8 +697,34 @@ struct Deck {
     loop_beats: f64,
     echo_beats: f32,
     scheduled: Option<(Control, i64)>,
+    slip: bool,
+    /// Where the track would be without the current detour, while one is in progress.
+    shadow: f64,
+    excursion: bool,
+    reverse: bool,
+    rolling: bool,
+    saved_loop: (f64, f64, bool),
+    jog_touch: bool,
+    jog_target: f64,
+    jog_speed: f64,
+    jog_response: f64,
+    jog_smoothing: f64,
+    bend: f32,
+    brake: f32,
+    braking: bool,
+    /// Speed relative to normal while braking or recovering from a brake.
+    ramp: f64,
 }
 impl Deck {
+    /// Output frames per beat at the current speed, with 120 BPM standing in for an unknown one.
+    fn clock(&self, sr: u32) -> f32 {
+        60. / (self.music.bpm.unwrap_or(120.) as f32 * self.params.rate.max(0.01)) * sr as f32
+    }
+    /// How many beats into the track the read head is, when it has a grid to count on.
+    fn beats_position(&self) -> Option<f64> {
+        self.grid()
+            .map(|(offset, beat)| (self.position - offset) / beat)
+    }
     fn make_loop(&mut self, beats: f64, len: f64, rate: f64) {
         let span = self.grid().map_or(rate * beats * 0.5, |(_, b)| b * beats);
         let mut start = self.snap(self.position, f64::round).min(len);
@@ -547,10 +751,91 @@ impl Deck {
             (offset + to_beat((position - offset) / beat) * beat).max(offset)
         })
     }
-    fn step(&self, sr: u32) -> f64 {
+    /// Speed through the track at normal transport, which is what a slip's shadow moves at.
+    fn forward_step(&self, sr: u32) -> f64 {
         self.clip.as_ref().map_or(1., |clip| {
             clip.sample_rate as f64 / sr as f64 * self.params.rate as f64
         })
+    }
+    fn step(&self, sr: u32) -> f64 {
+        let direction = if self.reverse { -1. } else { 1. };
+        self.forward_step(sr) * (1. + self.bend as f64) * self.ramp * direction
+    }
+    fn beat_frames(&self, beats: f64, rate: f64) -> f64 {
+        self.grid()
+            .map_or(rate * beats * 0.5, |(_, beat)| beat * beats)
+    }
+    /// Anything that takes the read head away from where the track would be. With slip on, or
+    /// during a roll, the track carries on silently underneath and resumes from there.
+    fn sync_slip(&mut self, sr: u32) {
+        if self.rolling {
+            return;
+        }
+        let away = self.looping || self.reverse || self.jog_touch;
+        if self.slip && away && !self.excursion {
+            self.excursion = true;
+            self.shadow = self.position;
+        } else if self.excursion && (!self.slip || !away) {
+            let resume = self.slip;
+            self.excursion = false;
+            if resume {
+                self.return_to_shadow(sr);
+            }
+        }
+    }
+    fn return_to_shadow(&mut self, sr: u32) {
+        let len = self.clip.as_ref().map_or(0., |c| c.samples.len() as f64);
+        if self.playing {
+            let step = self.step(sr);
+            self.release_voice(self.jump_frames, true, step);
+        }
+        self.position = self.shadow.min(len);
+    }
+    fn start_roll(&mut self, beats: f64, len: f64, rate: f64) {
+        if !self.playing || self.clip.is_none() {
+            return;
+        }
+        if !self.rolling {
+            self.rolling = true;
+            self.saved_loop = (self.loop_in, self.loop_out, self.looping);
+            self.shadow = if self.excursion {
+                self.shadow
+            } else {
+                self.position
+            };
+            self.excursion = true;
+        }
+        let span = self.beat_frames(beats, rate);
+        let anchor = self.shadow;
+        let start = match self.grid().filter(|_| self.quantize) {
+            Some((offset, _)) => (offset + ((anchor - offset) / span).floor() * span).max(0.),
+            None => anchor,
+        };
+        self.loop_in = start;
+        self.loop_out = (start + span).min(len);
+        self.looping = self.loop_out > self.loop_in;
+        self.loop_beats = beats;
+    }
+    fn end_roll(&mut self, sr: u32) {
+        if !self.rolling {
+            return;
+        }
+        self.rolling = false;
+        self.excursion = false;
+        (self.loop_in, self.loop_out, self.looping) = self.saved_loop;
+        self.return_to_shadow(sr);
+    }
+    /// A brake and a scratch change speed continuously, which only plain playback can follow.
+    fn refresh_pitch(&mut self, sr: u32) {
+        let pitched = self.wants_pitch();
+        if pitched != self.main_pitched {
+            if self.playing {
+                let step = self.step(sr);
+                self.release_voice(self.jump_frames, true, step);
+            }
+            self.main_pitched = pitched;
+            self.restart_pitch = true;
+        }
     }
     /// Raised cosine: the gains sum to one, so a fade never adds level to correlated audio.
     fn fade_gain(&self) -> f32 {
@@ -600,7 +885,17 @@ impl Deck {
             self.position = target;
         }
     }
+    /// With a brake set the record winds down first. `stop_now` is for what must be silent.
     fn stop(&mut self, sr: u32) {
+        if self.playing && self.brake > 0. && !self.jog_touch {
+            self.braking = true;
+        } else {
+            self.stop_now(sr);
+        }
+    }
+    fn stop_now(&mut self, sr: u32) {
+        self.braking = false;
+        self.ramp = 1.;
         if self.playing {
             let step = self.step(sr);
             self.release_voice(self.jump_frames, true, step);
@@ -628,10 +923,19 @@ impl Deck {
         }
     }
     fn wrap_loop(&mut self, step: f64) {
-        if !self.looping || self.loop_out <= self.loop_in {
+        if !self.looping || self.loop_out <= self.loop_in || step == 0. {
             return;
         }
         let span = self.loop_out - self.loop_in;
+        if step < 0. {
+            if self.position <= self.loop_in {
+                let overshoot = (self.loop_in - self.position) % span;
+                let fade = (self.loop_frames as f64 * -step).min(span * 0.5);
+                self.release_voice((fade / -step) as u32, true, step);
+                self.position = self.loop_out - overshoot;
+            }
+            return;
+        }
         let fade = (self.loop_frames as f64 * step).min(span * 0.5);
         // The old voice ends at OUT as the new one reaches IN at full gain. With no audio
         // before IN, the new voice starts there directly and the old one fades past OUT.
@@ -645,6 +949,10 @@ impl Deck {
     }
     fn wants_pitch(&self) -> bool {
         self.pitch.is_some()
+            && !self.reverse
+            && !self.jog_touch
+            && !self.braking
+            && self.ramp >= 1.
             && (self.tuning.semitones != 0
                 || (self.tuning.key_lock
                     && (self.params.rate - 1.).abs() >= KEY_LOCK_MIN_RATE_CHANGE))
@@ -703,6 +1011,7 @@ impl Deck {
         } else {
             stored
         };
+        self.excursion = self.rolling;
         // A hot cue is a single jump-and-play command, even after EOF.
         // It never toggles or changes another deck's state.
         if target < len {
@@ -728,7 +1037,7 @@ impl Deck {
             position: 0.,
             playing: false,
             params: Params::default(),
-            effects: Effects::new(sr),
+            effects: Effects::new(sr, can_pitch),
             loop_in: 0.,
             loop_out: 0.,
             looping: false,
@@ -755,17 +1064,58 @@ impl Deck {
             loop_beats: 4.,
             echo_beats: 0.5,
             scheduled: None,
+            slip: false,
+            shadow: 0.,
+            excursion: false,
+            reverse: false,
+            rolling: false,
+            saved_loop: (0., 0., false),
+            jog_touch: false,
+            jog_target: 0.,
+            jog_speed: 0.,
+            jog_response: 1. / (sr as f64 * JOG_RESPONSE_SECONDS),
+            jog_smoothing: 1. - (-1. / (sr as f64 * JOG_SMOOTHING_SECONDS)).exp(),
+            bend: 0.,
+            brake: 0.,
+            braking: false,
+            ramp: 1.,
         }
     }
-    fn frame(&mut self, sr: u32) -> [f32; 2] {
-        let step = self.step(sr);
+    /// Follows the hand: speed is eased so that the gaps between pointer events do not buzz.
+    fn scratch(&mut self, len: f64) -> [f32; 2] {
+        let wanted = ((self.jog_target - self.position) * self.jog_response)
+            .clamp(-JOG_MAX_SPEED, JOG_MAX_SPEED);
+        self.jog_speed += (wanted - self.jog_speed) * self.jog_smoothing;
+        self.position = (self.position + self.jog_speed).clamp(0., (len - 1.).max(0.));
+        // A record standing still is silent, not a held sample value.
+        let level = (self.jog_speed.abs() / 0.02).min(1.) as f32;
         let Some(clip) = &self.clip else {
             return [0.; 2];
         };
-        let len = clip.samples.len() as f64;
+        resample::read(&clip.samples, self.position, self.jog_speed.abs().max(1.))
+            .map(|v| v * level)
+    }
+    fn frame(&mut self, sr: u32) -> [f32; 2] {
+        let step = self.step(sr);
+        let forward = self.forward_step(sr);
+        let Some(len) = self.clip.as_ref().map(|clip| clip.samples.len() as f64) else {
+            return [0.; 2];
+        };
         let mut input = [0.; 2];
-        if self.playing {
-            if self.position < len {
+        if self.jog_touch {
+            input = self.scratch(len);
+            if self.excursion && self.playing {
+                self.shadow += forward;
+            }
+        } else if self.playing {
+            if self.excursion {
+                self.shadow += forward;
+            }
+            if let Some(clip) = self
+                .clip
+                .as_ref()
+                .filter(|_| self.position < len && self.position >= 0.)
+            {
                 input = match &mut self.pitch {
                     Some(voices) if self.main_pitched => {
                         let voice = &mut voices[self.main_pitch];
@@ -780,16 +1130,29 @@ impl Deck {
                         }
                         voice.next(&clip.samples, self.position, step)
                     }
-                    _ => read(&clip.samples, self.position),
+                    _ => resample::read(&clip.samples, self.position, step.abs()),
                 };
                 self.position += step;
                 self.wrap_loop(step);
                 if self.position >= len {
                     self.position = len;
                     self.playing = false;
+                } else if step < 0. && self.position <= 0. {
+                    self.position = 0.;
+                    self.playing = false;
                 }
             } else {
                 self.playing = false;
+            }
+            if self.braking {
+                self.ramp -= 1. / (self.brake.max(0.01) as f64 * sr as f64);
+                if self.ramp <= 0. {
+                    self.ramp = 1.;
+                    self.braking = false;
+                    self.stop_now(sr);
+                }
+            } else if self.ramp < 1. {
+                self.ramp = (self.ramp + 1. / (SPIN_UP_SECONDS * sr as f64)).min(1.);
             }
         }
         if self.fade_left > 0 {
@@ -810,7 +1173,7 @@ impl Deck {
                         self.tail_position,
                         self.tail_step,
                     ),
-                    _ => read(&source.samples, self.tail_position),
+                    _ => resample::read(&source.samples, self.tail_position, self.tail_step.abs()),
                 };
                 input = [input[0] + old[0] * tail, input[1] + old[1] * tail];
             }
@@ -839,17 +1202,107 @@ impl Deck {
                     self.preroll_to(self.position, sr);
                     self.playing = true;
                 }
+                // Pressing play during a brake catches the record again.
+                self.braking = false;
             }
             Control::Pause => self.stop(sr),
             Control::Toggle => {
-                if self.playing {
+                if self.playing && !self.braking {
                     self.stop(sr);
                 } else {
                     self.control(Control::Play, sr);
                 }
             }
-            Control::Seek(t) => self.jump((t * rate).clamp(0., len), sr),
-            Control::Nudge(t) => self.jump((self.position + t * rate).clamp(0., len), sr),
+            Control::Seek(t) => {
+                self.excursion = self.rolling;
+                self.jump((t * rate).clamp(0., len), sr);
+            }
+            Control::Nudge(t) => {
+                self.shadow += t * rate;
+                self.jump((self.position + t * rate).clamp(0., len), sr);
+            }
+            Control::Slip(on) => {
+                self.slip = on;
+                if !on && !self.rolling {
+                    self.excursion = false;
+                }
+            }
+            Control::Reverse(on) => {
+                if on != self.reverse {
+                    if self.playing {
+                        let step = self.step(sr);
+                        self.release_voice(self.jump_frames, true, step);
+                    }
+                    self.reverse = on;
+                }
+            }
+            Control::Roll(beats) => self.start_roll(beats, len, rate),
+            Control::RollEnd => self.end_roll(sr),
+            Control::BeatJump(beats) => {
+                let delta = beats * self.beat_frames(1., rate);
+                let target = (self.position + delta).clamp(0., len);
+                if self.looping && (self.loop_in + delta < 0. || self.loop_out + delta > len) {
+                    self.looping = false;
+                } else if self.loop_out > self.loop_in {
+                    self.loop_in += delta;
+                    self.loop_out += delta;
+                }
+                self.shadow += delta;
+                if self.playing {
+                    let step = self.step(sr);
+                    self.release_voice(self.jump_frames, true, step);
+                }
+                self.position = target;
+            }
+            Control::LoopScale(factor) => {
+                if self.loop_out > self.loop_in {
+                    let span = (self.loop_out - self.loop_in) * factor;
+                    // A slice shorter than its own fades would only be those fades.
+                    if span >= self.loop_frames as f64 * 2. && self.loop_in + span <= len {
+                        self.loop_out = self.loop_in + span;
+                        self.loop_beats *= factor;
+                    }
+                }
+            }
+            Control::JogTouch(on) => {
+                if on && !self.jog_touch {
+                    self.jog_target = self.position;
+                    self.jog_speed = if self.playing { self.step(sr) } else { 0. };
+                    if self.playing {
+                        let step = self.step(sr);
+                        self.release_voice(self.jump_frames, true, step);
+                    }
+                    self.jog_touch = true;
+                } else if !on && self.jog_touch {
+                    self.jog_touch = false;
+                    if self.playing {
+                        self.release_voice(self.jump_frames, true, self.jog_speed);
+                    }
+                }
+            }
+            Control::JogMove(seconds) => {
+                if self.jog_touch {
+                    self.jog_target = (self.jog_target + seconds * rate).clamp(0., len);
+                }
+            }
+            Control::JogBend(amount) => self.bend = amount,
+            Control::Brake(seconds) => self.brake = seconds,
+            Control::Trim(v) => self.params.trim = v,
+            Control::Color(v) => {
+                if let Some(channel) = &mut self.effects.channel {
+                    channel.color.set_amount(v);
+                }
+            }
+            Control::ColorFx(kind) => {
+                if let Some(channel) = &mut self.effects.channel {
+                    channel.color.set_kind(ColorKind::from_index(kind));
+                }
+            }
+            Control::ColorParam(v) => {
+                if let Some(channel) = &mut self.effects.channel {
+                    channel.color.set_param(v);
+                }
+            }
             Control::SetCue(i) => {
                 if let Some(clip) = &self.clip {
                     clip.cues
@@ -908,27 +1361,18 @@ impl Deck {
             Control::High(v) => self.params.high = v,
             Control::Filter(v) => {
                 self.params.filter = v;
-                self.effects.set_filter(v, sr);
+                self.effects.set_filter(v);
             }
             Control::Echo(v) => self.params.echo = v,
             Control::HighPass(v) => {
                 self.params.high_pass = v;
-                self.effects.set_highpass(v, sr);
+                self.effects.set_highpass(v);
             }
             Control::EchoBeats(v) => self.echo_beats = v,
             _ => {}
         }
+        self.sync_slip(sr);
     }
-}
-#[inline]
-fn read(samples: &[[f32; 2]], position: f64) -> [f32; 2] {
-    let frame = position as usize;
-    let Some(a) = samples.get(frame) else {
-        return [0.; 2];
-    };
-    let b = samples.get(frame + 1).unwrap_or(a);
-    let frac = position.fract() as f32;
-    [a[0] + (b[0] - a[0]) * frac, a[1] + (b[1] - a[1]) * frac]
 }
 pub struct Renderer {
     shared: Arc<Shared>,
@@ -948,8 +1392,14 @@ pub struct Renderer {
     visual_head: usize,
     visual_request: usize,
     master_deck: usize,
+    master_fx: Box<BeatFx>,
+    sampler: f32,
+    sampler_level: f32,
+    auto_gain: bool,
+    bend_relax: f32,
 }
 pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
+    resample::prepare();
     let shared = Arc::new(Shared {
         commands: ArrayQueue::new(256),
         retired: ArrayQueue::new(256),
@@ -971,6 +1421,9 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
         crossfader: AtomicU32::new(0.5_f32.to_bits()),
         master: AtomicU32::new(0.75_f32.to_bits()),
         master_deck: AtomicUsize::new(0),
+        beat_meters: Default::default(),
+        sampler: AtomicU32::new(1_f32.to_bits()),
+        auto_gain: AtomicBool::new(false),
     });
     (
         EngineHandle(shared.clone()),
@@ -992,6 +1445,11 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
             visual_head: 0,
             visual_request: 0,
             master_deck: 0,
+            master_fx: Box::new(BeatFx::new(sample_rate)),
+            sampler: 1.,
+            sampler_level: 1.,
+            auto_gain: false,
+            bend_relax: (-1. / (sample_rate as f32 * BEND_RELAX_SECONDS)).exp(),
         },
     )
 }
@@ -1088,6 +1546,13 @@ impl Renderer {
                     d.looping = false;
                     d.loop_in = 0.;
                     d.loop_out = 0.;
+                    d.reverse = false;
+                    d.rolling = false;
+                    d.excursion = false;
+                    d.jog_touch = false;
+                    d.braking = false;
+                    d.ramp = 1.;
+                    d.bend = 0.;
                 }
                 Command::Music(id, music) => {
                     align = true;
@@ -1184,6 +1649,29 @@ impl Renderer {
                     self.crossfader = v;
                 }
                 Command::Control(_, Control::Master(v)) => self.master_target = v,
+                Command::Control(_, Control::Sampler(v)) => self.sampler_level = v,
+                Command::Control(_, Control::AutoGain(on)) => self.auto_gain = on,
+                Command::Control(
+                    slot,
+                    c @ (Control::BeatFx(_)
+                    | Control::BeatFxOn(_)
+                    | Control::BeatFxBeats(_)
+                    | Control::BeatFxDepth(_)
+                    | Control::BeatFxBpm(_)),
+                ) => {
+                    if let Some(unit) = self.beat_unit(slot) {
+                        let mut settings = unit.settings();
+                        match c {
+                            Control::BeatFx(kind) => settings.kind = BeatKind::from_index(kind),
+                            Control::BeatFxOn(on) => settings.on = on,
+                            Control::BeatFxBeats(beats) => settings.beats = beats,
+                            Control::BeatFxDepth(depth) => settings.depth = depth,
+                            Control::BeatFxBpm(bpm) => settings.bpm = bpm,
+                            _ => unreachable!(),
+                        }
+                        unit.set(settings);
+                    }
+                }
                 Command::Control(
                     _,
                     c @ (Control::PlayBoth | Control::PauseBoth | Control::CueBoth(_)),
@@ -1211,13 +1699,36 @@ impl Renderer {
                             d.scheduled = None;
                         }
                         for deck in &mut self.decks[1..] {
-                            deck.control(Control::Pause, self.sample_rate);
+                            deck.stop_now(self.sample_rate);
                         }
+                        // The player has no controls for these, so nothing may stay engaged.
+                        for deck in &mut self.decks[..2] {
+                            deck.end_roll(self.sample_rate);
+                            deck.jog_touch = false;
+                            deck.reverse = false;
+                            deck.slip = false;
+                            deck.excursion = false;
+                            deck.bend = 0.;
+                            if let Some(channel) = &mut deck.effects.channel {
+                                channel.color.set_kind(ColorKind::Off);
+                                channel.color.set_amount(0.);
+                                let settings = channel.beat.settings();
+                                channel.beat.set(BeatSettings {
+                                    on: false,
+                                    ..settings
+                                });
+                            }
+                        }
+                        let settings = self.master_fx.settings();
+                        self.master_fx.set(BeatSettings {
+                            on: false,
+                            ..settings
+                        });
                     }
                 }
                 Command::Control(_, Control::Panic) => {
                     for d in &mut self.decks {
-                        d.stop(self.sample_rate);
+                        d.stop_now(self.sample_rate);
                         d.scheduled = None;
                     }
                     self.master_target = 0.;
@@ -1249,6 +1760,8 @@ impl Renderer {
                             | Control::Nudge(_)
                             | Control::Trigger
                             | Control::Play
+                            | Control::BeatJump(_)
+                            | Control::RollEnd
                     ) {
                         self.decks[slot].scheduled = None;
                         // A nudge corrects the relative phase by ear: aligning would undo it.
@@ -1256,7 +1769,13 @@ impl Renderer {
                             align = true;
                         }
                         if slot == self.master_deck
-                            && matches!(c, Control::Cue(_) | Control::Seek(_) | Control::Trigger)
+                            && matches!(
+                                c,
+                                Control::Cue(_)
+                                    | Control::Seek(_)
+                                    | Control::Trigger
+                                    | Control::BeatJump(_)
+                            )
                         {
                             self.decks[1 - slot].scheduled = None;
                         }
@@ -1275,12 +1794,51 @@ impl Renderer {
         let mut clipped = 0;
         let mut lowest_gain = 1_f32;
         let mut limited = 0;
-        for d in &mut self.decks {
+        let block = (output.len() / channels.max(1)) as i32;
+        let relax = self.bend_relax.powi(block);
+        for i in 0..BEAT_UNITS {
+            let settings = self.beat_unit(i).map(|unit| unit.settings());
+            let meter = &self.shared.beat_meters[i];
+            if let Some(settings) = settings {
+                meter.kind.store(settings.kind.index() as u32, Relaxed);
+                meter.on.store(settings.on, Relaxed);
+                meter.beats.store(settings.beats.to_bits(), Relaxed);
+                meter.depth.store(settings.depth.to_bits(), Relaxed);
+                meter.bpm.store(settings.bpm.to_bits(), Relaxed);
+            }
+        }
+        let (master_beat, master_position) = {
+            let lead = &self.decks[self.master_deck];
+            (lead.clock(self.sample_rate), lead.beats_position())
+        };
+        self.master_fx.set_clock(master_beat, master_position);
+        for (i, d) in self.decks.iter_mut().enumerate() {
             d.peak = 0.;
+            d.bend *= relax;
+            if d.bend.abs() < 1e-3 {
+                d.bend = 0.;
+            }
             d.effects.set_echo_time(
                 60. / (d.music.bpm.unwrap_or(120.) as f32 * d.params.rate) * d.echo_beats,
-                self.sample_rate,
             );
+            d.refresh_pitch(self.sample_rate);
+            d.params.auto = match (
+                self.auto_gain && i < 2,
+                d.clip.as_ref().and_then(|c| c.loudness),
+            ) {
+                (true, Some(loudness)) => {
+                    let change =
+                        (AUTO_GAIN_TARGET - loudness).clamp(-AUTO_GAIN_RANGE, AUTO_GAIN_RANGE);
+                    10_f32.powf(change / 20.)
+                }
+                _ => 1.,
+            };
+            let clock = d.clock(self.sample_rate);
+            let beats = d.beats_position();
+            if let Some(channel) = &mut d.effects.channel {
+                channel.color.set_tempo(clock);
+                channel.beat.set_clock(clock, beats);
+            }
             // Finished fades give their PCM back here, never dropping it in the callback. If
             // reclamation has no room, the clip simply waits for the next block.
             let finished = d.fade_left == 0 || !d.tail_reads_clip;
@@ -1321,17 +1879,23 @@ impl Renderer {
                 }
             }
             self.master += (self.master_target - self.master) * self.level_smoothing;
+            self.sampler += (self.sampler_level - self.sampler) * self.level_smoothing;
             for (i, target) in target_mix.iter().enumerate() {
                 self.mix[i] += (target - self.mix[i]) * self.level_smoothing;
             }
             let mut stereo = [0.; 2];
             for (i, deck) in self.decks.iter_mut().enumerate() {
                 let signal = deck.frame(self.sample_rate);
-                let weight = if i < 2 { self.mix[i] } else { 0.5 };
+                let weight = if i < 2 {
+                    self.mix[i]
+                } else {
+                    0.5 * self.sampler
+                };
                 for c in 0..2 {
                     stereo[c] += signal[c] * weight;
                 }
             }
+            let stereo = self.master_fx.process(stereo);
             let (mut stereo, gain) = self
                 .limiter
                 .process(stereo.map(|value| value * self.master));
@@ -1416,7 +1980,23 @@ impl Renderer {
             m.sync.store(d.sync, Relaxed);
             m.loop_beats.store(d.loop_beats.to_bits(), Relaxed);
             m.queued.store(d.scheduled.is_some(), Relaxed);
+            m.trim.store(d.params.trim.to_bits(), Relaxed);
+            m.brake.store(d.brake.to_bits(), Relaxed);
+            m.slip.store(d.slip, Relaxed);
+            m.reverse.store(d.reverse, Relaxed);
+            m.rolling.store(d.rolling, Relaxed);
+            if let Some(channel) = &d.effects.channel {
+                m.color.store(channel.color.knob().to_bits(), Relaxed);
+                m.color_param
+                    .store(channel.color.parameter().to_bits(), Relaxed);
+                m.color_fx
+                    .store(channel.color.selected().index() as u32, Relaxed);
+            }
         }
+        self.shared
+            .sampler
+            .store(self.sampler_level.to_bits(), Relaxed);
+        self.shared.auto_gain.store(self.auto_gain, Relaxed);
         self.shared
             .crossfader
             .store(self.crossfader.to_bits(), Relaxed);
@@ -1458,6 +2038,16 @@ impl Renderer {
             .limiter_db
             .store(self.limiter_db.to_bits(), Relaxed);
     }
+    fn beat_unit(&mut self, slot: usize) -> Option<&mut BeatFx> {
+        if slot == MASTER_UNIT {
+            return Some(&mut self.master_fx);
+        }
+        self.decks[slot]
+            .effects
+            .channel
+            .as_mut()
+            .map(|channel| &mut channel.beat)
+    }
     /// Where the master will be when a cue pre-rolled now on `slot` reaches its target.
     fn scheduled_master_position(&self, slot: usize) -> f64 {
         let master = &self.decks[self.master_deck];
@@ -1498,6 +2088,7 @@ mod tests {
     }
     fn clip(id: u64) -> Arc<Clip> {
         Arc::new(Clip {
+            loudness: None,
             id,
             samples: vec![[0.25, 0.25]; 48000],
             sample_rate: 48000,
@@ -1589,7 +2180,7 @@ mod tests {
         let (h, _) = engine(48000);
         assert!(h
             .action(Action {
-                slot: 9,
+                slot: SLOTS,
                 kind: "play".into(),
                 value: 0.
             })

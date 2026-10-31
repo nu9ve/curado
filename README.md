@@ -5,7 +5,7 @@
 <p align="center">Your music. Two decks. Room to play.<br>A desktop music player and mixer, made for your keyboard.</p>
 <p align="center"><a href="README.es.md">Español</a> · <a href="docs/SETUP.md">Install with your agent</a> · <a href="docs/README.md">Documentation</a> · Made by <a href="https://nu9ve.xyz">nu9ve</a></p>
 
-Listen to your local collection, try a transition, or build a mix without leaving your keyboard. **curado** combines a music library with two decks, a mixer and four sample pads. Your music stays in its original location; curado never moves or edits the files.
+Listen to your local collection, try a transition, or build a mix without leaving your keyboard. **curado** combines a music library with two decks, a mixer and eight sample pads. Your music stays in its original location; curado never moves or edits the files.
 
 ![curado mix view with two loaded decks in the gothic style](docs/assets/mix-gothic-es.jpg)
 
@@ -30,7 +30,7 @@ _Appearance and language settings in the browser preview. English is still in pr
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **Sidebar**                | Browse the collection, playlists and connected drives, open radio, start the local demo or configure the app.                 |
 | **Player**                 | Listen to deck A, use a queue with repeat, and watch the integrated audio-reactive visual.                                    |
-| **Mix**                    | Load A and B, inspect their waveforms and beatgrids, use cues and loops, and mix with EQ, filters, echo and four sample pads. |
+| **Mix**                    | Load A and B, inspect their waveforms and beatgrids, use cues and loops, and mix with EQ, filters, per-channel effects and eight sample pads. |
 | **Library**                | Search local tracks, check estimated BPM and key, load a selection into a deck, and organize playlists.                       |
 | **Settings**               | Adjust appearance, output and buffer, keyboard bindings and MIDI Learn.                                                       |
 | **Footer and mini player** | Control deck A and master volume; hover or focus a control for contextual help. The mini player stays on top.                 |
@@ -49,6 +49,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
 - **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
 - **Bring your USB:** connected drives appear in the sidebar. A rekordbox USB shows its playlists, and tracks load with their grids, keys and hot cues. Any drive can be browsed for audio. curado only reads them.
+- **Effects on every channel:** six color effects and nine beat effects, different per channel and on the master, plus roll, beat jump, slip, reverse, scratch and vinyl brake.
 - **Back to rekordbox:** save a `rekordbox.xml` with your cues, loops and corrected grids, and import it from rekordbox.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
@@ -114,6 +115,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does n
 ## Before you start
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
+- Effects, EQ and interpolation are measured, not yet listened to, and were not compared with the hardware they take after. There is no headphone cue, which needs a second output.
 - rekordbox USBs are read only, and USBs with only the newer OneLibrary database show as plain files. Cues reach rekordbox through an XML export that has not been tried in rekordbox yet, so back up its library first. USB tracks with no certain original on the computer arrive there as other tracks.
 - BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Tempo and key change at once; when transposing, very low notes can sit slightly sharp.
 - Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.

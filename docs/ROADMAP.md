@@ -20,7 +20,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 
 1. **Long tracks (S1):** resolved in RAM with a global limit, see ADR-019. Remaining: import progress and cancellation, a corrupt-file corpus and decode time limits. Reconsider streaming only for tracks over about 90 minutes or machines without the memory.
 2. **Native session contracts and smooth position clock (S2):** mode/track cues already persist. Finish deck loops/session, transactional transport acknowledgements and paused restoration. Do not persist incoherent snapshot positions.
-3. **Audio quality (S3):** loop/jump crossfades and the true-peak limiter exist, pending listening. Remaining: bandlimited resampler, biquad EQ, gain staging. Measure aliasing, denormals and callback cost before adding effects.
+3. **Audio quality (S3):** loop/jump crossfades and the true-peak limiter exist, pending listening. Bandlimited resampler, isolator EQ, 24 dB filters and auto gain exist, measured. Remaining: listening and comparison with hardware.
 4. **OS/device resilience:** hotplug/sleep-wake, controlled reconnect without surprise volume; deterministic thread teardown/join; recoverable DB errors. Measure UI/input/DAC/callback under load.
 5. **Distribution/physical testing (S10):** executed three-OS CI, signed in-bundle helper, signing/notarization, dependency/license audit, two-hour stress; explicit Linux exit without usable tray. Project license decision is documented in [Licensing](LICENSING.md), still unapplied.
 

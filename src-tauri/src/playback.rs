@@ -243,6 +243,7 @@ mod tests {
     use super::*;
     fn clip(id: u64) -> Arc<Clip> {
         Arc::new(Clip {
+            loudness: None,
             id,
             cues: Default::default(),
             samples: vec![],

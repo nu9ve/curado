@@ -17,6 +17,10 @@ import {
   Folder,
   HardDrive,
   Usb,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react';
 import { connectTheme } from './lib/theme-store';
 import {
@@ -31,6 +35,7 @@ import {
 } from './lib/bridge';
 import type {
   DeviceExport,
+  DeviceInfo,
   ImportReport,
   RekordboxExportReport,
   KeyBinding,
@@ -43,24 +48,29 @@ import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
 import { invalidateCueInfo } from './lib/cues';
 import { deviceViewId, exportSummary, parseDeviceView, playlistTree } from './lib/devices';
+import type { PlaylistRow } from './lib/devices';
 import { setMiniWindow } from './lib/window';
 import { readMixLayout, saveMixLayout } from './lib/mix-layout';
 import type { MixLayout } from './lib/mix-layout';
 import { Deck } from './components/Deck';
 import { Mixer, SampleBank } from './components/Mixer';
-import { HardwareConsole } from './components/HardwareConsole';
+import { DeckTools, HardwareConsole, KeyboardGuide } from './components/HardwareConsole';
 import { Library } from './components/Library';
 import { DeviceBrowser } from './components/DeviceBrowser';
 import { Visual } from './components/Visual';
 import { Settings } from './components/Settings';
 import { ZoomWave } from './components/Waveform';
-import { KeyboardMap, KeyHud } from './components/KeyboardMap';
+import { KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
+import { TrackInfo } from './components/TrackInfo';
+import { clampSplit, DEFAULT_WORKSPACE, useWorkspace } from './lib/workspace';
+import type { SidePanel, Workspace } from './lib/workspace';
 
 export default function App() {
   useLanguage();
+  const [workspace, updateWorkspace] = useWorkspace();
   const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
   const [view, setView] = useState('all');
   const mode = useMode();
@@ -96,6 +106,9 @@ export default function App() {
       })
       .catch(onError);
     if (native) {
+      // The engine starts with it off, and this is a preference rather than mix state.
+      if (workspace.autoGain)
+        call('audio_action', { action: { slot: 0, kind: 'autoGain', value: 1 } }).catch(onError);
       call<LibraryData>('get_library')
         .then((data) => {
           if (!disposed) setLibrary(data);
@@ -112,6 +125,8 @@ export default function App() {
       off?.();
       clearTimeout(noticeTimer.current);
     };
+    // Applied once at startup; changes go through the console's own control.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onError]);
   const saveKeys = useCallback(async (bindings: KeyBinding[]) => {
     await call('save_keyboard', { bindings });
@@ -314,8 +329,80 @@ export default function App() {
       </div>
     );
 
+  const rail = mode === 'mix' ? workspace.railMix : workspace.railPlayer;
+  const inWorkspace = mode === 'mix' && view !== 'web';
+  const browser = (
+    <>
+      {inWorkspace && (
+        <SourceSelect
+          view={view}
+          onView={setView}
+          playlists={library.playlists}
+          devices={devices}
+          activeDevice={activeDevice?.id}
+          rows={deviceRows}
+        />
+      )}
+      {activeDevice && deviceView && (
+        <DeviceBrowser
+          device={activeDevice}
+          section={deviceView.section}
+          library={openedLibrary}
+          error={deviceError}
+          mix={mode === 'mix'}
+          loading={loading.length > 0}
+          onError={onError}
+          onLoadTrack={(slot, track) =>
+            void loadWith(slot, () =>
+              call<number | null>('device_load_track', {
+                slot,
+                device: activeDevice.id,
+                track,
+              }),
+            )
+          }
+          onLoadFile={(slot, entry) =>
+            void loadWith(slot, () => call<number | null>('device_load_file', { slot, entry }))
+          }
+        />
+      )}
+      {view !== 'web' && !deviceView && (
+        <Library
+          data={localLibrary}
+          view={view}
+          selected={selected}
+          onSelect={setSelected}
+          onLoad={load}
+          onEdit={edit}
+          onImport={importMedia}
+          onExport={() => void exportRekordbox()}
+          onQueue={(ids, repeat) =>
+            call('play_queue', { ids, repeat })
+              .then(() =>
+                notify(
+                  repeat === 'off'
+                    ? tr(
+                        'Cola en reproducción. Se detendrá al terminar la selección.',
+                        'Queue playing. It will stop at the end of the selection.',
+                      )
+                    : tr(
+                        'Cola en reproducción con repetición activada.',
+                        'Queue playing with repeat enabled.',
+                      ),
+                ),
+              )
+              .catch(onError)
+          }
+          busy={busy}
+          mode={mode}
+        />
+      )}
+    </>
+  );
   return (
-    <div className={`app-shell view-${mode} ${helpExpanded ? 'help-expanded' : ''}`}>
+    <div
+      className={`app-shell view-${mode} ${helpExpanded ? 'help-expanded' : ''} ${rail ? 'sidebar-rail' : ''} ${inWorkspace ? 'is-workspace' : ''}`}
+    >
       <div className="window-drag-region" data-tauri-drag-region aria-hidden="true" />
       <aside className="sidebar">
         <div className="brand" data-tauri-drag-region>
@@ -360,10 +447,11 @@ export default function App() {
                 setPlaylistName(p.name);
                 setNewPlaylist(true);
               }}
-              title="Doble clic para renombrar"
+              title={`${p.name} · ${tr('doble clic para renombrar', 'double-click to rename')}`}
               icon={<ListMusic size={15} />}
               label={p.name}
               count={p.tracks.length}
+              chip
             />
           ))}
           {!library.playlists.length && (
@@ -426,6 +514,7 @@ export default function App() {
                           icon={<ListMusic size={13} />}
                           label={node.name}
                           count={node.tracks.length}
+                          chip
                         />
                       ),
                     )}
@@ -448,10 +537,12 @@ export default function App() {
             className="settings-button"
             onClick={() => setView('web')}
             aria-pressed={view === 'web'}
+            aria-label="radio / web"
+            title="radio / web"
             data-help="web-explorer"
           >
             <Radio size={15} />
-            radio / web
+            <span className="nav-label">radio / web</span>
           </button>
           <button className="demo-button" disabled={!!busy} onClick={demo}>
             <Sparkles size={15} />
@@ -460,15 +551,35 @@ export default function App() {
               <small>{tr('2 tracks + 4 samples locales', '2 tracks + 4 local samples')}</small>
             </span>
           </button>
-          <button className="settings-button" onClick={() => setSettings(true)}>
+          <button
+            className="settings-button"
+            aria-label={tr('Configuración', 'Settings')}
+            title={tr('Configuración', 'Settings')}
+            onClick={() => setSettings(true)}
+          >
             <Settings2 size={15} />
-            {tr('configuración', 'settings')}{' '}
+            <span className="nav-label">{tr('configuración', 'settings')}</span>
           </button>
           <span className="build-label">curado 0.1 · local first</span>
         </div>
       </aside>
       <header className="topbar" data-tauri-drag-region>
         <div className="breadcrumb" data-tauri-drag-region>
+          <button
+            className="icon-button rail-toggle"
+            aria-pressed={rail}
+            aria-label={tr('Barra lateral compacta', 'Compact sidebar')}
+            title={
+              rail
+                ? tr('Mostrar la barra lateral completa', 'Show the full sidebar')
+                : tr('Compactar la barra lateral', 'Compact the sidebar')
+            }
+            onClick={() =>
+              updateWorkspace(mode === 'mix' ? { railMix: !rail } : { railPlayer: !rail })
+            }
+          >
+            {rail ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+          </button>
           <span>{tr('tu espacio', 'your space')}</span>
           <i>/</i>
           <b>
@@ -527,7 +638,9 @@ export default function App() {
         </div>
       </header>
       <main className="sheet">
-        <div className={`sheet-scroll ${view === 'web' ? 'is-web' : ''}`}>
+        <div
+          className={`sheet-scroll ${view === 'web' ? 'is-web' : ''} ${inWorkspace ? 'is-workspace' : ''}`}
+        >
           <PersistenceNotice />
           {!native && (
             <div className="notice">
@@ -549,6 +662,10 @@ export default function App() {
               selected={selected}
               onTrigger={trigger}
               onLibrary={setLibrary}
+              onEdit={edit}
+              workspace={workspace}
+              onWorkspace={updateWorkspace}
+              browser={browser}
             />
           ) : (
             <div className="listen-stage">
@@ -556,60 +673,7 @@ export default function App() {
               <Visual onError={onError} />
             </div>
           )}
-          {activeDevice && deviceView && (
-            <DeviceBrowser
-              device={activeDevice}
-              section={deviceView.section}
-              library={openedLibrary}
-              error={deviceError}
-              mix={mode === 'mix'}
-              loading={loading.length > 0}
-              onError={onError}
-              onLoadTrack={(slot, track) =>
-                void loadWith(slot, () =>
-                  call<number | null>('device_load_track', {
-                    slot,
-                    device: activeDevice.id,
-                    track,
-                  }),
-                )
-              }
-              onLoadFile={(slot, entry) =>
-                void loadWith(slot, () => call<number | null>('device_load_file', { slot, entry }))
-              }
-            />
-          )}
-          {view !== 'web' && !deviceView && (
-            <Library
-              data={localLibrary}
-              view={view}
-              selected={selected}
-              onSelect={setSelected}
-              onLoad={load}
-              onEdit={edit}
-              onImport={importMedia}
-              onExport={() => void exportRekordbox()}
-              onQueue={(ids, repeat) =>
-                call('play_queue', { ids, repeat })
-                  .then(() =>
-                    notify(
-                      repeat === 'off'
-                        ? tr(
-                            'Cola en reproducción. Se detendrá al terminar la selección.',
-                            'Queue playing. It will stop at the end of the selection.',
-                          )
-                        : tr(
-                            'Cola en reproducción con repetición activada.',
-                            'Queue playing with repeat enabled.',
-                          ),
-                    ),
-                  )
-                  .catch(onError)
-              }
-              busy={busy}
-              mode={mode}
-            />
-          )}
+          {!inWorkspace && browser}
         </div>
         <KeyHud />
       </main>
@@ -711,6 +775,8 @@ function NavItem({
   count,
   nested = false,
   depth = 0,
+  chip = false,
+  title,
   ...rest
 }: {
   active: boolean;
@@ -719,18 +785,27 @@ function NavItem({
   count?: number;
   nested?: boolean;
   depth?: number;
+  /** On the rail its two first letters stand in, because many lists share one icon. */
+  chip?: boolean;
   onClick: () => void;
   onDoubleClick?: () => void;
   title?: string;
 }) {
   return (
     <button
-      className={`nav-item ${active ? 'active' : ''} ${nested ? 'nested' : ''}`}
+      className={`nav-item ${active ? 'active' : ''} ${nested ? 'nested' : ''} ${chip ? 'has-chip' : ''}`}
       aria-current={active ? 'page' : undefined}
+      aria-label={label}
+      title={title ?? label}
       style={nested ? ({ '--depth': depth } as CSSProperties) : undefined}
       {...rest}
     >
       {icon}
+      {chip && (
+        <span className="nav-chip" aria-hidden="true">
+          {label.slice(0, 2)}
+        </span>
+      )}
       <span className="nav-label">{label}</span>
       {count !== undefined && <span className="nav-count">{count}</span>}
     </button>
@@ -746,6 +821,10 @@ function MixView({
   selected,
   onTrigger,
   onLibrary,
+  onEdit,
+  workspace,
+  onWorkspace,
+  browser,
 }: {
   library: LibraryData;
   keys: KeyBinding[];
@@ -755,6 +834,10 @@ function MixView({
   selected: number | null;
   onTrigger: (binding: KeyBinding) => void;
   onLibrary: (data: LibraryData) => void;
+  onEdit: (edit: LibraryEdit) => unknown;
+  workspace: Workspace;
+  onWorkspace: (change: Partial<Workspace>) => void;
+  browser: ReactNode;
 }) {
   const { audio } = useSnapshot();
   const [layout, setLayout] = useState<MixLayout>(() => {
@@ -794,73 +877,245 @@ function MixView({
       ))}
     </div>
   );
+  const panels: { id: SidePanel; label: string }[] = [
+    { id: 'library', label: tr('biblioteca', 'library') },
+    { id: 'tools', label: tr('herramientas', 'tools') },
+    { id: 'keyboard', label: tr('teclado', 'keyboard') },
+  ];
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  const moveSplit = (x: number) => {
+    const bounds = workspaceRef.current?.getBoundingClientRect();
+    if (bounds?.width) onWorkspace({ split: clampSplit((x - bounds.left) / bounds.width) });
+  };
   return (
-    <div className={`mix-view ${layout === 'console' ? 'mix-view-console' : ''}`}>
-      <div className="mix-layout-bar" role="group" aria-label={tr('Vista de mezcla', 'Mix layout')}>
-        <span>{tr('Vista de mezcla', 'Mix layout')}</span>
-        <button
-          type="button"
-          aria-pressed={layout === 'classic'}
-          onClick={() => chooseLayout('classic')}
-        >
-          {tr('curado', 'curado')}
-        </button>
-        <button
-          type="button"
-          aria-pressed={layout === 'console'}
-          onClick={() => chooseLayout('console')}
-        >
-          {tr('cabina', 'console')}
-        </button>
-      </div>
-      {layout === 'console' ? (
-        <HardwareConsole
-          library={library}
-          keys={keys}
-          loading={loading}
-          onError={onError}
-          onLibrary={onLibrary}
-          selected={selected}
-          onLoad={onLoad}
-          onTrigger={onTrigger}
-        />
-      ) : (
+    <div
+      ref={workspaceRef}
+      className={`mix-workspace ${workspace.panelOpen ? '' : 'panel-closed'}`}
+      style={{ '--split': workspace.split } as CSSProperties}
+    >
+      <section className="mix-main">
+        <div className="mix-layout-bar" role="toolbar" aria-label={tr('Vista de mezcla', 'Mix layout')}>
+          <button
+            type="button"
+            aria-pressed={layout === 'classic'}
+            onClick={() => chooseLayout('classic')}
+          >
+            {tr('curado', 'curado')}
+          </button>
+          <button
+            type="button"
+            aria-pressed={layout === 'console'}
+            onClick={() => chooseLayout('console')}
+          >
+            {tr('cabina', 'console')}
+          </button>
+          {layout === 'console' && (
+            <button
+              type="button"
+              aria-pressed={workspace.platters}
+              title={tr(
+                'Oculta los platos para dar más lugar a waveforms y pads',
+                'Hides the platters to give waveforms and pads more room',
+              )}
+              onClick={() => onWorkspace({ platters: !workspace.platters })}
+            >
+              {tr('platos', 'platters')}
+            </button>
+          )}
+          <span className="mix-bar-gap" />
+          <button
+            type="button"
+            className="icon-button"
+            aria-pressed={workspace.panelOpen}
+            aria-label={tr('Panel lateral', 'Side panel')}
+            title={
+              workspace.panelOpen
+                ? tr('Ocultar el panel para enfocarte en la mezcla', 'Hide the panel to focus on mixing')
+                : tr('Mostrar el panel', 'Show the panel')
+            }
+            onClick={() => onWorkspace({ panelOpen: !workspace.panelOpen })}
+          >
+            {workspace.panelOpen ? <PanelRightClose size={15} /> : <PanelRightOpen size={15} />}
+          </button>
+        </div>
+        <div className="mix-stage">
+          {layout === 'console' ? (
+            <HardwareConsole
+              library={library}
+              keys={keys}
+              loading={loading}
+              onError={onError}
+              selected={selected}
+              onLoad={onLoad}
+              platters={workspace.platters}
+              onEdit={onEdit}
+              autoGain={workspace.autoGain}
+              onAutoGain={(autoGain) => onWorkspace({ autoGain })}
+            />
+          ) : (
+            <div className="mix-classic">
+              {waves}
+              <div className="console">
+                <Deck
+                  index={0}
+                  onLibrary={onLibrary}
+                  tracks={library.tracks}
+                  keys={keys}
+                  onError={onError}
+                  loading={loading.includes(0)}
+                />
+                <Mixer keys={keys} onError={onError} />
+                <Deck
+                  index={1}
+                  onLibrary={onLibrary}
+                  tracks={library.tracks}
+                  keys={keys}
+                  onError={onError}
+                  loading={loading.includes(1)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </section>
+      {workspace.panelOpen && (
         <>
-          {waves}
-          <div className="console">
-            <Deck
-              index={0}
-              onLibrary={onLibrary}
-              tracks={library.tracks}
-              keys={keys}
-              onError={onError}
-              loading={loading.includes(0)}
+          <div
+            className="mix-divider"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={tr('Ancho del panel lateral', 'Side panel width')}
+            aria-valuemin={35}
+            aria-valuemax={82}
+            aria-valuenow={Math.round(workspace.split * 100)}
+            tabIndex={0}
+            title={tr('Arrastra para ajustar · doble clic: restablecer', 'Drag to adjust · double-click: reset')}
+            onPointerDown={(e) => e.currentTarget.setPointerCapture(e.pointerId)}
+            onPointerMove={(e) => {
+              if (e.currentTarget.hasPointerCapture(e.pointerId)) moveSplit(e.clientX);
+            }}
+            onDoubleClick={() => onWorkspace({ split: DEFAULT_WORKSPACE.split })}
+            onKeyDown={(e) => {
+              const step = { ArrowLeft: -0.02, ArrowRight: 0.02 }[e.key];
+              if (!step) return;
+              e.preventDefault();
+              e.stopPropagation();
+              onWorkspace({ split: clampSplit(workspace.split + step) });
+            }}
+          />
+          <aside className="mix-panel" aria-label={tr('Panel lateral', 'Side panel')}>
+            <TrackInfo
+              library={library}
+              selected={selected}
+              open={workspace.info}
+              onToggle={() => onWorkspace({ info: !workspace.info })}
+              onLoad={onLoad}
+              loading={loading}
             />
-            <Mixer keys={keys} onError={onError} />
-            <Deck
-              index={1}
-              onLibrary={onLibrary}
-              tracks={library.tracks}
-              keys={keys}
-              onError={onError}
-              loading={loading.includes(1)}
-            />
-          </div>
+            <div className="mix-panel-tabs" role="tablist">
+              {panels.map((panel) => (
+                <button
+                  key={panel.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={workspace.panel === panel.id}
+                  onClick={() => onWorkspace({ panel: panel.id })}
+                >
+                  {panel.label}
+                </button>
+              ))}
+            </div>
+            <div className="mix-panel-body" role="tabpanel">
+              {workspace.panel === 'library' && browser}
+              {workspace.panel === 'tools' && (
+                <div className="mix-tools">
+                  {layout === 'console' && (
+                    <DeckTools
+                      library={library}
+                      loading={loading}
+                      onError={onError}
+                      onLibrary={onLibrary}
+                    />
+                  )}
+                  <SampleBank
+                    tracks={library.tracks}
+                    keys={keys}
+                    onError={onError}
+                    onLoad={onLoad}
+                    selected={selected}
+                  />
+                </div>
+              )}
+              {workspace.panel === 'keyboard' && (
+                <KeyboardGuide keys={keys} onTrigger={onTrigger} />
+              )}
+            </div>
+          </aside>
         </>
       )}
-      {layout === 'classic' && (
-        <div className="console-foot">
-          <SampleBank
-            tracks={library.tracks}
-            keys={keys}
-            onError={onError}
-            onLoad={onLoad}
-            selected={selected}
-          />
-          <KeyboardMap keys={keys} mode="mix" onTrigger={onTrigger} />
-        </div>
-      )}
     </div>
+  );
+}
+
+function SourceSelect({
+  view,
+  onView,
+  playlists,
+  devices,
+  activeDevice,
+  rows,
+}: {
+  view: string;
+  onView: (view: string) => void;
+  playlists: LibraryData['playlists'];
+  devices: DeviceInfo[];
+  activeDevice?: string;
+  rows: PlaylistRow[];
+}) {
+  return (
+    <label className="source-select">
+      <span>{tr('Fuente', 'Source')}</span>
+      <select
+        aria-label={tr('Fuente de pistas', 'Track source')}
+        value={view}
+        onChange={(e) => onView(e.target.value)}
+      >
+        <option value="all">{tr('toda la música', 'all music')}</option>
+        <option value="favorites">{tr('favoritos', 'favorites')}</option>
+        {playlists.length > 0 && (
+          <optgroup label="playlists">
+            {playlists.map((playlist) => (
+              <option key={playlist.id} value={`playlist:${playlist.id}`}>
+                {playlist.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {devices.map((device) => (
+          <optgroup key={device.id} label={device.name}>
+            {device.rekordbox && (
+              <option value={deviceViewId(device.id, { kind: 'tracks' })}>
+                {tr('todas las pistas', 'all tracks')}
+              </option>
+            )}
+            {device.id === activeDevice &&
+              rows
+                .filter(({ node }) => !node.folder)
+                .map(({ node, depth }) => (
+                  <option
+                    key={node.id}
+                    value={deviceViewId(device.id, { kind: 'playlist', id: node.id })}
+                  >
+                    {`${'  '.repeat(depth)}${node.name}`}
+                  </option>
+                ))}
+            <option value={deviceViewId(device.id, { kind: 'files' })}>
+              {tr('archivos', 'files')}
+            </option>
+          </optgroup>
+        ))}
+      </select>
+    </label>
   );
 }
 

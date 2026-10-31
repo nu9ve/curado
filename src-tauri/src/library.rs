@@ -418,6 +418,7 @@ mod tests {
             "legacy rows wait for backfill"
         );
         let clip = Clip {
+            loudness: None,
             id: 10,
             cues: Default::default(),
             samples: vec![],

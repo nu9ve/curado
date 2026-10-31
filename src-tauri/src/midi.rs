@@ -150,9 +150,11 @@ impl Midi {
                             // EQ range is 0..2 with unity at the centre detent (CC 64).
                             "low" | "mid" | "high" => raw.value as f64 / 64.,
                             "rate" => 0.8 + raw.value as f64 / 127. * 0.4,
-                            "master" | "crossfader" | "filter" | "echo" | "highPass" => {
-                                raw.value as f64 / 127.
-                            }
+                            "master" | "crossfader" | "filter" | "echo" | "highPass"
+                            | "colorParam" | "beatFxDepth" => raw.value as f64 / 127.,
+                            "trim" => raw.value as f64 / 64.,
+                            // Bipolar with its center at the detent (CC 64).
+                            "color" => ((raw.value as f64 - 64.) / 63.).clamp(-1., 1.),
                             _ => {
                                 if raw.value < 64 {
                                     continue;

@@ -3,7 +3,7 @@
 <p align="center">Tu música. Dos decks. Espacio para jugar.<br>Un reproductor y mezclador de escritorio que se toca con el teclado.</p>
 <p align="center"><a href="README.md">English</a> · <a href="docs/SETUP.md">Instalar con tu agente</a> · <a href="docs/README.md">Documentación</a> · Hecho por <a href="https://nu9ve.xyz">nu9ve</a></p>
 
-Bienvenido. **curado** es un espacio para escuchar tu colección, probar una transición o armar una mezcla. Combina biblioteca, dos decks, mixer y cuatro pads de samples. Tus archivos se quedan donde están: curado no los mueve ni los modifica.
+Bienvenido. **curado** es un espacio para escuchar tu colección, probar una transición o armar una mezcla. Combina biblioteca, dos decks, mixer y ocho pads de samples. Tus archivos se quedan donde están: curado no los mueve ni los modifica.
 
 ![Vista de mezcla de curado con dos decks cargados y estilo gótico](docs/assets/mix-gothic-es.jpg)
 
@@ -28,7 +28,7 @@ _Apariencia e idioma en la vista previa del navegador. La traducción al inglés
 | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | **Barra lateral**       | Recorrer la colección, favoritos y playlists; abrir radio, iniciar la sesión de prueba o configurar la app.                   |
 | **Reproductor**         | Escuchar el deck A, usar una cola con repetición y ver el visual integrado que responde al audio.                             |
-| **Mezcla**              | Cargar A y B, revisar sus waveforms y beatgrids, usar cues y loops, y mezclar con EQ, filtros, echo y cuatro pads de samples. |
+| **Mezcla**              | Cargar A y B, revisar sus waveforms y beatgrids, usar cues y loops, y mezclar con EQ, filtros, efectos por canal y ocho pads de samples. |
 | **Biblioteca**          | Buscar pistas locales, revisar el BPM y la tonalidad estimados, cargar una selección y organizar playlists.                   |
 | **Configuración**       | Ajustar apariencia, salida y buffer, asignaciones de teclado y MIDI Learn.                                                    |
 | **Footer y vista mini** | Controlar el deck A y el master; señalar o enfocar un control para ver su ayuda. La vista mini permanece encima.              |
@@ -47,6 +47,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
 - **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
 - **Trae tu USB:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists, y las pistas cargan con sus grids, tonalidades y hot cues. Cualquier disco se puede explorar para buscar audio. curado solo los lee.
+- **Efectos en cada canal:** seis efectos de color y nueve de beat, distintos por canal y en el master, más roll, beat jump, slip, reversa, scratch y freno de vinilo.
 - **De vuelta a rekordbox:** guarda un `rekordbox.xml` con tus cues, loops y grids corregidos, e impórtalo desde rekordbox.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 
@@ -104,6 +105,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (n
 ## Límites actuales
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
+- Los efectos, el EQ y la interpolación están medidos, pero aún no escuchados, y no se compararon con el hardware en el que se inspiran. No hay cue de audífonos, que necesita una segunda salida.
 - Los USB de rekordbox son de solo lectura, y los que solo tengan la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
 - El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Tempo y tono cambian al instante; al transponer, las notas muy graves pueden quedar algo altas.
 - Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.

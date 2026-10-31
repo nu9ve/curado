@@ -1,14 +1,29 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import type { CSSProperties, ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import type { CSSProperties } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { control, parameter, useSnapshot } from '../lib/bridge';
 import { actionKey } from '../lib/feedback';
 import { tr } from '../lib/language';
 import { consoleScale } from '../lib/console-fit';
-import { samplePadIntent } from '../lib/console-pads';
+import {
+  angleDelta,
+  BEAT_FX,
+  beatLabel,
+  COLOR_FX,
+  JUMP_PADS,
+  jogSeconds,
+  LOOP_PADS,
+  nextDivision,
+  nextTempoRange,
+  ROLL_PADS,
+  SAMPLE_PADS,
+  samplePadIntent,
+  tapTempo,
+} from '../lib/console-pads';
+import type { PadMode } from '../lib/console-pads';
 import { cueColor, useCueInfo } from '../lib/cues';
 import { EMPTY_SLOT, remaining } from '../lib/types';
-import type { KeyBinding, Library, Slot, Track } from '../lib/types';
+import type { BeatFxState, KeyBinding, Library, LibraryEdit, Slot, Track } from '../lib/types';
 import { Knob, LimiterLamp, Meter, Slider } from './Controls';
 import { keyFor } from './Deck';
 import { Mixer } from './Mixer';
@@ -21,6 +36,82 @@ import './hardware-console.css';
 
 const act = (slot: number, kind: string, value = 0) => actionKey({ slot, kind, value });
 const eqValue = (v: number) => (v > 0 ? `${(20 * Math.log10(v)).toFixed(0)} dB` : '−∞');
+const padName = (index: number) => String.fromCharCode(65 + index);
+
+/** A platter drag: scratch, or a pitch bend while playing with vinyl mode off. */
+function useJog(
+  index: number,
+  playing: boolean,
+  vinyl: boolean,
+  sensitivity: number,
+  onError: (e: unknown) => void,
+) {
+  const drag = useRef<{
+    angle: number;
+    moved: boolean;
+    touching: boolean;
+    pending: number;
+    frame: number;
+  } | null>(null);
+  const moved = useRef(false);
+  const angleOf = (element: Element, x: number, y: number) => {
+    const bounds = element.getBoundingClientRect();
+    return Math.atan2(y - bounds.top - bounds.height / 2, x - bounds.left - bounds.width / 2);
+  };
+  // One message per frame at most, whatever rate the pointer reports.
+  const flush = () => {
+    const state = drag.current;
+    if (!state) return;
+    state.frame = 0;
+    if (state.touching) control(index, 'jogMove', state.pending).catch(onError);
+    else control(index, 'jogBend', Math.max(-0.5, Math.min(0.5, state.pending * 2))).catch(onError);
+    state.pending = 0;
+  };
+  useEffect(() => () => cancelAnimationFrame(drag.current?.frame ?? 0), []);
+  return {
+    wasDragged: () => moved.current,
+    handlers: {
+      onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        moved.current = false;
+        drag.current = {
+          angle: angleOf(e.currentTarget, e.clientX, e.clientY),
+          moved: false,
+          touching: false,
+          pending: 0,
+          frame: 0,
+        };
+      },
+      onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
+        const state = drag.current;
+        if (!state) return;
+        const angle = angleOf(e.currentTarget, e.clientX, e.clientY);
+        const delta = angleDelta(state.angle, angle);
+        if (!state.moved && Math.abs(delta) < 0.05) return;
+        state.angle = angle;
+        if (!state.moved) {
+          state.moved = true;
+          moved.current = true;
+          state.touching = vinyl || !playing;
+          if (state.touching) control(index, 'jogTouch', 1).catch(onError);
+        }
+        state.pending += jogSeconds(delta, sensitivity);
+        state.frame ||= requestAnimationFrame(flush);
+      },
+      onPointerUp: () => {
+        const state = drag.current;
+        if (!state) return;
+        cancelAnimationFrame(state.frame);
+        drag.current = null;
+        if (!state.moved) return;
+        if (state.touching) {
+          if (state.pending) control(index, 'jogMove', state.pending).catch(onError);
+          control(index, 'jogTouch', 0).catch(onError);
+        } else control(index, 'jogBend', 0).catch(onError);
+      },
+    },
+  };
+}
 
 /** A visible, focusable reference control, never an audio action. */
 function Soon({ children, dial = false }: { children: string; dial?: boolean }) {
@@ -36,7 +127,6 @@ function RxDeck({
   masterDeck,
   masterHasBpm,
   onError,
-  children,
   samples,
   tracks,
   selected,
@@ -51,7 +141,6 @@ function RxDeck({
   masterDeck: number;
   masterHasBpm: boolean;
   onError: (e: unknown) => void;
-  children: ReactNode;
   samples: Slot[];
   tracks: Track[];
   selected: number | null;
@@ -61,7 +150,11 @@ function RxDeck({
   const name = index ? 'B' : 'A';
   const tone = index ? 'b' : 'a';
   const empty = !track || loading;
-  const [padMode, setPadMode] = useState<'cue' | 'samples'>('cue');
+  const [padMode, setPadMode] = useState<PadMode>('cue');
+  const [vinyl, setVinyl] = useState(true);
+  const [sensitivity, setSensitivity] = useState(1);
+  const [tempoRange, setTempoRange] = useState(0.5);
+  const jog = useJog(index, slot.playing, vinyl, sensitivity, onError);
   const cueInfo = useCueInfo(slot.id || undefined);
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
   return (
@@ -88,9 +181,33 @@ function RxDeck({
           >
             SYNC
           </button>
-          <Soon>REVERSE</Soon>
-          <Soon>SLIP</Soon>
-          <Soon>JOG MODE</Soon>
+          <button
+            disabled={empty}
+            aria-pressed={slot.reverse}
+            data-action={act(index, 'reverse', slot.reverse ? 0 : 1)}
+            onClick={() => send('reverse', slot.reverse ? 0 : 1)}
+          >
+            REVERSE
+          </button>
+          <button
+            disabled={empty}
+            aria-pressed={slot.slip}
+            data-action={act(index, 'slip', slot.slip ? 0 : 1)}
+            onClick={() => send('slip', slot.slip ? 0 : 1)}
+          >
+            SLIP
+          </button>
+          <button
+            type="button"
+            aria-pressed={vinyl}
+            title={tr(
+              'Plato: scratch encendido; apagado dobla el tempo al arrastrar',
+              'Platter: on scratches; off bends the tempo when dragged',
+            )}
+            onClick={() => setVinyl(!vinyl)}
+          >
+            VINYL
+          </button>
         </div>
       </div>
       <div className="rx-loop-panel">
@@ -113,28 +230,62 @@ function RxDeck({
         >
           LOOP
         </button>
-        <Soon>1/2X</Soon>
-        <Soon>2X</Soon>
+        <button
+          disabled={empty || slot.loopOut <= slot.loopIn}
+          data-action={act(index, 'loopScale', 0.5)}
+          onClick={() => send('loopScale', 0.5)}
+        >
+          1/2X
+        </button>
+        <button
+          disabled={empty || slot.loopOut <= slot.loopIn}
+          data-action={act(index, 'loopScale', 2)}
+          onClick={() => send('loopScale', 2)}
+        >
+          2X
+        </button>
       </div>
       <div className="rx-jog-area">
         <div className="rx-jog-side">
-          <Soon>VINYL SPEED</Soon>
-          <Soon dial>JOG ADJUST</Soon>
+          <Knob
+            label="BRAKE"
+            tone={tone}
+            action={act(index, 'brake')}
+            max={3}
+            value={slot.brake}
+            format={(v) => (v < 0.01 ? 'OFF' : `${v.toFixed(1)} s`)}
+            onChange={(v) => parameter(index, 'brake', v, onError)}
+          />
+          <Knob
+            label="JOG"
+            tone={tone}
+            min={0.25}
+            max={2}
+            defaultValue={1}
+            origin={1}
+            value={sensitivity}
+            format={(v) => `×${v.toFixed(2)}`}
+            onChange={setSensitivity}
+          />
         </div>
         <button
           type="button"
           className="rx-jog"
           disabled={empty}
           aria-label={tr(
-            `Plato deck ${name}: reproducir o pausar; scratch pendiente`,
-            `Deck ${name} platter: play or pause; scratch unavailable`,
+            `Plato deck ${name}: clic reproduce o pausa; arrastrar mueve la pista`,
+            `Deck ${name} platter: click plays or pauses; dragging moves the track`,
           )}
           title={tr(
-            'Clic: reproducir o pausar · scratch próximamente',
-            'Click: play or pause · scratch coming soon',
+            'Clic: reproducir o pausar · arrastrar en círculo: scratch o doblar el tempo',
+            'Click: play or pause · drag around: scratch or bend the tempo',
           )}
           data-action={act(index, 'toggle')}
-          onClick={() => send('toggle')}
+          {...jog.handlers}
+          onPointerCancel={jog.handlers.onPointerUp}
+          onClick={() => {
+            if (!jog.wasDragged()) send('toggle');
+          }}
         >
           <span
             className="rx-jog-rotor"
@@ -161,13 +312,19 @@ function RxDeck({
           >
             MASTER TEMPO
           </button>
-          <Soon>TEMPO RANGE</Soon>
+          <button
+            type="button"
+            title={tr('Rango del fader de tempo', 'Tempo fader range')}
+            onClick={() => setTempoRange(nextTempoRange(tempoRange))}
+          >
+            ±{Math.round(tempoRange * 100)} %
+          </button>
           <Slider
             label="TEMPO"
             action={act(index, 'rate')}
             tone={tone}
-            min={0.5}
-            max={1.5}
+            min={1 - tempoRange}
+            max={1 + tempoRange}
             origin={1}
             defaultValue={1}
             value={slot.tuning.rate}
@@ -218,72 +375,73 @@ function RxDeck({
         </div>
         <div className="rx-pad-section">
           <div className="rx-pad-modes">
-            <button
-              type="button"
-              aria-pressed={padMode === 'cue'}
-              onClick={() => setPadMode('cue')}
-            >
-              HOT CUE
-            </button>
-            <button
-              type="button"
-              aria-pressed={padMode === 'samples'}
-              onClick={() => setPadMode('samples')}
-            >
-              SAMPLER
-            </button>
-            <Soon>BEAT LOOP</Soon>
-            <Soon>BEAT JUMP</Soon>
+            {(
+              [
+                ['cue', 'HOT CUE'],
+                ['loop', 'BEAT LOOP'],
+                ['jump', 'BEAT JUMP'],
+                ['roll', 'ROLL'],
+                ['samples', 'SAMPLER'],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={padMode === mode}
+                onClick={() => setPadMode(mode)}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <div className="rx-pads">
-            {Array.from({ length: 8 }, (_, cue) =>
-              padMode === 'samples' ? (
-                cue < 4 ? (
-                  (() => {
-                    const sampleSlot = cue + 2;
-                    const sample = samples[cue];
-                    const sampleTrack = tracks.find((t) => t.id === sample?.id);
-                    const instruction = tr(
-                      'Clic: reproducir · Shift + clic: cargar selección',
-                      'Click: play · Shift-click: load selection',
-                    );
-                    return (
-                      <button
-                        key={cue}
-                        className={`rx-pad rx-sample-pad ${sample?.playing ? 'is-set' : ''}`}
-                        disabled={
-                          loadingSlots.includes(sampleSlot) || (!sampleTrack && selected === null)
-                        }
-                        aria-label={`${tr('Sample', 'Sample')} ${cue + 1} · ${sampleTrack?.title ?? tr('vacío', 'empty')} · ${instruction}`}
-                        title={`${sampleTrack?.title ?? tr('Vacío', 'Empty')} · ${instruction}`}
-                        data-action={act(sampleSlot, 'trigger')}
-                        onClick={(e) => {
-                          const intent = samplePadIntent(
-                            cue,
-                            !!sampleTrack,
-                            selected,
-                            e.shiftKey,
-                            loadingSlots.includes(sampleSlot),
-                          );
-                          if (intent?.kind === 'load') onLoad(intent.slot, intent.id);
-                          else if (intent?.kind === 'trigger')
-                            control(intent.slot, 'trigger').catch(onError);
-                        }}
-                      >
-                        <span>S{cue + 1}</span>
-                        {keyFor(keys, sampleSlot, 'trigger')}
-                        <small>
-                          {loadingSlots.includes(sampleSlot)
-                            ? tr('cargando', 'loading')
-                            : (sampleTrack?.title ?? tr('vacío', 'empty'))}
-                        </small>
-                      </button>
-                    );
-                  })()
-                ) : (
-                  <Soon key={cue}>{`SAMPLE ${cue + 1}`}</Soon>
-                )
-              ) : (
+            {padMode === 'samples' &&
+              samples.map((sample, cue) => {
+                const sampleSlot = cue + 2;
+                const sampleTrack = tracks.find((t) => t.id === sample.id);
+                const instruction = tr(
+                  'Clic: reproducir · Alt + clic: detener · Shift + clic: cargar selección',
+                  'Click: play · Alt-click: stop · Shift-click: load selection',
+                );
+                return (
+                  <button
+                    key={cue}
+                    className={`rx-pad rx-sample-pad ${sample.playing ? 'is-set' : ''}`}
+                    disabled={
+                      loadingSlots.includes(sampleSlot) || (!sampleTrack && selected === null)
+                    }
+                    aria-label={`${tr('Sample', 'Sample')} ${cue + 1} · ${sampleTrack?.title ?? tr('vacío', 'empty')} · ${instruction}`}
+                    title={`${sampleTrack?.title ?? tr('Vacío', 'Empty')} · ${instruction}`}
+                    data-action={act(sampleSlot, 'trigger')}
+                    onClick={(e) => {
+                      if (e.altKey) {
+                        control(sampleSlot, 'pause').catch(onError);
+                        return;
+                      }
+                      const intent = samplePadIntent(
+                        cue,
+                        !!sampleTrack,
+                        selected,
+                        e.shiftKey,
+                        loadingSlots.includes(sampleSlot),
+                      );
+                      if (intent?.kind === 'load') onLoad(intent.slot, intent.id);
+                      else if (intent?.kind === 'trigger')
+                        control(intent.slot, 'trigger').catch(onError);
+                    }}
+                  >
+                    <span>S{cue + 1}</span>
+                    {keyFor(keys, sampleSlot, 'trigger')}
+                    <small>
+                      {loadingSlots.includes(sampleSlot)
+                        ? tr('cargando', 'loading')
+                        : (sampleTrack?.title ?? tr('vacío', 'empty'))}
+                    </small>
+                  </button>
+                );
+              })}
+            {padMode === 'cue' &&
+              Array.from({ length: 8 }, (_, cue) => (
                 <button
                   key={cue}
                   className={`rx-pad ${slot.cues[cue] > 0 ? 'is-set' : ''} ${slot.cueEnds[cue] > 0 ? 'is-loop' : ''}`}
@@ -296,35 +454,108 @@ function RxDeck({
                       'Click: jump and play · Shift-click: save',
                     )
                   }
-                  aria-label={`Deck ${name} · Hot cue ${String.fromCharCode(65 + cue)}${cueInfo.hot[cue]?.label ? ` · ${cueInfo.hot[cue]?.label}` : ''}`}
+                  aria-label={`Deck ${name} · Hot cue ${padName(cue)}${cueInfo.hot[cue]?.label ? ` · ${cueInfo.hot[cue]?.label}` : ''}`}
                   data-action={`${act(index, 'cue', cue)} ${act(index, 'setCue', cue)}`}
                   onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', cue)}
                 >
-                  <span>{String.fromCharCode(65 + cue)}</span>
+                  <span>{padName(cue)}</span>
                   {keyFor(keys, index, 'cue', cue, true)}
                 </button>
-              ),
-            )}
+              ))}
+            {padMode === 'loop' &&
+              LOOP_PADS.map((beats) => {
+                const active = slot.looping && slot.loopBeats === beats;
+                return (
+                  <button
+                    key={beats}
+                    className={`rx-pad ${active ? 'is-set' : ''}`}
+                    disabled={empty}
+                    aria-pressed={active}
+                    aria-label={`Deck ${name} · ${tr('Loop de', 'Loop of')} ${beatLabel(beats)} ${tr('beats', 'beats')}`}
+                    data-action={act(index, 'loopBeats', beats)}
+                    onClick={() => (active ? send('loop') : send('loopBeats', beats))}
+                  >
+                    <span>{beatLabel(beats)}</span>
+                  </button>
+                );
+              })}
+            {padMode === 'jump' &&
+              JUMP_PADS.map((beats) => (
+                <button
+                  key={beats}
+                  className="rx-pad"
+                  disabled={empty}
+                  aria-label={`Deck ${name} · ${tr('Saltar', 'Jump')} ${beats} ${tr('beats', 'beats')}`}
+                  data-action={act(index, 'beatJump', beats)}
+                  onClick={() => send('beatJump', beats)}
+                >
+                  <span>{beats < 0 ? `◀ ${-beats}` : `${beats} ▶`}</span>
+                </button>
+              ))}
+            {padMode === 'roll' &&
+              ROLL_PADS.map((beats) => {
+                const active = slot.rolling && slot.loopBeats === beats;
+                const hold = () => send('roll', beats);
+                const release = () => send('rollEnd');
+                return (
+                  <button
+                    key={beats}
+                    className={`rx-pad ${active ? 'is-set' : ''}`}
+                    disabled={empty}
+                    aria-label={`Deck ${name} · Roll ${beatLabel(beats)}`}
+                    title={tr(
+                      'Mantén: repite y al soltar vuelve donde iría la pista',
+                      'Hold: repeats, and on release returns to where the track would be',
+                    )}
+                    data-action={act(index, 'roll', beats)}
+                    onPointerDown={(e) => {
+                      e.currentTarget.setPointerCapture(e.pointerId);
+                      hold();
+                    }}
+                    onPointerUp={release}
+                    onPointerCancel={release}
+                    onKeyDown={(e) => {
+                      if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+                        e.preventDefault();
+                        hold();
+                      }
+                    }}
+                    onKeyUp={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') release();
+                    }}
+                    onBlur={() => {
+                      if (slot.rolling) release();
+                    }}
+                  >
+                    <span>{beatLabel(beats)}</span>
+                  </button>
+                );
+              })}
           </div>
           <div className="rx-pad-footer">
             PERFORMANCE PADS{' '}
             <small>
-              {padMode === 'cue'
-                ? tr('8 HOT CUES', '8 HOT CUES')
-                : tr('4 SAMPLES COMPARTIDOS', '4 SHARED SAMPLES')}
+              {
+                {
+                  cue: tr('8 HOT CUES', '8 HOT CUES'),
+                  loop: tr('LOOP EN BEATS', 'LOOP IN BEATS'),
+                  jump: tr('SALTO EN BEATS', 'JUMP IN BEATS'),
+                  roll: tr('MANTÉN PARA REPETIR', 'HOLD TO REPEAT'),
+                  samples: tr('8 SAMPLES COMPARTIDOS', '8 SHARED SAMPLES'),
+                }[padMode]
+              }
             </small>
           </div>
           {padMode === 'samples' && (
             <div className="rx-sample-help">
               {tr(
-                'Clic en vacío: cargar selección · ⇧ clic: reemplazar',
-                'Click empty: load selection · ⇧ click: replace',
+                'Clic en vacío: cargar selección · ⇧ clic: reemplazar · ⌥ clic: detener',
+                'Click empty: load selection · ⇧ click: replace · ⌥ click: stop',
               )}
             </div>
           )}
         </div>
       </div>
-      <div className="rx-deck-extras">{children}</div>
     </section>
   );
 }
@@ -347,7 +578,17 @@ function RxChannel({
     >
       <b>CH {index + 1}</b>
       <Soon>SOURCE</Soon>
-      <Soon dial>TRIM</Soon>
+      <Knob
+        label="TRIM"
+        tone={tone}
+        action={act(index, 'trim')}
+        max={2}
+        origin={1}
+        defaultValue={1}
+        value={slot.trim}
+        format={eqValue}
+        onChange={send('trim')}
+      />
       {(['high', 'mid', 'low'] as const).map((kind) => (
         <Knob
           key={kind}
@@ -362,7 +603,18 @@ function RxChannel({
           onChange={send(kind)}
         />
       ))}
-      <Soon dial>COLOR</Soon>
+      <Knob
+        label={slot.colorFx ? COLOR_FX[slot.colorFx - 1] : 'COLOR'}
+        tone={tone}
+        action={act(index, 'color')}
+        min={-1}
+        max={1}
+        origin={0}
+        defaultValue={0}
+        value={slot.color}
+        format={(v) => (Math.abs(v) < 0.01 ? tr('centro', 'center') : v.toFixed(2))}
+        onChange={send('color')}
+      />
       <Soon>CUE</Soon>
       <div className="rx-channel-level">
         <Meter vertical value={slot.peak} label={`${tr('Nivel', 'Level')} ${index ? 'B' : 'A'}`} />
@@ -377,6 +629,148 @@ function RxChannel({
         />
       </div>
     </div>
+  );
+}
+
+/** Each channel picks its own color effect, so the two can differ. */
+function ColorFxPanel({ slots, onError }: { slots: Slot[]; onError: (e: unknown) => void }) {
+  return (
+    <>
+      <strong>SOUND COLOR FX</strong>
+      {COLOR_FX.map((label, i) => (
+        <div className="rx-fx-row" key={label}>
+          <span>{label}</span>
+          {slots.map((slot, index) => {
+            const active = slot.colorFx === i + 1;
+            return (
+              <button
+                key={index}
+                className={`tone-${index ? 'b' : 'a'}`}
+                aria-pressed={active}
+                aria-label={`${label} · ${tr('canal', 'channel')} ${index + 1}`}
+                data-action={act(index, 'colorFx', i + 1)}
+                onClick={() => control(index, 'colorFx', active ? 0 : i + 1).catch(onError)}
+              >
+                {index + 1}
+              </button>
+            );
+          })}
+        </div>
+      ))}
+      <div className="rx-fx-params">
+        {slots.map((slot, index) => (
+          <Knob
+            key={index}
+            label={`PRM ${index + 1}`}
+            tone={index ? 'b' : 'a'}
+            action={act(index, 'colorParam')}
+            defaultValue={0.5}
+            origin={0.5}
+            value={slot.colorParam}
+            onChange={(v) => parameter(index, 'colorParam', v, onError)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+const UNIT_LABELS = ['CH 1', 'CH 2', 'MST'];
+/** One panel over three independent units: switching what it shows changes nothing on the others. */
+function BeatFxPanel({
+  units,
+  onError,
+}: {
+  units: BeatFxState[];
+  onError: (e: unknown) => void;
+}) {
+  const [unit, setUnit] = useState(0);
+  const taps = useRef<number[]>([]);
+  const state = units[unit] ?? { kind: 1, on: false, beats: 1, depth: 0.5, bpm: 0 };
+  const send = (kind: string, value: number) => control(unit, kind, value).catch(onError);
+  return (
+    <>
+      <strong>BEAT FX</strong>
+      <div className="rx-fx-units" role="group" aria-label={tr('Destino', 'Target')}>
+        {UNIT_LABELS.map((label, i) => (
+          <button
+            key={label}
+            aria-pressed={unit === i}
+            className={units[i]?.on ? 'is-on' : ''}
+            onClick={() => {
+              setUnit(i);
+              taps.current = [];
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <select
+        aria-label={tr(`Efecto de ${UNIT_LABELS[unit]}`, `Effect on ${UNIT_LABELS[unit]}`)}
+        value={state.kind}
+        data-action={act(unit, 'beatFx', state.kind)}
+        onChange={(e) => send('beatFx', +e.target.value)}
+      >
+        {BEAT_FX.map((label, i) => (
+          <option key={label} value={i}>
+            {label}
+          </option>
+        ))}
+      </select>
+      <div className="rx-fx-beat">
+        <button
+          aria-label={tr('División más corta', 'Shorter division')}
+          data-action={act(unit, 'beatFxBeats', nextDivision(state.beats, -1))}
+          onClick={() => send('beatFxBeats', nextDivision(state.beats, -1))}
+        >
+          ◀
+        </button>
+        <b>{beatLabel(state.beats)}</b>
+        <button
+          aria-label={tr('División más larga', 'Longer division')}
+          data-action={act(unit, 'beatFxBeats', nextDivision(state.beats, 1))}
+          onClick={() => send('beatFxBeats', nextDivision(state.beats, 1))}
+        >
+          ▶
+        </button>
+      </div>
+      <button
+        className="rx-fx-tap"
+        title={tr(
+          'Marca el tempo del efecto · Shift + clic: volver al de la pista',
+          "Tap the effect's tempo · Shift-click: back to the track's",
+        )}
+        onClick={(e) => {
+          if (e.shiftKey) {
+            taps.current = [];
+            send('beatFxBpm', 0);
+            return;
+          }
+          taps.current = [...taps.current.slice(-15), performance.now()];
+          const bpm = tapTempo(taps.current);
+          if (bpm !== null) send('beatFxBpm', bpm);
+        }}
+      >
+        {state.bpm ? `TAP ${state.bpm.toFixed(1)}` : 'TAP'}
+      </button>
+      <Knob
+        label="LEVEL / DEPTH"
+        tone="master"
+        action={act(unit, 'beatFxDepth')}
+        defaultValue={0.5}
+        value={state.depth}
+        onChange={(v) => parameter(unit, 'beatFxDepth', v, onError)}
+      />
+      <button
+        className="rx-fx-on"
+        aria-pressed={state.on}
+        data-action={act(unit, 'beatFxOn', state.on ? 0 : 1)}
+        onClick={() => send('beatFxOn', state.on ? 0 : 1)}
+      >
+        ON / OFF
+      </button>
+    </>
   );
 }
 
@@ -446,7 +840,7 @@ function DeckExtensions({
   );
 }
 
-function KeyboardGuide({
+export function KeyboardGuide({
   keys,
   onTrigger,
 }: {
@@ -482,24 +876,90 @@ function KeyboardGuide({
   );
 }
 
+/** Lives in the side panel, so that opening it never shrinks the console. */
+export function DeckTools({
+  library,
+  loading,
+  onError,
+  onLibrary,
+}: {
+  library: Library;
+  loading: number[];
+  onError: (e: unknown) => void;
+  onLibrary: (data: Library) => void;
+}) {
+  const { audio } = useSnapshot();
+  const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
+  const hasTrack = (index: number) => library.tracks.some((t) => t.id === slots[index].id);
+  return (
+    <>
+      {[0, 1].map((index) => (
+        <div className="rx-deck-extras" key={index}>
+          <DeckExtensions index={index} slot={slots[index]} onError={onError} />
+          <MusicalControls
+            index={index}
+            slot={slots[index]}
+            disabled={!hasTrack(index) || loading.includes(index)}
+            onError={onError}
+            onLibrary={onLibrary}
+          />
+        </div>
+      ))}
+      <div
+        className="rx-linked"
+        role="group"
+        aria-label={tr('Transporte simultáneo A y B', 'Linked transport A and B')}
+      >
+        <span className="rx-rail-label">{tr('TRANSPORTE A + B', 'TRANSPORT A + B')}</span>
+        <div>
+          <button
+            disabled={!slots[0].id && !slots[1].id}
+            data-action={act(0, 'playBoth')}
+            onClick={() => control(0, 'playBoth').catch(onError)}
+          >
+            {tr('Reproducir ambos', 'Play both')}
+          </button>
+          <button
+            data-action={act(0, 'pauseBoth')}
+            onClick={() => control(0, 'pauseBoth').catch(onError)}
+          >
+            {tr('Pausar ambos', 'Pause both')}
+          </button>
+          <button
+            disabled={!slots[0].id && !slots[1].id}
+            data-action={act(0, 'cueBoth')}
+            onClick={() => control(0, 'cueBoth').catch(onError)}
+          >
+            CUE 1
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function HardwareConsole({
   library,
   keys,
   loading,
   onError,
-  onLibrary,
   selected,
   onLoad,
-  onTrigger,
+  platters,
+  onEdit,
+  autoGain,
+  onAutoGain,
 }: {
   library: Library;
   keys: KeyBinding[];
   loading: number[];
   onError: (e: unknown) => void;
-  onLibrary: (data: Library) => void;
   selected: number | null;
   onLoad: (slot: number, id: number) => void;
-  onTrigger: (binding: KeyBinding) => void;
+  platters: boolean;
+  onEdit: (edit: LibraryEdit) => unknown;
+  autoGain: boolean;
+  onAutoGain: (on: boolean) => void;
 }) {
   const { audio } = useSnapshot();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -509,19 +969,14 @@ export function HardwareConsole({
   useLayoutEffect(() => {
     const scroll = scrollRef.current;
     const body = bodyRef.current;
-    const sheet = scroll?.closest<HTMLElement>('.sheet-scroll');
-    if (!scroll || !body || !sheet) return;
+    if (!scroll || !body) return;
     const measure = () => {
       const bounds = body.getBoundingClientRect();
-      const sheetBounds = sheet.getBoundingClientRect();
-      const scrollBounds = scroll.getBoundingClientRect();
-      const topInSheet = scrollBounds.top - sheetBounds.top + sheet.scrollTop;
-      const availableHeight = Math.max(1, sheet.clientHeight - topInSheet - 18);
       // Read the applied zoom from the rendered box, rather than a pending React state update.
       const appliedScale = bounds.width / 1170;
       const next = consoleScale(
         scroll.clientWidth - 8,
-        availableHeight,
+        scroll.clientHeight - 8,
         1170,
         bounds.height / appliedScale,
       );
@@ -531,7 +986,6 @@ export function HardwareConsole({
       }
     };
     const observer = new ResizeObserver(measure);
-    observer.observe(sheet);
     observer.observe(scroll);
     observer.observe(body);
     window.addEventListener('resize', measure);
@@ -542,75 +996,21 @@ export function HardwareConsole({
     };
   }, []);
   const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
-  const samples = [2, 3, 4, 5].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
-  const tracks = slots.map((slot) => library.tracks.find((track) => track.id === slot.id));
-  const deckExtras = (index: number) => (
-    <>
-      <DeckExtensions index={index} slot={slots[index]} onError={onError} />
-      <MusicalControls
-        index={index}
-        slot={slots[index]}
-        disabled={!tracks[index] || loading.includes(index)}
-        onError={onError}
-        onLibrary={onLibrary}
-      />
-      {index === 0 ? (
-        <div
-          className="rx-linked"
-          role="group"
-          aria-label={tr('Transporte simultáneo A y B', 'Linked transport A and B')}
-        >
-          <span className="rx-rail-label">{tr('TRANSPORTE A + B', 'TRANSPORT A + B')}</span>
-          <div>
-            <button
-              disabled={!slots[0].id && !slots[1].id}
-              data-action={act(0, 'playBoth')}
-              onClick={() => control(0, 'playBoth').catch(onError)}
-            >
-              {tr('Reproducir ambos', 'Play both')}
-            </button>
-            <button
-              data-action={act(0, 'pauseBoth')}
-              onClick={() => control(0, 'pauseBoth').catch(onError)}
-            >
-              {tr('Pausar ambos', 'Pause both')}
-            </button>
-            <button
-              disabled={!slots[0].id && !slots[1].id}
-              data-action={act(0, 'cueBoth')}
-              onClick={() => control(0, 'cueBoth').catch(onError)}
-            >
-              CUE 1
-            </button>
-          </div>
-        </div>
-      ) : (
-        <KeyboardGuide keys={keys} onTrigger={onTrigger} />
-      )}
-    </>
+  const samples = Array.from(
+    { length: SAMPLE_PADS },
+    (_, i) => audio?.slots[i + 2] ?? EMPTY_SLOT,
   );
+  const selection = library.tracks.find((track) => track.id === selected);
+  const tracks = slots.map((slot) => library.tracks.find((track) => track.id === slot.id));
   return (
-    <>
-      <p className="rx-explanation">
-        {tr(
-          'Cabina inspirada en RX3 · controles atenuados: próximamente · el plato aún no hace scratch',
-          'RX3-inspired console · dimmed controls: coming soon · platter scratch is not available yet',
-        )}
-      </p>
-      <div className="rx-stage">
-        <div
-          ref={scrollRef}
-          className="rx-scroll"
-          role="region"
-          aria-label={tr('Cabina de mezcla desplazable', 'Scrollable mixing console')}
-          tabIndex={0}
-        >
-          <div ref={bodyRef} className="rx-body" style={{ zoom: scale }}>
-            <div className="rx-head">
-              <b>curado</b>
-              <span>ALL-IN-ONE DJ SYSTEM</span>
-              <span>2 CHANNEL PERFORMANCE</span>
-            </div>
+    <div
+      ref={scrollRef}
+      className="rx-scroll"
+      role="region"
+      aria-label={tr('Cabina de mezcla', 'Mixing console')}
+      tabIndex={0}
+    >
+      <div ref={bodyRef} className={`rx-body ${platters ? '' : 'no-platters'}`} style={{ zoom: scale }}>
             <div className="rx-layout">
               <RxDeck
                 index={0}
@@ -626,9 +1026,7 @@ export function HardwareConsole({
                 selected={selected}
                 onLoad={onLoad}
                 loadingSlots={loading}
-              >
-                {deckExtras(0)}
-              </RxDeck>
+              />
               <div className="rx-center">
                 <div className="rx-screen-frame">
                   <div className="rx-screen-head">
@@ -665,9 +1063,24 @@ export function HardwareConsole({
                   >
                     LOAD A
                   </button>
-                  <Soon>BACK</Soon>
-                  <Soon dial>BROWSE</Soon>
-                  <Soon>TAG TRACK</Soon>
+                  <button
+                    disabled={!selection}
+                    aria-pressed={!!selection?.favorite}
+                    title={tr(
+                      'Marca la pista seleccionada como favorita',
+                      'Marks the selected track as a favorite',
+                    )}
+                    onClick={() =>
+                      selection &&
+                      onEdit({
+                        kind: 'favorite',
+                        track: selection.id,
+                        value: !selection.favorite,
+                      })
+                    }
+                  >
+                    TAG TRACK
+                  </button>
                   <button
                     disabled={!selected || loading.includes(1)}
                     title={tr('Cargar la pista seleccionada en B', 'Load selected track into B')}
@@ -678,17 +1091,13 @@ export function HardwareConsole({
                 </div>
                 <div className="rx-mixer">
                   <div className="rx-color-fx">
-                    <strong>SOUND COLOR FX</strong>
-                    {['SPACE', 'DUB ECHO', 'SWEEP', 'NOISE', 'CRUSH', 'FILTER'].map((fx) => (
-                      <Soon key={fx}>{fx}</Soon>
-                    ))}
-                    <Soon dial>PARAMETER</Soon>
+                    <ColorFxPanel slots={slots} onError={onError} />
                     <strong>HEADPHONES</strong>
                     <Soon>MASTER CUE</Soon>
                     <Soon>LINK CUE</Soon>
                     <Soon dial>MIXING</Soon>
                     <Soon dial>LEVEL</Soon>
-                    <small>{tr('PRÓXIMAMENTE', 'COMING SOON')}</small>
+                    <small>{tr('REQUIERE SALIDA DE CUE', 'NEEDS A CUE OUTPUT')}</small>
                   </div>
                   <RxChannel index={0} slot={slots[0]} onError={onError} />
                   <RxChannel index={1} slot={slots[1]} onError={onError} />
@@ -708,15 +1117,21 @@ export function HardwareConsole({
                       label={tr('Nivel master', 'Master level')}
                     />
                     <LimiterLamp reduction={audio?.limiterDb ?? 0} />
-                    <strong>BEAT FX</strong>
-                    <Soon>BEAT ◀ ▶</Soon>
-                    <Soon>TAP</Soon>
-                    <Soon dial>SELECT</Soon>
-                    <Soon dial>CHANNEL</Soon>
-                    <Soon dial>TIME</Soon>
-                    <Soon dial>LEVEL / DEPTH</Soon>
-                    <Soon>ON / OFF</Soon>
-                    <small>{tr('PRÓXIMAMENTE', 'COMING SOON')}</small>
+                    <button
+                      className="rx-fx-on"
+                      aria-pressed={autoGain}
+                      title={tr(
+                        'Iguala el nivel de las pistas a −14 LUFS, hasta ±12 dB',
+                        'Matches track levels to −14 LUFS, up to ±12 dB',
+                      )}
+                      onClick={() => {
+                        onAutoGain(!autoGain);
+                        control(0, 'autoGain', autoGain ? 0 : 1).catch(onError);
+                      }}
+                    >
+                      AUTO GAIN
+                    </button>
+                    <BeatFxPanel units={audio?.beatFx ?? []} onError={onError} />
                   </div>
                   <div className="rx-cross">
                     <Slider
@@ -746,24 +1161,9 @@ export function HardwareConsole({
                 selected={selected}
                 onLoad={onLoad}
                 loadingSlots={loading}
-              >
-                {deckExtras(1)}
-              </RxDeck>
+              />
             </div>
-            <div className="rx-bottom-edge">
-              <span>curado</span>
-              <span>2 DECKS / 2 CHANNELS</span>
-              <span>{tr('SUPERFICIE DE PRÁCTICA', 'PRACTICE SURFACE')}</span>
-            </div>
-          </div>
-        </div>
       </div>
-      <details className="rx-extra">
-        <summary>{tr('Mixer completo de curado', 'Full curado mixer')}</summary>
-        <div className="rx-extra-content">
-          <Mixer keys={keys} onError={onError} />
-        </div>
-      </details>
-    </>
+    </div>
   );
 }

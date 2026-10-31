@@ -76,7 +76,11 @@ impl PitchVoice {
         self.read = early + self.lead(step);
         let frames = self.history.len() / 2;
         for (frame, value) in self.history.as_chunks_mut::<2>().0.iter_mut().enumerate() {
-            *value = frame_at(samples, self.read - (frames - frame) as f64 * source_step);
+            *value = frame_at(
+                samples,
+                self.read - (frames - frame) as f64 * source_step,
+                source_step,
+            );
         }
         self.stretch.seek(&self.history, step / source_step);
         let mut done = 0;
@@ -111,7 +115,11 @@ impl PitchVoice {
             .iter_mut()
             .enumerate()
         {
-            *value = frame_at(samples, self.read + frame as f64 * self.source_step);
+            *value = frame_at(
+                samples,
+                self.read + frame as f64 * self.source_step,
+                self.source_step,
+            );
         }
         self.read += frames as f64 * self.source_step;
         self.stretch
@@ -119,11 +127,11 @@ impl PitchVoice {
     }
 }
 #[inline]
-fn frame_at(samples: &[[f32; 2]], position: f64) -> [f32; 2] {
+fn frame_at(samples: &[[f32; 2]], position: f64, speed: f64) -> [f32; 2] {
     if position < 0. {
         return [0.; 2];
     }
-    crate::read(samples, position)
+    crate::resample::read(samples, position, speed)
 }
 
 #[cfg(test)]
@@ -136,6 +144,7 @@ mod tests {
 
     fn clip(source_rate: u32, samples: Vec<[f32; 2]>) -> Arc<Clip> {
         Arc::new(Clip {
+            loudness: None,
             id: 1,
             cues: Default::default(),
             samples,

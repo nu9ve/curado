@@ -2,6 +2,8 @@
 
 Research and initial console view, 2026-10-29. The console is a visual approximation, not hardware equivalence. Product references describe their own equipment; curado's capabilities are established by its code and [Architecture](ARCHITECTURE.md).
 
+**Update, ADR-022 and ADR-023:** the console now has per-channel Sound Color FX, Beat FX on CH 1, CH 2 and master, trim, beat loop, beat jump and roll pads, slip, reverse, platter scratch, vinyl brake and eight samples. Where the sections below list these as gaps, this update replaces them. Headphone cue, input sources, booth, microphone and four channels remain gaps. These effects are curado's own and were not compared with hardware.
+
 ## Current foundation
 
 The classic Mix screen composes two `Deck` components around `Mixer`, followed by four sample pads and other shared interface elements. Each channel has three-band EQ, separate low-pass and high-pass filters, beat echo, a level fader and a meter; master and crossfader are shared. Each deck has eight persistent hot cues, a platter, pitch, beat loops, sync and quantize. The platter currently toggles playback; it is not a scratch or drag jog wheel. Samples are separate one-shots, not additional music decks or mixer channels.

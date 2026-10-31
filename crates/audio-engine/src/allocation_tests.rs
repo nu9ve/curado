@@ -71,6 +71,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     let (handle, mut renderer) = crate::engine(48000);
     let clip = || {
         Arc::new(crate::decode::Clip {
+            loudness: None,
             id: 1,
             sample_rate: 48000,
             samples: vec![[0.2, 0.2]; 4800],
@@ -171,6 +172,7 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     // Key lock, transposition, loops, cues, pause and a load over pitched audio.
     let long = || {
         Arc::new(crate::decode::Clip {
+            loudness: None,
             id: 2,
             sample_rate: 44100,
             samples: vec![[0.2, -0.2]; 44100],
@@ -233,6 +235,55 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     render(10);
     handle.load_and_play(1, long()).unwrap();
     render(20);
+    // Every effect on both channels and the master, with the transport moving under them.
+    use crate::Control as C;
+    for kind in 0..crate::fx::BeatKind::COUNT {
+        for slot in 0..crate::BEAT_UNITS {
+            handle.control(slot, C::BeatFx(kind)).unwrap();
+            handle.control(slot, C::BeatFxBeats(0.25)).unwrap();
+            handle.control(slot, C::BeatFxOn(true)).unwrap();
+        }
+        render(12);
+    }
+    for kind in 0..crate::fx::ColorKind::COUNT {
+        for slot in 0..2 {
+            handle.control(slot, C::ColorFx(kind)).unwrap();
+            handle
+                .control(slot, C::Color(if slot == 0 { -0.8 } else { 0.8 }))
+                .unwrap();
+        }
+        render(12);
+    }
+    handle.control(0, C::Low(0.)).unwrap();
+    handle.control(0, C::Filter(0.3)).unwrap();
+    handle.control(0, C::HighPass(0.3)).unwrap();
+    handle.control(0, C::Trim(1.5)).unwrap();
+    handle.control(0, C::AutoGain(true)).unwrap();
+    render(4);
+    handle.control(0, C::Slip(true)).unwrap();
+    handle.control(0, C::Roll(0.25)).unwrap();
+    render(10);
+    handle.control(0, C::RollEnd).unwrap();
+    handle.control(0, C::Reverse(true)).unwrap();
+    render(10);
+    handle.control(0, C::Reverse(false)).unwrap();
+    handle.control(0, C::BeatJump(4.)).unwrap();
+    handle.control(0, C::LoopBeats(0.5)).unwrap();
+    handle.control(0, C::LoopScale(2.)).unwrap();
+    render(10);
+    handle.control(0, C::JogTouch(true)).unwrap();
+    handle.control(0, C::JogMove(-0.1)).unwrap();
+    render(10);
+    handle.control(0, C::JogTouch(false)).unwrap();
+    handle.control(0, C::JogBend(0.1)).unwrap();
+    render(10);
+    handle.control(0, C::Brake(0.05)).unwrap();
+    handle.control(0, C::Pause).unwrap();
+    render(10);
+    handle.control(0, C::Play).unwrap();
+    handle.control(5, C::Sampler(0.5)).unwrap();
+    handle.control(0, C::SetMode(false)).unwrap();
+    render(10);
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
     #[cfg(target_os = "macos")]
     {

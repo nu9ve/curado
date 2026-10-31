@@ -105,6 +105,57 @@ const descriptions: Record<string, [string, string]> = {
     'Añade echo a este canal.',
     'El tiempo sigue el BPM de salida y la división elegida en beats; sin análisis usa 120 BPM. Doble clic elimina el efecto.',
   ],
+  trim: [
+    'Ajusta la ganancia de entrada del canal, antes del EQ.',
+    'Centro: 0 dB. Úsala para igualar pistas; si AUTO GAIN está activo, se suma a su corrección.',
+  ],
+  color: [
+    'Aplica el Sound Color FX elegido para este canal.',
+    'Al centro no hace nada; cada lado da un carácter distinto. Doble clic vuelve al centro. Dub Echo y Space dejan cola al volver.',
+  ],
+  colorFx: [
+    'Elige el Sound Color FX de un canal.',
+    'Cada canal tiene el suyo. Pulsa el activo para apagarlo.',
+  ],
+  colorParam: [
+    'Ajusta el carácter del Sound Color FX de este canal.',
+    'Resonancia en Filter, realimentación en Dub Echo, tamaño en Space, nivel en Noise y dureza en Crush.',
+  ],
+  beatFx: [
+    'Elige el Beat FX de la unidad mostrada.',
+    'CH 1, CH 2 y MST son independientes y pueden sonar a la vez con efectos distintos.',
+  ],
+  beatFxOn: [
+    'Enciende o apaga el Beat FX de la unidad mostrada.',
+    'Delay, Echo, Ping Pong y Reverb dejan su cola al apagarse.',
+  ],
+  beatFxBeats: [
+    'Cambia la división en beats del efecto.',
+    'Sigue el tempo de la pista, o el marcado con TAP. Sin análisis usa 120 BPM.',
+  ],
+  beatFxDepth: ['Ajusta cuánto se oye el efecto.', 'Doble clic lo devuelve a la mitad.'],
+  slip: [
+    'Con slip, la pista sigue avanzando en silencio durante un loop, reversa o scratch.',
+    'Al terminar, vuelve donde habría estado, sin perder la frase.',
+  ],
+  reverse: [
+    'Reproduce la pista hacia atrás.',
+    'Al activarla no se conserva el tono con key lock, que vuelve al desactivarla.',
+  ],
+  roll: [
+    'Repite un trozo mientras mantienes el pad.',
+    'Al soltar vuelve donde iría la pista. Otro pad cambia el tamaño sin perder ese punto.',
+  ],
+  beatJump: [
+    'Salta beats completos hacia atrás o adelante.',
+    'Si hay un loop activo, lo lleva consigo.',
+  ],
+  loopScale: ['Duplica o reduce a la mitad el loop.', 'Conserva su inicio.'],
+  brake: [
+    'Hace que al pausar el disco frene poco a poco.',
+    'OFF pausa de inmediato. Durante el freno, play lo recupera. Silenciar todo no espera al freno.',
+  ],
+  sampler: ['Ajusta el nivel de todos los samples.', 'Doble clic vuelve a 100 %.'],
   highPass: [
     'Atenúa los graves con un filtro paso alto.',
     'OFF conserva el paso completo. Es independiente del filtro paso bajo; ambos tienen suavizado para evitar saltos.',
@@ -244,6 +295,54 @@ const englishDescriptions: Record<string, [string, string]> = {
     'Reduce highs with a low-pass filter.',
     'Fully right is open (OFF). A closed filter can make a track nearly silent.',
   ],
+  trim: [
+    "Sets the channel's input gain, before the EQ.",
+    'Center is 0 dB. Use it to match tracks; with AUTO GAIN on, it adds to that correction.',
+  ],
+  color: [
+    "Applies this channel's chosen Sound Color FX.",
+    'Nothing at center; each side has its own character. Double-click returns to center. Dub Echo and Space leave a tail.',
+  ],
+  colorFx: [
+    "Chooses a channel's Sound Color FX.",
+    'Each channel has its own. Press the active one to turn it off.',
+  ],
+  colorParam: [
+    "Sets the character of this channel's Sound Color FX.",
+    'Resonance on Filter, feedback on Dub Echo, size on Space, level on Noise and hardness on Crush.',
+  ],
+  beatFx: [
+    'Chooses the Beat FX of the unit shown.',
+    'CH 1, CH 2 and MST are independent and can run at once with different effects.',
+  ],
+  beatFxOn: [
+    'Turns the Beat FX of the unit shown on or off.',
+    'Delay, Echo, Ping Pong and Reverb leave a tail when turned off.',
+  ],
+  beatFxBeats: [
+    "Changes the effect's division in beats.",
+    "Follows the track's tempo, or the one set with TAP. Without analysis it uses 120 BPM.",
+  ],
+  beatFxDepth: ['Sets how much of the effect is heard.', 'Double-click returns it to half.'],
+  slip: [
+    'With slip, the track keeps moving silently during a loop, reverse or scratch.',
+    'When that ends it returns to where it would have been, without losing the phrase.',
+  ],
+  reverse: [
+    'Plays the track backward.',
+    'Key lock does not hold the pitch while it is on, and returns when it is off.',
+  ],
+  roll: [
+    'Repeats a slice while you hold the pad.',
+    'On release it returns to where the track would be. Another pad changes the size and keeps that point.',
+  ],
+  beatJump: ['Jumps whole beats back or forward.', 'An active loop moves with it.'],
+  loopScale: ['Doubles or halves the loop.', 'Its start stays.'],
+  brake: [
+    'Makes a pause wind the record down.',
+    'OFF pauses at once. During the brake, play catches it. Mute all does not wait for it.',
+  ],
+  sampler: ['Sets the level of all samples.', 'Double-click returns to 100 %.'],
   highPass: [
     'Reduce lows with a high-pass filter.',
     'OFF passes the full signal. It is independent of the low-pass filter.',
@@ -429,12 +528,17 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
   const action = actions[0];
   const global =
     action &&
-    ['master', 'panic', 'crossfader', 'playBoth', 'pauseBoth', 'cueBoth'].includes(action.kind);
+    (['master', 'panic', 'crossfader', 'playBoth', 'pauseBoth', 'cueBoth', 'sampler', 'autoGain'].includes(
+      action.kind,
+    ) ||
+      (action.kind.startsWith('beatFx') && action.slot === 2));
   const tone = action && !global && action.slot < 2 ? (action.slot ? 'b' : 'a') : 'master';
   const scope =
     action && !global
       ? `${action.slot < 2 ? `Deck ${action.slot ? 'B' : 'A'}` : `Sample ${action.slot - 1}`} · `
-      : '';
+      : action?.kind.startsWith('beatFx')
+        ? 'Master · '
+        : '';
   const numbered =
     action && ['cue', 'setCue', 'cueBoth'].includes(action.kind) ? ` ${action.value + 1}` : '';
   const direction =

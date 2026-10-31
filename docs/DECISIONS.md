@@ -1,5 +1,29 @@
 # Technical decisions
 
+## ADR-023 · Effects per channel, and a transparent path — accepted (2026-10-30)
+
+The maintainer asked for the RX3's missing effects and functions, with different effects on different channels, plus the audio quality items.
+
+- **Each channel owns its effects.** Hardware shares one Sound Color selection and one Beat FX unit. Here each music channel has its own color effect, and CH 1, CH 2 and master each have a Beat FX unit, so they can differ and run at once. One panel edits the unit it shows.
+- **Signal path:** trim, EQ, LP/HP, color, fader, echo, beat, then crossfader, master unit, master, limiter. Color goes before the fader and beat after it, as on a mixer, so a closed fader still lets a tail ring out.
+- **Effects implemented:** Space, Dub Echo, Sweep, Noise, Crush, Filter; Delay, Echo, Ping Pong, Reverb, Flanger, Phaser, Filter, Trans, Roll. Original algorithms named for what they do. Their sound was not compared with hardware. Spiral, Helix, Pitch, Slip Roll and Vinyl Brake as Beat FX are not implemented, though roll pads and the vinyl brake exist in the transport.
+- **Real-time rules:** every buffer is written once at creation, so the callback neither allocates nor takes a first-write page fault; work per frame is fixed; the allocator audit covers every effect and transport mode. Selecting Reverb clears about 120 KB, which is bounded and only happens on a command.
+- **A centered EQ leaves the path.** Linkwitz-Riley crossovers give a real kill and a flat sum, but even flat they spread an attack in time: transport tests caught a first sample at 0.18 instead of 0.3. So bands at unity bypass them and transients stay sample-exact. Moving a band crossfades them in over about 5 ms. LP and HP bypass the same way.
+- **Sinc instead of linear interpolation:** 24 taps, Kaiser window, six tables by read speed so nothing folds back above the new Nyquist. A sample read in place at normal speed is untouched. Tables build before the first callback, and reading them takes no lock.
+- **Auto gain defaults to off,** because changing levels unasked would surprise anyone who set them by ear. BS.1770 loudness is measured on the loading worker; it moves a track to −14 LUFS, within ±12 dB, and the limiter still catches peaks.
+- **Slip uses a silent shadow position** that advances at normal speed during a loop, reverse, scratch or roll, and the return uses the existing crossfade. Key lock gives way to plain playback in reverse, scratch and brake, since a stretcher cannot follow them, and returns afterwards.
+- **Not attempted: headphone cue, SOURCE and booth.** They need a second output and device routing that cannot be verified without that hardware, so these controls stay labelled unavailable.
+
+## ADR-022 · Mixing as a fixed screen — accepted (2026-10-30)
+
+The maintainer showed the console cut off by a scrolling page, with the library far below, and asked for a fixed view with internal scrolling and a compact sidebar.
+
+- **Nothing scrolls but lists.** In Mix the sheet stops scrolling. The console fits its panel through the existing scale, and the panel's lists and tools scroll inside themselves. Below 0.65 scale the console scrolls in its own panel, because controls that small stop being usable.
+- **Console left, side panel right,** with a draggable divider. Tabs hold library, tools and keyboard, so opening one never shrinks the console, which is why deck tools moved out of it. The panel collapses for a mixing focus, and hiding the platters gives waveforms and pads more room.
+- **The rail is per mode:** on by default in Mix, off in Player, since mixing needs the room and listening does not. Playlists show two letters because many lists sharing one icon cannot be told apart. A source selector in the panel reaches everything the rail abbreviates, including a drive's nested playlists.
+- **Removed from the console:** its decorative header and footer, an explanatory sentence and the duplicate mixer, which all took height. The footer's playback row is hidden in Mix, since the decks already have transport.
+- **Preferences stay in local storage,** like the existing layout choice, because they are one viewer's conveniences. Each field falls back on its own if the stored data is old or wrong.
+
 ## ADR-021 · rekordbox.xml export, conservative by default — accepted (2026-10-30)
 
 The maintainer wanted cues set in curado to reach rekordbox. `rekordbox.xml` is the documented route, needs no reverse engineering and leaves the decision to import with the user. It has **not been imported into rekordbox yet**: everything below about import behavior comes from third-party documentation and needs the maintainer's confirmation.

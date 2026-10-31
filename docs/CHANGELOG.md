@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Fixed mixing screen and channel effects
+
+Mix became a fixed screen with the console on the left, a collapsible side panel with library, tools and keyboard, and a compact sidebar rail. Added per-channel Sound Color FX, Beat FX on CH 1, CH 2 and master, trim, beat loop, beat jump and roll pads, slip, reverse, scratch, vinyl brake, eight samples and auto gain. Replaced the EQ with Linkwitz-Riley isolators, filters with 24 dB slopes and linear interpolation with windowed sinc. See [Status](STATUS.md), ADR-022 and ADR-023. Lessons: an existing test protected what mattered, because attack tests caught that even a flat crossover smears a kick, which led to bypassing it when centered; and a measurement needs its control case, because 40 ms spikes that looked like the effects also appeared with none.
+
 ## 2026-10-30 · Export to rekordbox.xml
 
 Added **To rekordbox** in the library: a `rekordbox.xml` with cues, loops, hand-corrected grids and keys and curado's playlists, written only to a file chosen in a native dialog. Tracks with nothing to say are left out, unknown fields are omitted, and USB tracks are relocated to their original when exactly one file matches by name and size. Colors and labels no longer follow a cue that moved. Not yet imported into rekordbox. See [Status](STATUS.md) and ADR-021. Lesson: measuring early changed the risk, because only 77 of 2,802 USB tracks have a certain original in the places searched here.

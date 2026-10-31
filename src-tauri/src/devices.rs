@@ -737,6 +737,7 @@ mod tests {
         write_analysis(&root, &[(1, 1218)]);
         let db = Database::open(Path::new(":memory:")).unwrap();
         let clip = curado_audio::decode::Clip {
+            loudness: None,
             id: 0,
             cues: Default::default(),
             samples: vec![[0.; 2]; 48000],

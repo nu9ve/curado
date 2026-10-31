@@ -27,7 +27,7 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S3 · Audio quality: resampler, EQ and limiter (P0)
 
-**Partly implemented 2026-10-30:** transport/loop crossfades and a true-peak limiter, verified by measurements but not by listening.
+**Implemented 2026-10-30, not listened to:** transport/loop crossfades, true-peak limiter, sinc resampler, isolator EQ, 24 dB filters and auto gain; see ADR-023.
 
 - **Context:** linear interpolation and one-pole EQ.
 - **Scope:** bandlimited sinc/polyphase resampler, DJ biquad EQ with full kill, bipolar HP/LP. Review automation/smoothing, denormals, latency, bypass and callback budget (invariant 6).
