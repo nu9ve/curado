@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Radio, Keyboard, SlidersHorizontal, Trash2, Palette } from 'lucide-react';
+import { StemsSettings } from './StemsSettings';
 import { ThemePanel } from './ThemePanel';
 import { call, native, useSnapshot } from '../lib/bridge';
 import { DEFAULT_KEYS, actionLabel, bindingLabel } from '../lib/keyboard';
@@ -247,6 +248,7 @@ export function Settings({
                 'The EQ has three basic bands. Echo follows BPM and the selected division; SYNC links tempo and phase to the master deck. Independent headphone cue is not available yet.',
               )}{' '}
             </p>
+            <StemsSettings onError={onError} />
           </div>
         )}
         {tab === 'keyboard' && (

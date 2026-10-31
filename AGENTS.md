@@ -8,6 +8,7 @@ Desktop audio application. Always write the name in lowercase: **curado**. Befor
 - `src-tauri/src/`: SQLite library, commands, lifecycle, MIDI and playback queue.
 - `src-tauri/native/CuradoVisuals.swift`: AppKit + MetalKit window, compiled only on macOS.
 - `src/`: React UI, command bridge, keyboard layout, telemetry, themes/styles (`lib/theme.ts`), waveforms (`lib/waveform.ts`) and keyboard feedback (`lib/feedback.ts`).
+- `src-tauri/src/identity.rs`, `relink.rs`, `stems.rs`: what a file is, finding it again, and optional separation in a Python process kept out of the bundle.
 - `crates/audio-engine/src/analysis.rs`: offline three-band waveform analysis during decoding, never in the callback.
 - `scripts/preview/`: stand-in native side for documentation pictures and input checks, run only on request.
 - `docs/`: decisions, contracts, priorities, tests and change history. Start installation work with `docs/SETUP.md`; licensing remains a maintainer decision documented in `docs/LICENSING.md`.
@@ -24,7 +25,7 @@ Desktop audio application. Always write the name in lowercase: **curado**. Befor
 1. Audio callback: no locks, disk, network, logging, IPC, allocations or clip destruction. Preallocate buffers; bound commands and work per callback. PCM reclamation goes through `retired` to a worker.
 2. The engine owns position and transport. UI displays snapshots; no timers inventing progress. MIDI uses the same action contract.
 3. Never add WebAudio as a silent substitute for the engine. The browser previews the interface only.
-4. Library entries reference files; removing tracks/playlists never deletes originals. Load registered IDs, not arbitrary paths supplied through IPC.
+4. Library entries reference files; removing tracks/playlists never deletes originals. The one exception is a stem curado generated, identified by both its database flag and its manifest (ADR-032). Load registered IDs, not arbitrary paths supplied through IPC.
 5. Compilation does not make a feature “tested.” Distinguish implemented, automatically tested, checked on Mac, pending hardware and pending other OS.
 6. New DSP requires reviewing automation/smoothing, latency, buffers, bypass, denormals and callback budget. Mode changes require reviewing transport, queue, samples, focus and keyboard.
 7. Keep CSP and permissions minimal. No remote scripts in the trusted frontend, exposed shell commands or generic JS filesystem access. Remote service WebViews remain isolated from native commands.

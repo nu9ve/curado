@@ -103,3 +103,13 @@ Windows/Linux: use `bun run desktop` for development and `bun tauri build` for n
 ## Maintainer handoff
 
 Report commands and results, platform, bundle path/signature/hash if installed, limits and the next manual check. Do not commit, publish, select a license or modify music as part of setup. Code changes follow the full closure rules in [AGENTS.md](../AGENTS.md).
+
+## Optional: stems
+
+Separating tracks needs Demucs, which is not part of the app. On Apple Silicon, with `uv`:
+
+```sh
+zsh scripts/setup-separation.sh
+```
+
+It creates an environment of about 270 MB in the app's data folder, with versions pinned in `scripts/requirements-separation.txt`, and touches no global Python. The model, about 225 MB per family, downloads on first use. curado also finds a SoundShop environment if there is one, or you can choose any Python with Demucs in **Configuración → Audio**.

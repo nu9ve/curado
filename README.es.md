@@ -41,6 +41,8 @@ _Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el os
 
 - **Escuchar:** busca en tu biblioteca, ordénala por cualquier columna, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
 - **Mezclar:** dos decks con vista de consola o la clásica de curado, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
+- **Colecciona:** pistas, loops y stems en una sola biblioteca, con etiquetas, búsquedas guardadas y una selección rápida para los pads, con bancos. Guarda un loop sin copiar audio, marca cualquier cosa como sample y separa pistas en stems con Demucs, de forma opcional, bajo un límite de espacio que tú eliges.
+- **Sin perder nada:** los archivos se reconocen cuando se mueven o cuando vuelve un disco, y el mismo contenido no se lista dos veces.
 - **Iguala tonalidades de un vistazo:** la tonalidad de cada deck en color en la pantalla, con los semitonos hasta el otro, a una pulsación.
 - **Preparar:** BPM, grid, compases y tonalidad estimados sobre toda la pista, en notación americana y Camelot. Corrígelos a mano. Key lock y transposición de ±12 semitonos. Las pistas cuyo tempo se mueve pueden seguir sus propios beats.
 - **Audífonos:** con una salida de cuatro canales o más, el 3 y el 4 se vuelven un bus de cue con mezcla y nivel, más Touch Preview de la pista seleccionada.

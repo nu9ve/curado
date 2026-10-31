@@ -52,8 +52,22 @@
     favorite: i % 5 === 0,
     music: music(i),
     device: false,
+    kind: i % 11 === 8 ? 'loop' : i % 11 === 9 ? 'stem' : 'track',
+    tags: i % 4 === 0 ? ['sample', 'dub'] : i % 3 === 0 ? ['warm'] : [],
+    parent: i % 11 === 8 || i % 11 === 9 ? 1 : null,
+    stem: i % 11 === 9 ? 'vocals' : null,
   }));
   const library = {
+    collections: [
+      {
+        id: 1,
+        name: 'dub cortos',
+        filter: { query: '', kind: null, tags: ['dub'], maxDuration: null, favorite: false },
+      },
+    ],
+    banks: [[1, 2, null, null, null, null, null, null], [], [], []].map((b) =>
+      b.length ? b : Array(8).fill(null),
+    ),
     tracks,
     playlists: [
       { id: 1, name: 'warm up', tracks: [1, 2, 3, 4, 5] },
@@ -247,6 +261,37 @@
       if (!['track_cover', 'track_waveform', 'device_cover'].includes(cmd))
         window.__calls.push([cmd, args]);
       if (cmd === 'get_library') return library;
+      if (cmd === 'library_health')
+        return {
+          missing: JSON.parse(localStorage.getItem('__missing') || '[]'),
+          offline: [],
+          duplicates: [],
+          healed: 0,
+        };
+      if (cmd === 'relink_search') return { found: 1, unsure: 0, notFound: 0, partial: false };
+      if (cmd === 'save_loop') return library;
+      if (cmd === 'stems_start') return null;
+      if (cmd === 'stems_status')
+        return {
+          runtime: { python: '/py', engine: 'demucs-mlx', version: '1.6.1' },
+          folder: '/stems',
+          usedBytes: 1e9,
+          limitGb: 20,
+          freeBytes: 2e11,
+          job: null,
+        };
+      if (cmd === 'edit_library') {
+        const e = args.edit;
+        if (e.kind === 'addTag') library.tracks.find((t) => t.id === e.track).tags.push(e.tag);
+        if (e.kind === 'removeTag') {
+          const t = library.tracks.find((x) => x.id === e.track);
+          t.tags = t.tags.filter((x) => x !== e.tag);
+        }
+        if (e.kind === 'saveCollection')
+          library.collections.push({ id: 9, name: e.name, filter: e.filter });
+        if (e.kind === 'saveBank') library.banks[e.index] = e.tracks;
+        return library;
+      }
       if (cmd === 'status') return state;
       if (cmd === 'get_theme') return THEME;
       if (cmd === 'plugin:event|listen') {

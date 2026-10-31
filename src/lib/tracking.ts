@@ -241,7 +241,7 @@ export function useTrackingControl(showPreview: boolean) {
     call('tracking_start', { mode }).catch(() => clear('lost'));
     const watchdog = setInterval(() => {
       if (performance.now() - lastFrame > LOST_MS) letGo();
-    }, LOST_MS);
+    }, LOST_MS / 3);
     return () => {
       gone = true;
       clearInterval(watchdog);

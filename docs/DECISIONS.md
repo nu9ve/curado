@@ -1,5 +1,20 @@
 # Technical decisions
 
+## ADR-032 · One library of pieces, identity apart from location, stems as a cache — accepted (2026-10-31)
+
+The maintainer wanted to collect samples, loops and stems, tag and find them quickly, keep them relinkable when files move, and later coordinate with nüün, with no duplicates or files nobody needs.
+
+- **One library, not a second one for samples.** Tracks, loops and stems are rows of the same table, so favorites, playlists, search, tags and every load path work the same. A sample is a tag on any piece, because it is a use, not a type. The pads' quick select also filters by length, for pieces nobody marked.
+- **Loops copy no audio.** A loop is its parent's path and a stretch, decoded and cut on load. Calling one plays it as a loop through its first cue, in the existing cue bank.
+- **Uniqueness moved to indexes** (schema v4): one row per file for tracks and stems, one per stretch for loops, one per parent, model and stem. Saving the same thing twice returns the same row. Importing the same content under another path is reported and not added; if the earlier entry's file is gone, that entry moves to the new copy, keeping its cues and tags.
+- **Identity apart from location.** Size and a fingerprint of both ends of the file, 256 KiB each, because hashing whole tracks from a slow USB took minutes in earlier measurements. Plus the drive's UUID and the path inside it. SHA-256 of the whole file only for stems curado writes, and it is recorded in their manifests. Added dependency: **sha2 0.10.9**, already in the lockfile through Tauri.
+- **Relink proves or asks.** A drive mounted elsewhere heals by itself. A search takes a file back only with one candidate of matching size and fingerprint. Two copies, or an entry never fingerprinted, stay for choosing by hand, and a chosen file that does not match asks first. A disconnected drive is shown as such, not as lost.
+- **Stems are a cache with a limit.** Python stays out of the bundle and is found where it already is, so SoundShop's half gigabyte is not installed twice. Nothing downloads until a separation is asked for. A job works in a temporary folder that always goes, including after a crash; checks count, length, names and values; and stored files appear in the library together in one transaction. FLAC through `afconvert` takes about 38 % of the WAV on a test tone. One gain turns a whole set down if needed, so the stems still add up.
+- **An exception to "never delete files", and only this one.** Removing a stem deletes its file, since curado made it. That needs both the flag in the database and a manifest beside it listing the file, so nothing of yours can qualify. Past the limit, the oldest stems nobody marked go first; a favorite, tag, playlist, bank, saved loop or deck holding one keeps it. A separation already complete costs nothing to ask for again.
+- **Collections are saved searches,** so they cannot go stale or repeat tracks.
+- **nüün is left for later, with the door open.** Same vocabulary of volume ids and SHA-256, and a manifest beside each set of stems. Reading its catalog, and telling it what curado depends on, is future work on its own. curado needs nothing from it.
+- **Stems live on a deck, muting vocals as it plays, are also later:** four synced voices per deck is an engine change with four times the memory.
+
 ## ADR-031 · Stutter and Recycler, more surfaces, and a third axis and a third source for the camera — accepted (2026-10-31)
 
 The maintainer asked for more effects on the XY surfaces, distance as a third axis, hands and face at once for three separate effects, and an effect like Denon's Recycler or a beat stutter.

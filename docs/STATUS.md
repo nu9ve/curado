@@ -1,5 +1,27 @@
 # curado status
 
+## A library of pieces, relink and stems · 2026-10-31
+
+See [ADR-032](DECISIONS.md) and [Controls](CONTROLS.md). Done: phases 1 to 3 of the plan the maintainer agreed to. Later by design: nüün and stems live on a deck.
+
+**Automatically tested:** migration keeping rows, playlists, cues and id sequence, and refusing a newer library; no repeated files, loops or stems; loops of loops; tags in one spelling; collections and banks; moved files coming back with their loops; same-named other content refused; two copies and no fingerprint left for choosing; a drive under another mount healing; offline told from lost; duplicates listed; bad, short, misnamed and NaN results leaving nothing behind; a failure halfway rolled back; loud sets turned down together; cancel, crash and dead-process cleanup; making room only among unmarked stems; only listed files removable; recovery after a crash.
+
+**On a copy of the real library:** migration of 303 tracks and 2 playlists in 34 ms with counts and relations intact, listed in 4 ms.
+
+**Real engine, Demucs MLX 1.6.1:** an 8 s synthetic signal through the whole path in 3.4 s, 4 FLACs of 0.8 to 1.1 MB, and only the source's folder left. This caught the worker aborting at exit, a daemon read of its input holding a lock, which is fixed.
+
+**Through the real interface with a stand-in engine (`check:input`):** filters, tagging, marking, saved searches, asking for stems, lost files, quick select, chosen pad, banks, their keys, saving loops and panel fit.
+
+**Not tried:** a separation of a real full track and its memory and time, stems played in the app, a real moved folder or drive in the app, and the first model download. `scripts/setup-separation.sh` has not been run. The maintainer's library migrates on the next launch; it runs in one transaction, and was tested on a copy.
+
+Verification: `bun run check` passed (119 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (231 tests, 10 more ignored that need real data), `cargo clippy --workspace --all-targets -- -D warnings` and `bun run check:input` passed. Pictures remade with `bun run docs:pictures`.
+
+**Installation:** curado was closed, so `bun run desktop:install` built, verified, installed and registered the app without launching it, SHA-256 `7b23abb4…`.
+
+**Disk:** this Mac's startup disk had about 1 GB free during this work, which matters here: the room check refuses a separation there, as it should, so the stems folder has to be on a disk with space. A job needs about 1.7 GB free for five minutes of audio, of which about 250 MB stays.
+
+**Not production ready:** see the release gates in [Quality](QUALITY.md). Signing, three-OS CI, a two-hour stress test and hardware validation remain.
+
 ## Stutter, Recycler and three-way camera control · 2026-10-31
 
 See [ADR-031](DECISIONS.md) and [Controls](CONTROLS.md).

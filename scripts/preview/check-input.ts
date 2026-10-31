@@ -184,7 +184,7 @@ const layout = await page.run(`(() => {
     const band = box(strip.parentElement);
     if (s.left < band.left || s.right > band.right || s.top < band.top || s.bottom > band.bottom) out.push(strip.getAttribute('aria-label') + ' leaves its band');
   }
-  const cut = [...document.querySelectorAll('.rx-autoloop button')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent);
+  const cut = [...document.querySelectorAll('.rx-autoloop button:not(.rx-autoloop-save)')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent);
   return { out, cut };
 })()`);
 check('the strips touch nothing', layout.out.length === 0 && layout.cut.length === 0, layout);

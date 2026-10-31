@@ -52,6 +52,8 @@ The following is a **plan**, not a completed test record. Respect current author
 
 12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
 
+19. Pieces in the app: a real separation of a full track with its time and memory, stems on the decks, moving a folder and a drive, the quick select during a mix, and the limit reached.
+
 18. **TODO** with a real camera: CPU against hands alone, pinch and lean used together without interfering, nearness as a usable axis, and Stutter and Recycler by ear.
 
 17. Trigger FX by pressure and by ear, loop cues sent through `rekordbox.xml` to rekordbox, and the key colors and differences read during a real transition.

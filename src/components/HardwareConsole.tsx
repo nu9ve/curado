@@ -27,6 +27,14 @@ import { cueColor, useCueInfo } from '../lib/cues';
 import { useCover } from '../lib/covers';
 import { haptic } from '../lib/haptics';
 import { keyColor, keyLabel, keyMatch, outputKey } from '../lib/music';
+import {
+  isSample,
+  nextEmptyPad,
+  quickSamples,
+  SAMPLE_LENGTHS,
+  SAMPLE_TAG,
+  tagCounts,
+} from '../lib/pieces';
 import { useLivePosition } from '../lib/position';
 import { EMPTY_SLOT, remaining } from '../lib/types';
 import type { BeatFxState, KeyBinding, Library, LibraryEdit, Slot, Track } from '../lib/types';
@@ -318,11 +326,13 @@ function AutoLoop({
   slot,
   x,
   onError,
+  onSave,
 }: {
   index: number;
   slot: Slot;
   x: number;
   onError: (e: unknown) => void;
+  onSave: (slot: number) => void;
 }) {
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
   const disabled = !slot.id || !slot.music.bpm;
@@ -348,6 +358,19 @@ function AutoLoop({
         <span>AUTO LOOP</span>
         <KeyBadge action={act(index, 'autoLoop')} />
         <b>{beatLabel(beats)}</b>
+      </button>
+      <button
+        className="rx-autoloop-save"
+        disabled={!slot.id || slot.loopOut <= slot.loopIn}
+        data-action={act(index, 'saveLoop')}
+        title={tr(
+          'Guarda este loop en la biblioteca, sin copiar audio',
+          'Saves this loop to the library, without copying audio',
+        )}
+        onClick={() => onSave(index)}
+      >
+        +
+        <KeyBadge action={act(index, 'saveLoop')} />
       </button>
       <div>
         {LOOP_PADS.map((value) => (
@@ -1623,6 +1646,12 @@ function SamplesPanel({
   loading,
   onLoad,
   onError,
+  onEdit,
+  decks,
+  masterDeck,
+  bank,
+  onRecallBank,
+  onSaveBank,
 }: {
   samples: Slot[];
   tracks: Track[];
@@ -1631,11 +1660,60 @@ function SamplesPanel({
   loading: number[];
   onLoad: (slot: number, id: number) => void;
   onError: (e: unknown) => void;
+  onEdit: (edit: LibraryEdit) => unknown;
+  decks: Slot[];
+  masterDeck: number;
+  bank: number;
+  onRecallBank: (index: number) => void;
+  onSaveBank: (index: number) => void;
 }) {
+  const [quick, setQuick] = useState(false);
+  const [marked, setMarked] = useState(true);
+  const [length, setLength] = useState(0);
+  const [tag, setTag] = useState('');
+  const [fromDeck, setFromDeck] = useState(false);
+  const [inKey, setInKey] = useState(false);
+  const [target, setTarget] = useState<number | null>(null);
+  const pad = target ?? nextEmptyPad(samples.map((sample) => sample.id));
+  const master = decks[masterDeck];
+  const found = quick
+    ? quickSamples(tracks, {
+        marked,
+        maxDuration: SAMPLE_LENGTHS[length],
+        tag: tag || null,
+        from: fromDeck && master?.id ? master.id : null,
+        key: inKey ? outputKey(master) : null,
+      })
+    : [];
   return (
     <div className="rx-module rx-samples">
       <div className="rx-module-head">
         <b>SAMPLES</b>
+        <div className="rx-sample-banks" role="group" aria-label={tr('Bancos', 'Banks')}>
+          {[0, 1, 2, 3].map((index) => (
+            <button
+              key={index}
+              aria-pressed={bank === index}
+              title={tr(
+                `Banco ${index + 1}. Clic: carga sus pads · Shift: guarda los actuales`,
+                `Bank ${index + 1}. Click: loads its pads · Shift: saves the current ones`,
+              )}
+              onClick={(e) => (e.shiftKey ? onSaveBank(index) : onRecallBank(index))}
+            >
+              {index + 1}
+            </button>
+          ))}
+          <button
+            aria-pressed={quick}
+            title={tr(
+              'Selección rápida: elige de tus samples y mándalos a un pad',
+              'Quick select: choose from your samples and send them to a pad',
+            )}
+            onClick={() => setQuick(!quick)}
+          >
+            {tr('LISTA', 'LIST')}
+          </button>
+        </div>
         <div className="rx-mini-knob">
           <Knob
             label="LEVEL"
@@ -1649,43 +1727,147 @@ function SamplesPanel({
           />
         </div>
       </div>
-      <div className="rx-sample-grid">
-        {samples.map((sample, i) => {
-          const slot = i + 2;
-          const track = tracks.find((t) => t.id === sample.id);
-          return (
-            <button
-              key={i}
-              className={sample.playing ? 'is-on' : ''}
-              disabled={loading.includes(slot) || (!track && selected === null)}
-              title={`${track?.title ?? tr('Vacío', 'Empty')} · ${tr(
-                'Clic: reproducir · Shift: cargar selección · Alt: detener',
-                'Click: play · Shift: load selection · Alt: stop',
-              )}`}
-              data-action={act(slot, 'trigger')}
-              onClick={(e) => {
-                if (e.altKey) {
-                  control(slot, 'pause').catch(onError);
-                  return;
-                }
-                const intent = samplePadIntent(
-                  i,
-                  !!track,
-                  selected,
-                  e.shiftKey,
-                  loading.includes(slot),
-                );
-                if (intent?.kind === 'load') onLoad(intent.slot, intent.id);
-                else if (intent?.kind === 'trigger') control(intent.slot, 'trigger').catch(onError);
-              }}
-            >
-              <span>S{i + 1}</span>
-              <small>{track?.title ?? ''}</small>
-              <KeyBadge action={act(slot, 'trigger')} />
+      {quick ? (
+        <div className="rx-quick">
+          <div
+            className="rx-quick-pads"
+            role="group"
+            aria-label={tr('Pad de destino', 'Target pad')}
+          >
+            {samples.map((sample, i) => (
+              <button
+                key={i}
+                aria-pressed={pad === i}
+                data-loaded={!!sample.id}
+                title={tracks.find((t) => t.id === sample.id)?.title ?? tr('Vacío', 'Empty')}
+                onClick={() => setTarget(i)}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
+          <div className="rx-quick-filters">
+            <button aria-pressed={marked} onClick={() => setMarked(!marked)}>
+              SAMPLE
             </button>
-          );
-        })}
-      </div>
+            <button
+              aria-pressed={length > 0}
+              title={tr('Por duración', 'By length')}
+              onClick={() => setLength((length + 1) % SAMPLE_LENGTHS.length)}
+            >
+              {length ? `≤${SAMPLE_LENGTHS[length]}s` : tr('LARGO', 'LENGTH')}
+            </button>
+            <button
+              aria-pressed={fromDeck}
+              title={tr('Lo que salió de la pista del master', 'What came from the master track')}
+              onClick={() => setFromDeck(!fromDeck)}
+            >
+              {tr('PISTA', 'TRACK')}
+            </button>
+            <button
+              aria-pressed={inKey}
+              title={tr(
+                'Lo que mezcla con la tonalidad del master',
+                'What mixes with the master key',
+              )}
+              onClick={() => setInKey(!inKey)}
+            >
+              {tr('TONO', 'KEY')}
+            </button>
+            <select
+              aria-label={tr('Etiqueta', 'Tag')}
+              value={tag}
+              onChange={(e) => setTag(e.target.value)}
+            >
+              <option value="">{tr('etiqueta', 'tag')}</option>
+              {tagCounts(tracks).map(([name]) => (
+                <option key={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="rx-quick-list" role="list">
+            {found.slice(0, 80).map((track) => (
+              <div role="listitem" key={track.id}>
+                <button
+                  className="rx-quick-load"
+                  disabled={loading.includes(pad + 2)}
+                  title={tr(`Cargar en S${pad + 1}`, `Load into S${pad + 1}`)}
+                  onClick={() => {
+                    onLoad(pad + 2, track.id);
+                    setTarget(null);
+                  }}
+                >
+                  <span>{track.title}</span>
+                  <small>{track.duration.toFixed(1)}s</small>
+                </button>
+                <button
+                  className="rx-quick-mark"
+                  aria-pressed={isSample(track)}
+                  title={tr('Marcar como sample', 'Mark as sample')}
+                  onClick={() =>
+                    onEdit({
+                      kind: isSample(track) ? 'removeTag' : 'addTag',
+                      track: track.id,
+                      tag: SAMPLE_TAG,
+                    })
+                  }
+                >
+                  ★
+                </button>
+              </div>
+            ))}
+            {!found.length && (
+              <small>
+                {marked
+                  ? tr(
+                      'Nada marcado aún: quita SAMPLE o marca piezas en la biblioteca',
+                      'Nothing marked yet: turn off SAMPLE or mark pieces in the library',
+                    )
+                  : tr('Nada con este filtro', 'Nothing with this filter')}
+              </small>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div className="rx-sample-grid">
+          {samples.map((sample, i) => {
+            const slot = i + 2;
+            const track = tracks.find((t) => t.id === sample.id);
+            return (
+              <button
+                key={i}
+                className={sample.playing ? 'is-on' : ''}
+                disabled={loading.includes(slot) || (!track && selected === null)}
+                title={`${track?.title ?? tr('Vacío', 'Empty')} · ${tr(
+                  'Clic: reproducir · Shift: cargar selección · Alt: detener',
+                  'Click: play · Shift: load selection · Alt: stop',
+                )}`}
+                data-action={act(slot, 'trigger')}
+                onClick={(e) => {
+                  if (e.altKey) {
+                    control(slot, 'pause').catch(onError);
+                    return;
+                  }
+                  const intent = samplePadIntent(
+                    i,
+                    !!track,
+                    selected,
+                    e.shiftKey,
+                    loading.includes(slot),
+                  );
+                  if (intent?.kind === 'load') onLoad(intent.slot, intent.id);
+                  else if (intent?.kind === 'trigger')
+                    control(intent.slot, 'trigger').catch(onError);
+                }}
+              >
+                <span>S{i + 1}</span>
+                <small>{track?.title ?? ''}</small>
+                <KeyBadge action={act(slot, 'trigger')} />
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -2104,6 +2286,10 @@ export function HardwareConsole({
   onAutoGain,
   onScreenKey,
   onBrowse,
+  bank,
+  onRecallBank,
+  onSaveBank,
+  onSaveLoop,
 }: {
   library: Library;
   keys: KeyBinding[];
@@ -2117,6 +2303,10 @@ export function HardwareConsole({
   onAutoGain: (on: boolean) => void;
   onScreenKey: (key: ScreenKey) => void;
   onBrowse: (delta: number) => void;
+  bank: number;
+  onRecallBank: (index: number) => void;
+  onSaveBank: (index: number) => void;
+  onSaveLoop: (slot: number) => void;
 }) {
   const { audio, output } = useSnapshot();
   const devices = useDevices();
@@ -2200,6 +2390,12 @@ export function HardwareConsole({
               loading={loading}
               onLoad={onLoad}
               onError={onError}
+              onEdit={onEdit}
+              decks={slots}
+              masterDeck={audio?.masterDeck ?? 0}
+              bank={bank}
+              onRecallBank={onRecallBank}
+              onSaveBank={onSaveBank}
             />
             <XYPad index={0} slot={slots[0]} fx={audio?.beatFx?.[0] ?? IDLE_FX} onError={onError} />
           </div>
@@ -2209,7 +2405,7 @@ export function HardwareConsole({
           </div>
           <div className="rx-chassis" />
           <div className="rx-band rx-band-left" aria-label="MIC">
-            <AutoLoop index={0} slot={slots[0]} x={98} onError={onError} />
+            <AutoLoop index={0} slot={slots[0]} x={98} onError={onError} onSave={onSaveLoop} />
             <span className="rx-at rx-section-title" style={at(236, 24)}>
               MIC
             </span>
@@ -2230,7 +2426,7 @@ export function HardwareConsole({
             </Soon>
           </div>
           <div className="rx-band rx-band-right">
-            <AutoLoop index={1} slot={slots[1]} x={210} onError={onError} />
+            <AutoLoop index={1} slot={slots[1]} x={210} onError={onError} onSave={onSaveLoop} />
             <b className="rx-at rx-brand" style={at(375, 22)}>
               curado
             </b>

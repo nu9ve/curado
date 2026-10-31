@@ -7,6 +7,11 @@ export interface Track {
   sampleRate: number;
   favorite: boolean;
   music: MusicAnalysis | null;
+  kind: 'track' | 'loop' | 'stem';
+  tags: string[];
+  /** The track a loop or a stem came from. */
+  parent: number | null;
+  stem: string | null;
   /** Played from a connected drive: known for its cues, not listed in the library. */
   device: boolean;
 }
@@ -105,9 +110,51 @@ export interface Playlist {
   name: string;
   tracks: number[];
 }
+export interface CollectionFilter {
+  query: string;
+  kind: string | null;
+  tags: string[];
+  maxDuration: number | null;
+  favorite: boolean;
+}
+export interface Collection {
+  id: number;
+  name: string;
+  filter: CollectionFilter;
+}
+export interface LibraryHealth {
+  missing: number[];
+  offline: number[];
+  duplicates: number[];
+  healed: number;
+}
+export interface RelinkReport {
+  found: number;
+  unsure: number;
+  notFound: number;
+  partial: boolean;
+}
+export interface StemsProgress {
+  track: number;
+  title: string;
+  stage: string;
+  message: string | null;
+  overLimit: boolean;
+}
+export interface StemsStatus {
+  runtime: { python: string; engine: string; version: string } | null;
+  folder: string;
+  usedBytes: number;
+  limitGb: number;
+  freeBytes: number | null;
+  job: StemsProgress | null;
+}
 export interface Library {
   tracks: Track[];
   playlists: Playlist[];
+  collections: Collection[];
+  /** Eight pads each. */
+  banks: (number | null)[][];
 }
 export interface Action {
   slot: number;
@@ -244,6 +291,8 @@ export interface RekordboxExportReport {
 export interface ImportReport {
   added: number;
   skipped: number;
+  duplicates: number;
+  relinked: number;
   errors: string[];
 }
 export type LibraryEdit =
@@ -252,7 +301,11 @@ export type LibraryEdit =
   | { kind: 'deletePlaylist'; id: number }
   | { kind: 'addToPlaylist' | 'removeFromPlaylist'; playlist: number; track: number }
   | { kind: 'favorite'; track: number; value: boolean }
-  | { kind: 'removeTrack'; track: number };
+  | { kind: 'removeTrack'; track: number }
+  | { kind: 'addTag' | 'removeTag'; track: number; tag: string }
+  | { kind: 'saveCollection'; name: string; filter: CollectionFilter }
+  | { kind: 'deleteCollection'; id: number }
+  | { kind: 'saveBank'; index: number; tracks: (number | null)[] };
 export const EMPTY_SLOT: Slot = {
   cue: false,
   trim: 1,

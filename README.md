@@ -43,6 +43,8 @@ _A separate window on macOS with seven scenes, including a spectral city and a c
 
 - **Listen:** search your library, sort it by any column, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
 - **Mix:** two decks and a choice of console or curado's classic layout, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
+- **Collect:** tracks, loops and stems in one library, with tags, saved searches and a quick select for the pads, with banks. Save a loop without copying audio, mark anything as a sample, and separate tracks into stems with Demucs, optionally, under a space limit you set.
+- **Never lose track:** files are recognized when moved or when a drive comes back, and the same content is not listed twice.
 - **Match keys at a glance:** each deck's key in color on the screen, with the semitones to the other deck, one press away.
 - **Prepare:** BPM, grid, bars and key estimated over the whole track, in letter notation and Camelot. Correct any of them by hand. Key lock and ±12-semitone transposition. Tracks whose tempo moves can follow their own beats.
 - **Headphones:** with an output of four or more channels, 3 and 4 become a cue bus with mix and level, plus Touch Preview for the selected track.

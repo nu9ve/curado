@@ -135,7 +135,12 @@ pub fn plan(db: &Database) -> Result<Plan, String> {
         .flat_map(|playlist| playlist.tracks.iter().copied())
         .collect();
     let mut items = Vec::new();
-    for track in library.tracks {
+    // Loops and stems have no file rekordbox could know as a track of its own.
+    for track in library
+        .tracks
+        .into_iter()
+        .filter(|track| track.kind == "track")
+    {
         let (cues, ends) = db.saved_cues(track.id);
         let record: Option<DeviceRecord> = db.setting(&format!("device-track:{}", track.id));
         let edited = match &record {

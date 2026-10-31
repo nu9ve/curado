@@ -2,6 +2,7 @@ import { tr, useLanguage } from './lib/language';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import {
+  Search,
   Library as LibraryIcon,
   Star,
   ListMusic,
@@ -37,6 +38,9 @@ import type {
   DeviceExport,
   DeviceInfo,
   ImportReport,
+  LibraryHealth,
+  RelinkReport,
+  StemsProgress,
   RekordboxExportReport,
   KeyBinding,
   Library as LibraryData,
@@ -79,7 +83,10 @@ import { KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
+import { listen } from '@tauri-apps/api/event';
 import { setHapticsEnabled } from './lib/haptics';
+import { matchesPiece } from './lib/pieces';
+import type { PieceFilter } from './lib/pieces';
 import { isArrow, mixerMove, mixerTarget, showMixerKeys } from './lib/mixer-keys';
 import type { MixerTarget } from './lib/mixer-keys';
 import { deviceValue, libraryValue, nextSort, sortTracks } from './lib/sorting';
@@ -93,7 +100,12 @@ export default function App() {
   useLanguage();
   const [workspace, updateWorkspace] = useWorkspace();
   useEffect(() => setHapticsEnabled(workspace.haptics), [workspace.haptics]);
-  const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
+  const [library, setLibrary] = useState<LibraryData>({
+    tracks: [],
+    playlists: [],
+    collections: [],
+    banks: [],
+  });
   const [view, setView] = useState('all');
   const mode = useMode();
   const [keys, setKeys] = useState(DEFAULT_KEYS);
@@ -157,7 +169,12 @@ export default function App() {
     await call('save_keyboard', { bindings });
     setKeys(bindings);
   }, []);
-  const listKeys = useRef({ move: (_delta: number) => {}, load: (_slot: number) => {} });
+  const listKeys = useRef({
+    move: (_delta: number) => {},
+    load: (_slot: number) => {},
+    saveLoop: (_slot: number) => {},
+    bank: (_delta: number) => {},
+  });
   /** Keyboard, keycap clicks and the HUD share one dispatch path to the native queue. */
   const trigger = useCallback(
     (binding: KeyBinding) => {
@@ -167,6 +184,8 @@ export default function App() {
       const { kind, slot, value } = binding.action;
       if (kind === 'listMove') listKeys.current.move(value);
       else if (kind === 'listLoad') listKeys.current.load(slot);
+      else if (kind === 'saveLoop') listKeys.current.saveLoop(slot);
+      else if (kind === 'bankMove') listKeys.current.bank(value);
       else {
         const action = resolveAction(binding.action, getSnapshot().audio, mode);
         call('audio_action', { action }).catch(onError);
@@ -326,18 +345,121 @@ export default function App() {
     },
     [onError],
   );
+  const [health, setHealth] = useState<LibraryHealth>(HEALTHY);
+  const refreshHealth = useCallback(async () => {
+    if (!native) return;
+    try {
+      const next = await call<LibraryHealth>('library_health');
+      setHealth(next);
+      if (next.healed) setLibrary(await call<LibraryData>('get_library'));
+    } catch (e) {
+      onError(e);
+    }
+  }, [onError]);
+  const driveCount = devices.length;
+  useEffect(() => {
+    void refreshHealth();
+  }, [refreshHealth, driveCount]);
+  const relinkSearch = useCallback(async () => {
+    try {
+      notify(tr('Buscando archivos movidos…', 'Looking for moved files…'));
+      const report = await call<RelinkReport>('relink_search');
+      setLibrary(await call<LibraryData>('get_library'));
+      await refreshHealth();
+      notify(
+        tr(
+          `${report.found} recuperadas · ${report.unsure} por elegir · ${report.notFound} sin encontrar`,
+          `${report.found} found · ${report.unsure} to choose · ${report.notFound} not found`,
+        ) + (report.partial ? tr(' · búsqueda incompleta', ' · search incomplete') : ''),
+        report.notFound + report.unsure > 0,
+      );
+    } catch (e) {
+      onError(e);
+    }
+  }, [notify, onError, refreshHealth]);
+  const relinkTrack = useCallback(
+    async (id: number) => {
+      try {
+        setLibrary(await call<LibraryData>('relink_track', { id }));
+        await refreshHealth();
+      } catch (e) {
+        onError(e);
+      }
+    },
+    [onError, refreshHealth],
+  );
+  const saveLoop = useCallback(
+    async (slot: number) => {
+      try {
+        setLibrary(await call<LibraryData>('save_loop', { slot }));
+        notify(tr('Loop guardado en la biblioteca', 'Loop saved to the library'));
+      } catch (e) {
+        onError(e);
+      }
+    },
+    [notify, onError],
+  );
+  const [stemJob, setStemJob] = useState<StemsProgress | null>(null);
+  useEffect(() => {
+    if (!native) return;
+    let off: undefined | (() => void);
+    let gone = false;
+    void listen<StemsProgress>('stems:progress', async (event) => {
+      setStemJob(event.payload);
+      const { stage, message, title, overLimit } = event.payload;
+      if (stage === 'done') {
+        setLibrary(await call<LibraryData>('get_library'));
+        void refreshHealth();
+        notify(
+          overLimit
+            ? tr(
+                `Stems de ${title} listos, sobre el límite: lo demás está marcado para quedarse`,
+                `Stems of ${title} ready, over the limit: the rest is marked to stay`,
+              )
+            : tr(`Stems de ${title} listos`, `Stems of ${title} ready`),
+          overLimit,
+        );
+      } else if (stage === 'error') {
+        onError(message ?? tr('Falló la separación', 'Separation failed'));
+      }
+    }).then((stop) => {
+      if (gone) stop();
+      else off = stop;
+    });
+    return () => {
+      gone = true;
+      off?.();
+    };
+  }, [notify, onError, refreshHealth]);
+  const startStems = useCallback(
+    (id: number, model: string) => {
+      call('stems_start', { id, model }).catch(onError);
+    },
+    [onError],
+  );
   const importMedia = useCallback(
     async (folder: boolean) => {
       setBusy(tr('Importando y analizando música…', 'Importing and analyzing music…'));
       try {
         const report = await call<ImportReport>('import_media', { folder });
         setLibrary(await call<LibraryData>('get_library'));
-        if (report.added || report.skipped || report.errors.length)
+        void refreshHealth();
+        if (
+          report.added ||
+          report.skipped ||
+          report.duplicates ||
+          report.relinked ||
+          report.errors.length
+        )
           notify(
             tr(
-              `${report.added} pistas añadidas · ${report.skipped} existentes`,
-              `${report.added} tracks added · ${report.skipped} already present`,
-            ) + (report.errors.length ? ` · ${report.errors.join('\n')}` : ''),
+              `${report.added} pistas añadidas · ${report.skipped + report.duplicates} ya estaban`,
+              `${report.added} tracks added · ${report.skipped + report.duplicates} already there`,
+            ) +
+              (report.relinked
+                ? tr(` · ${report.relinked} reubicadas`, ` · ${report.relinked} relocated`)
+                : '') +
+              (report.errors.length ? ` · ${report.errors.join('\n')}` : ''),
             !!report.errors.length,
           );
       } catch (e) {
@@ -449,11 +571,14 @@ export default function App() {
         return sortTracks(inSection, workspace.sort, deviceValue).map((t) => t.id);
       }
       const active = library.playlists.find((p) => `playlist:${p.id}` === view);
+      const collection = library.collections.find((c) => `collection:${c.id}` === view);
       const listed = active
         ? active.tracks.flatMap((id) => localLibrary.tracks.filter((t) => t.id === id))
         : view === 'favorites'
           ? localLibrary.tracks.filter((t) => t.favorite)
-          : localLibrary.tracks;
+          : collection
+            ? localLibrary.tracks.filter((t) => matchesPiece(t, collection.filter as PieceFilter))
+            : localLibrary.tracks;
       return sortTracks(listed, workspace.sort, libraryValue).map((t) => t.id);
     };
     const listed = listOrder.current ?? closedList();
@@ -473,7 +598,27 @@ export default function App() {
       if (deviceSelected !== null) loadDeviceTrack(slot, deviceSelected);
     } else if (selected !== null) load(slot, selected);
   };
-  listKeys.current = { move: browseBy, load: loadChosen };
+  /** Each pad of a bank loads as any other track does; pads it leaves empty keep what they have. */
+  const recallBank = (index: number) => {
+    const pads = library.banks[index] ?? [];
+    pads.forEach((id, pad) => {
+      if (id !== null && localLibrary.tracks.some((t) => t.id === id)) void load(pad + 2, id);
+    });
+    updateWorkspace({ bank: index });
+  };
+  const saveBank = (index: number) => {
+    const slots = getSnapshot().audio?.slots ?? [];
+    const tracks = Array.from({ length: 8 }, (_, pad) => slots[pad + 2]?.id || null);
+    void edit({ kind: 'saveBank', index, tracks });
+    updateWorkspace({ bank: index });
+    notify(tr(`Banco ${index + 1} guardado`, `Bank ${index + 1} saved`));
+  };
+  listKeys.current = {
+    move: browseBy,
+    load: loadChosen,
+    saveLoop: (slot) => void saveLoop(slot),
+    bank: (delta) => recallBank((workspace.bank + delta + 4) % 4),
+  };
   const rail = mode === 'mix' ? workspace.railMix : workspace.railPlayer;
   const inWorkspace = mode === 'mix' && view !== 'web';
   const browser = (
@@ -483,6 +628,7 @@ export default function App() {
           view={view}
           onView={setView}
           playlists={library.playlists}
+          collections={library.collections}
           devices={devices}
           activeDevice={activeDevice?.id}
           rows={deviceRows}
@@ -516,6 +662,12 @@ export default function App() {
           sort={workspace.sort}
           onSort={onSort}
           listOrder={listOrder}
+          health={health}
+          stemJob={stemJob}
+          onRelinkSearch={() => void relinkSearch()}
+          onRelinkTrack={(id) => void relinkTrack(id)}
+          onStems={startStems}
+          onStemsCancel={() => void call('stems_cancel').catch(onError)}
           onSelect={setSelected}
           onLoad={load}
           onEdit={edit}
@@ -571,6 +723,25 @@ export default function App() {
             count={favorites}
           />
         </nav>
+        {library.collections.length > 0 && (
+          <nav className="side-nav" aria-label={tr('Colecciones', 'Collections')}>
+            <span className="eyebrow">{tr('colecciones', 'collections')}</span>
+            {library.collections.map((collection) => (
+              <NavItem
+                key={collection.id}
+                active={view === `collection:${collection.id}`}
+                onClick={() => setView(`collection:${collection.id}`)}
+                icon={<Search size={16} />}
+                label={collection.name}
+                count={
+                  localLibrary.tracks.filter((t) =>
+                    matchesPiece(t, collection.filter as PieceFilter),
+                  ).length
+                }
+              />
+            ))}
+          </nav>
+        )}
         <nav className="side-nav playlists" aria-label="Playlists">
           <div className="section-line">
             <span className="eyebrow">playlists</span>
@@ -813,6 +984,9 @@ export default function App() {
               browser={browser}
               onScreenKey={screenKey}
               onBrowse={browseBy}
+              onRecallBank={recallBank}
+              onSaveBank={saveBank}
+              onSaveLoop={(slot) => void saveLoop(slot)}
             />
           ) : (
             <div className="listen-stage">
@@ -974,6 +1148,9 @@ function MixView({
   browser,
   onScreenKey,
   onBrowse,
+  onRecallBank,
+  onSaveBank,
+  onSaveLoop,
 }: {
   library: LibraryData;
   keys: KeyBinding[];
@@ -989,6 +1166,9 @@ function MixView({
   browser: ReactNode;
   onScreenKey: (key: ScreenKey) => void;
   onBrowse: (delta: number) => void;
+  onRecallBank: (index: number) => void;
+  onSaveBank: (index: number) => void;
+  onSaveLoop: (slot: number) => void;
 }) {
   const { audio } = useSnapshot();
   const [layout, setLayout] = useState<MixLayout>(() => {
@@ -1122,6 +1302,10 @@ function MixView({
               onAutoGain={(autoGain) => onWorkspace({ autoGain })}
               onScreenKey={onScreenKey}
               onBrowse={onBrowse}
+              bank={workspace.bank}
+              onRecallBank={onRecallBank}
+              onSaveBank={onSaveBank}
+              onSaveLoop={onSaveLoop}
             />
           ) : (
             <div className="mix-classic">
@@ -1266,10 +1450,12 @@ function MixView({
   );
 }
 
+const HEALTHY: LibraryHealth = { missing: [], offline: [], duplicates: [], healed: 0 };
 function SourceSelect({
   view,
   onView,
   playlists,
+  collections,
   devices,
   activeDevice,
   rows,
@@ -1277,6 +1463,7 @@ function SourceSelect({
   view: string;
   onView: (view: string) => void;
   playlists: LibraryData['playlists'];
+  collections: LibraryData['collections'];
   devices: DeviceInfo[];
   activeDevice?: string;
   rows: PlaylistRow[];
@@ -1296,6 +1483,15 @@ function SourceSelect({
             {playlists.map((playlist) => (
               <option key={playlist.id} value={`playlist:${playlist.id}`}>
                 {playlist.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+        {collections.length > 0 && (
+          <optgroup label={tr('colecciones', 'collections')}>
+            {collections.map((collection) => (
+              <option key={collection.id} value={`collection:${collection.id}`}>
+                {collection.name}
               </option>
             ))}
           </optgroup>

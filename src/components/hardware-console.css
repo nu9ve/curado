@@ -88,11 +88,31 @@
   border-radius: 0 14px 0 0;
 }
 .rx-autoloop {
+  isolation: isolate;
   display: grid;
   gap: 3px;
   width: 176px;
 }
+.rx-autoloop-save {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 22px;
+  min-height: 21px;
+  padding: 0;
+  color: #dfe1e3;
+  background: #1a1c1f;
+  border: 0;
+  border-left: 1px solid #000;
+  font-size: 12px;
+}
+.rx-autoloop-save .rx-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+}
 .rx-autoloop-main {
+  padding-right: 28px !important;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1226,6 +1246,95 @@
   grid-row: 1;
   width: 18px;
   height: 18px;
+}
+.rx-sample-banks {
+  display: flex;
+  gap: 1px;
+  margin: 0 auto 0 6px;
+}
+.rx-sample-banks button[aria-pressed='true'] {
+  color: #111;
+  background: #d9c88f;
+}
+.rx-quick {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rx-quick-pads,
+.rx-quick-filters {
+  display: flex;
+  gap: 1px;
+}
+.rx-quick button {
+  min-height: 13px;
+  padding: 0 3px;
+  color: #b9bdc0;
+  background: #0d0e10;
+  border: 0;
+  font-size: 7px;
+  white-space: nowrap;
+}
+.rx-quick-pads button {
+  flex: 1;
+}
+.rx-quick-pads button[data-loaded='true'] {
+  color: #e7e8e9;
+  box-shadow: inset 0 -1px 0 #d9c88f;
+}
+.rx-quick button[aria-pressed='true'] {
+  color: #111;
+  background: #d9c88f;
+}
+.rx-quick-filters select {
+  flex: 1;
+  min-width: 0;
+  height: 13px;
+  padding: 0;
+  color: #b9bdc0;
+  background: #0d0e10;
+  border: 0;
+  font-size: 7px;
+}
+.rx-quick-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  background: #07090c;
+}
+.rx-quick-list > div {
+  display: flex;
+}
+.rx-quick .rx-quick-load {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+  text-align: left;
+}
+.rx-quick-load span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rx-quick-load small {
+  flex: none;
+  font-size: 7px;
+  color: #8d9297;
+}
+.rx-quick .rx-quick-mark[aria-pressed='true'] {
+  color: #d9c88f;
+  background: #0d0e10;
+}
+.rx-quick-list > small {
+  padding: 4px;
+  color: #8d9297;
+  font-size: 7px;
 }
 .rx-sample-grid {
   flex: 1;

@@ -2,6 +2,7 @@ mod annotations;
 mod demo;
 mod devices;
 mod haptics;
+mod identity;
 mod library;
 mod memory;
 mod midi;
@@ -9,7 +10,9 @@ mod playback;
 mod preferences;
 mod rekordbox;
 mod rekordbox_xml;
+mod relink;
 mod session;
+mod stems;
 mod tracking;
 mod visuals;
 mod web;
@@ -50,6 +53,7 @@ pub struct AppState {
     running: AtomicBool,
     pcm: memory::PcmBudget,
     devices: devices::Devices,
+    stems: stems::Stems,
     /// Latest load per slot: an older one still decoding stops and lets the newer one run.
     load_requests: [AtomicU64; curado_audio::SLOTS],
 }
@@ -62,15 +66,27 @@ impl AppState {
         id: u64,
         replaced: &dyn Fn() -> bool,
     ) -> Result<Arc<curado_audio::decode::Clip>, String> {
-        let (path, (cues, ends), music) = {
+        let (path, (cues, ends), music, range) = {
             let db = self.db.lock().unwrap();
             (
                 db.path(id)?,
                 db.saved_cues(id),
                 // Estimates from an older analysis are recalculated; manual ones are kept.
                 db.music(id).filter(|music| music.is_current()),
+                db.clip_range(id),
             )
         };
+        if !path.exists() {
+            return Err(
+                match identity::volume_root(&path).filter(|root| !root.exists()) {
+                    Some(root) => format!(
+                        "Está en el disco {}, que no está conectado",
+                        root.file_name().unwrap_or_default().to_string_lossy()
+                    ),
+                    None => "No se encuentra el archivo. Usa «Reubicar» para buscarlo.".into(),
+                },
+            );
+        }
         let room = self.pcm.available();
         let mut clip = curado_audio::decode::decode_bounded(
             &path,
@@ -80,8 +96,12 @@ impl AppState {
             &|| replaced() || !self.running.load(Ordering::Relaxed),
         )
         .map_err(|error| memory::explain(error, room))?;
+        if let Some((start, end)) = range {
+            clip.keep(start, end);
+        }
         {
             let db = self.db.lock().unwrap();
+            db.mark_used(id);
             if music.is_none() {
                 db.save(&format!("music:{id}"), &clip.music)?;
             }
@@ -321,7 +341,20 @@ async fn edit_library(
     let s = state.inner().clone();
     work(move || {
         let db = s.db.lock().unwrap();
+        // A stem is curado's own file, and it goes with its entry. Anything else stays on disk.
+        let owned = match &edit {
+            LibraryEdit::RemoveTrack { track } => {
+                if db.has_loops(*track) && db.owned_file(*track).is_some() {
+                    return Err("Tiene loops guardados: retíralos primero".into());
+                }
+                db.owned_file(*track)
+            }
+            _ => None,
+        };
         db.edit(edit)?;
+        if let Some(path) = owned {
+            stems::remove_owned_file(&path)?;
+        }
         db.library()
     })
     .await
@@ -331,6 +364,27 @@ fn import_paths(s: &AppState, files: Vec<PathBuf>) -> ImportReport {
     for file in files {
         // Per file, so that a load in the middle of a large import waits for one track at most.
         let _guard = s.decode_gate.lock().unwrap();
+        // The same content is one entry, wherever else it turns up.
+        let found = identity::identify(&file);
+        let real = file.canonicalize().unwrap_or_else(|_| file.clone());
+        if let Ok(found) = &found {
+            let db = s.db.lock().unwrap();
+            match db.same_content(found) {
+                Ok(Some((id, known, device_only))) if known != real => {
+                    if device_only || !known.exists() {
+                        // Its entry has somewhere better to point: cues and tags come along.
+                        if db.relink(id, &real, found).is_ok() {
+                            let _ = db.forget(&format!("device-only:{id}"));
+                            report.relinked += 1;
+                        }
+                    } else {
+                        report.duplicates += 1;
+                    }
+                    continue;
+                }
+                _ => {}
+            }
+        }
         let room = s.pcm.available();
         let decoded = decode_with_limit(
             &file,
@@ -339,7 +393,15 @@ fn import_paths(s: &AppState, files: Vec<PathBuf>) -> ImportReport {
             room.min(curado_audio::decode::MAX_CLIP_BYTES),
         )
         .map_err(|error| memory::explain(error, room));
-        match decoded.and_then(|c| s.db.lock().unwrap().insert(&file, &c)) {
+        let inserted = decoded.and_then(|c| {
+            let db = s.db.lock().unwrap();
+            let added = db.insert(&file, &c)?;
+            if let Ok(found) = &found {
+                db.set_identity(db.id_of_file(&real)?, found)?;
+            }
+            Ok(added)
+        });
+        match inserted {
             Ok(true) => report.added += 1,
             Ok(false) => report.skipped += 1,
             Err(e) => {
@@ -391,6 +453,316 @@ async fn import_media(
         Ok(import_paths(&s, files))
     })
     .await
+}
+/// Which files are where they should be. Heals a drive mounted elsewhere by itself.
+#[tauri::command]
+async fn library_health(state: tauri::State<'_, Arc<AppState>>) -> Result<relink::Health, String> {
+    let s = state.inner().clone();
+    work(move || relink::health(&s.db, &relink::mounted_drives())).await
+}
+/// Looks for moved files in the usual places and takes back the ones it can prove are the same.
+#[tauri::command]
+async fn relink_search(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<relink::SearchReport, String> {
+    let s = state.inner().clone();
+    work(move || relink::search(&s.db, &relink::search_roots(&s.db))).await
+}
+/// A file chosen by hand in a native dialog. The interface never names a path.
+#[tauri::command]
+async fn relink_track(id: u64, state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
+    let s = state.inner().clone();
+    let Some(picked) = rfd::AsyncFileDialog::new()
+        .set_title("Reubicar el archivo de esta pista")
+        .pick_file()
+        .await
+    else {
+        return work(move || s.db.lock().unwrap().library()).await;
+    };
+    let path = picked.path().to_path_buf();
+    if !relink::usable(&path) {
+        return Err("Ese archivo no es audio compatible".into());
+    }
+    let found = {
+        let path = path.clone();
+        work(move || identity::identify(&path)).await?
+    };
+    let known = {
+        let s = s.clone();
+        work(move || s.db.lock().unwrap().known_fingerprint(id)).await?
+    };
+    if known
+        .as_ref()
+        .is_some_and(|print| *print != found.fingerprint)
+    {
+        let confirmed = rfd::AsyncMessageDialog::new()
+            .set_title("No parece el mismo archivo")
+            .set_description("Su contenido no coincide con el que esta pista tenía. Sus cues y su grid podrían no caer donde estaban. ¿Usarlo de todos modos?")
+            .set_buttons(rfd::MessageButtons::OkCancel)
+            .show()
+            .await;
+        if !matches!(confirmed, rfd::MessageDialogResult::Ok) {
+            return work(move || s.db.lock().unwrap().library()).await;
+        }
+    }
+    work(move || {
+        let db = s.db.lock().unwrap();
+        db.relink(id, &path.canonicalize().map_err(|e| e.to_string())?, &found)?;
+        db.library()
+    })
+    .await
+}
+/// The loop a deck is holding, as a piece of its own.
+#[tauri::command]
+async fn save_loop(slot: usize, state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
+    let s = state.inner().clone();
+    work(move || {
+        if slot >= 2 {
+            return Err("Solo los decks tienen loops".into());
+        }
+        let deck = {
+            let output = s.output.lock().unwrap();
+            output
+                .as_ref()
+                .ok_or("Motor de audio no disponible")?
+                .handle
+                .snapshot()
+                .slots[slot]
+                .clone()
+        };
+        if deck.id == 0 || deck.loop_out <= deck.loop_in {
+            return Err("Este deck no tiene un loop que guardar".into());
+        }
+        let db = s.db.lock().unwrap();
+        db.save_loop(deck.id, deck.loop_in, deck.loop_out)?;
+        db.library()
+    })
+    .await
+}
+#[tauri::command]
+async fn stems_status(state: tauri::State<'_, Arc<AppState>>) -> Result<stems::Status, String> {
+    let s = state.inner().clone();
+    work(move || {
+        let runtime = s.stems.runtime(&s.db, &s.data_dir, &s.cache_dir);
+        let db = s.db.lock().unwrap();
+        let folder = stems::folder(&db, &s.data_dir);
+        let free = folder
+            .ancestors()
+            .find(|path| path.exists())
+            .and_then(identity::free_bytes);
+        Ok(stems::Status {
+            runtime,
+            folder: folder.to_string_lossy().into(),
+            used_bytes: stems::used_bytes(&db),
+            limit_gb: stems::limit_gb(&db),
+            free_bytes: free,
+            job: s.stems.job.lock().unwrap().clone(),
+        })
+    })
+    .await
+}
+#[tauri::command]
+async fn stems_start(
+    id: u64,
+    model: String,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    let s = state.inner().clone();
+    work(move || start_stems(s, app, id, model)).await
+}
+fn start_stems(
+    s: Arc<AppState>,
+    app: tauri::AppHandle,
+    id: u64,
+    model: String,
+) -> Result<(), String> {
+    let expected = stems::model_stems(&model).ok_or("Modelo desconocido")?;
+    let runtime = s
+        .stems
+        .runtime(&s.db, &s.data_dir, &s.cache_dir)
+        .ok_or("No hay un motor de stems instalado. Revisa Configuración → Audio.")?;
+    let (title, artist, fingerprint, duration, key, store) = {
+        let db = s.db.lock().unwrap();
+        let info = db.piece_info(id)?;
+        if info.kind == "stem" {
+            return Err("Un stem no se vuelve a separar".into());
+        }
+        if db.stems_ready(id, &model, expected) {
+            return Ok(());
+        }
+        // The same content, even under another entry, shares one folder.
+        let print = match info.fingerprint.clone() {
+            Some(print) => print,
+            None => identity::fingerprint(&db.path(id)?)?.1,
+        };
+        let key = match db.clip_range(id) {
+            Some((start, end)) => format!("{print}-{start}-{end}"),
+            None => print.clone(),
+        };
+        (
+            info.title,
+            info.artist,
+            print,
+            info.duration,
+            key,
+            stems::folder(&db, &s.data_dir),
+        )
+    };
+    stems::check_room(&store, duration, expected)?;
+    fs_ready(&store)?;
+    {
+        let mut job = s.stems.job.lock().unwrap();
+        if job.as_ref().is_some_and(|job| !stems::finished(&job.stage)) {
+            return Err("Ya hay una separación en curso".into());
+        }
+        *job = Some(stems::Progress {
+            track: id,
+            title: title.clone(),
+            stage: "preparing".into(),
+            ..Default::default()
+        });
+    }
+    s.stems.cancelled_flag().store(false, Ordering::SeqCst);
+    let announce = |app: &tauri::AppHandle, s: &AppState| {
+        if let Some(job) = s.stems.job.lock().unwrap().clone() {
+            let _ = app.emit("stems:progress", job);
+        }
+    };
+    announce(&app, &s);
+    std::thread::spawn(move || {
+        let request = stems::Request {
+            track: id,
+            model: &model,
+            title: &title,
+            artist: &artist,
+            parent_fingerprint: Some(fingerprint),
+            key,
+            duration: 0.,
+        };
+        let prepared_duration = std::sync::atomic::AtomicU64::new(0);
+        // Our own decode, so anything curado can play can be separated, cut to its stretch.
+        let prepare = |input: &std::path::Path| -> Result<(), String> {
+            let _gate = s.decode_gate.lock().unwrap();
+            let clip = s.decode_track(id)?;
+            prepared_duration.store(clip.duration().to_bits(), Ordering::SeqCst);
+            stems::write_float_wav(input, &clip.samples, clip.sample_rate)
+        };
+        let decode = |path: &std::path::Path| {
+            let _gate = s.decode_gate.lock().unwrap();
+            let room = s.pcm.available();
+            curado_audio::decode::decode_bounded(
+                path,
+                0,
+                Some(Default::default()),
+                room.min(curado_audio::decode::MAX_CLIP_BYTES),
+                &|| !s.running.load(Ordering::Relaxed),
+            )
+        };
+        let mut request = request;
+        request.duration = duration;
+        let mut report = |stage: &str| {
+            if let Some(job) = s.stems.job.lock().unwrap().as_mut() {
+                job.stage = stage.into();
+            }
+            announce(&app, &s);
+        };
+        let result = stems::separate(
+            &s.stems,
+            &runtime,
+            &s.cache_dir,
+            &store,
+            &request,
+            &prepare,
+            &decode,
+            &mut report,
+        );
+        let outcome = result.and_then(|stored| {
+            // Asked apart: the database's lock is never held while waiting for the output's.
+            let loaded: Vec<u64> = s
+                .output
+                .lock()
+                .unwrap()
+                .as_ref()
+                .map(|output| {
+                    output
+                        .handle
+                        .snapshot()
+                        .slots
+                        .iter()
+                        .map(|slot| slot.id)
+                        .collect()
+                })
+                .unwrap_or_default();
+            let db = s.db.lock().unwrap();
+            let ids = stems::commit(&db, &request, &stored)?;
+            let mut keep: std::collections::HashSet<u64> = ids.into_iter().collect();
+            keep.extend(loaded);
+            stems::make_room(&db, stems::limit_gb(&db) * 1_000_000_000, &keep)
+        });
+        if let Some(job) = s.stems.job.lock().unwrap().as_mut() {
+            match outcome {
+                Ok(over) => {
+                    job.stage = "done".into();
+                    job.over_limit = over;
+                }
+                Err(error) if error == stems::CANCELLED => job.stage = "cancelled".into(),
+                Err(error) => {
+                    job.stage = "error".into();
+                    job.message = Some(error);
+                }
+            }
+        }
+        announce(&app, &s);
+    });
+    Ok(())
+}
+fn fs_ready(store: &std::path::Path) -> Result<(), String> {
+    std::fs::create_dir_all(store).map_err(|e| format!("No se pudo usar la carpeta de stems: {e}"))
+}
+#[tauri::command]
+fn stems_cancel(state: tauri::State<'_, Arc<AppState>>) {
+    state.stems.cancel();
+}
+#[tauri::command]
+async fn stems_choose_python(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let s = state.inner().clone();
+    let Some(picked) = rfd::AsyncFileDialog::new()
+        .set_title("Elegir el Python con Demucs")
+        .pick_file()
+        .await
+    else {
+        return Ok(());
+    };
+    let path = picked.path().to_path_buf();
+    work(move || {
+        stems::set_python(&s.db.lock().unwrap(), &path)?;
+        s.stems.forget_runtime();
+        Ok(())
+    })
+    .await
+}
+/// Applies to new stems. What is already made stays where it is, and keeps working.
+#[tauri::command]
+async fn stems_choose_folder(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let s = state.inner().clone();
+    let Some(picked) = rfd::AsyncFileDialog::new()
+        .set_title("Elegir dónde guardar los stems")
+        .pick_folder()
+        .await
+    else {
+        return Ok(());
+    };
+    let path = picked.path().to_path_buf();
+    work(move || stems::set_folder(&s.db.lock().unwrap(), &path)).await
+}
+#[tauri::command]
+async fn stems_set_limit(
+    gigabytes: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    let s = state.inner().clone();
+    work(move || stems::set_limit_gb(&s.db.lock().unwrap(), gigabytes)).await
 }
 #[tauri::command]
 async fn create_demo(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
@@ -692,8 +1064,11 @@ async fn save_keyboard(
     }
     let mut used = std::collections::HashSet::new();
     for binding in &bindings {
-        // These two move through a list in the interface and never reach the engine.
-        if !matches!(binding.action.kind.as_str(), "listMove" | "listLoad") {
+        // These act in the interface and never reach the engine.
+        if !matches!(
+            binding.action.kind.as_str(),
+            "listMove" | "listLoad" | "saveLoop" | "bankMove"
+        ) {
             binding.action.validate()?;
         }
         let combination = (
@@ -894,9 +1269,21 @@ pub fn run() {
                 running: AtomicBool::new(true),
                 pcm: Default::default(),
                 devices: Default::default(),
+                stems: Default::default(),
                 load_requests: Default::default(),
             });
             app.manage(state.clone());
+            {
+                // Housekeeping that can wait, away from startup and from the audio.
+                let state = state.clone();
+                std::thread::spawn(move || {
+                    let store = stems::folder(&state.db.lock().unwrap(), &state.data_dir);
+                    stems::tidy(&state.db, &store);
+                    relink::backfill_identities(&state.db, || {
+                        state.running.load(Ordering::Relaxed)
+                    });
+                });
+            }
             let drives = state.clone();
             std::thread::Builder::new()
                 .name("curado-devices".into())
@@ -1016,6 +1403,16 @@ pub fn run() {
                 import_media,
                 export_rekordbox_xml,
                 track_beats,
+                library_health,
+                relink_search,
+                relink_track,
+                save_loop,
+                stems_status,
+                stems_start,
+                stems_cancel,
+                stems_choose_python,
+                stems_choose_folder,
+                stems_set_limit,
                 track_cover,
                 device_cover,
                 haptic,
@@ -1065,6 +1462,8 @@ pub fn run() {
             if let tauri::RunEvent::Exit = event {
                 let state = app.state::<Arc<AppState>>();
                 state.running.store(false, Ordering::Relaxed);
+                state.stems.cancel();
+                stems::wait_until_idle(&state.stems, Duration::from_secs(2));
                 state.flush_cues();
             }
         });

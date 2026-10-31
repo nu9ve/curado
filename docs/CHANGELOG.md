@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · A library of pieces, relink and stems
+
+Tracks, loops and stems now share one library with tags and saved searches. Any piece can be marked as a sample, and the pads have a quick select with four banks. Files are recognized when moved, and duplicates are not added. Tracks separate into stems with Demucs, optionally, under a space limit. See [Status](STATUS.md) and [ADR-032](DECISIONS.md).
+
 ## 2026-10-31 · Stutter, Recycler and three-way camera control
 
 Added **STUTTER** and **RECYCLER** Beat FX, four more XY surfaces, a hand's nearness as a third axis, and **TODO**, which tracks hands and face at once so each hand and the face drive a separate effect. See [Status](STATUS.md) and [ADR-031](DECISIONS.md).

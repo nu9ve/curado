@@ -45,6 +45,23 @@ impl Clip {
     pub fn duration(&self) -> f64 {
         self.samples.len() as f64 / self.sample_rate as f64
     }
+    /// Keeps only a stretch, for a piece that refers to part of a file. Gives the rest back.
+    pub fn keep(&mut self, start: f64, end: f64) {
+        let frame =
+            |seconds: f64| ((seconds * self.sample_rate as f64) as usize).min(self.samples.len());
+        let (from, to) = (frame(start), frame(end));
+        self.samples.truncate(to);
+        self.samples.drain(..from.min(to));
+        self.samples.shrink_to_fit();
+        let bin = |seconds: f64| {
+            ((seconds * crate::analysis::WAVEFORM_RATE as f64) as usize).min(self.waveform.len())
+        };
+        let (first, last) = (bin(start), bin(end));
+        self.waveform.truncate(last);
+        self.waveform.drain(..first.min(last));
+        self.waveform.shrink_to_fit();
+        self.beats = None;
+    }
 }
 pub fn decode(path: &Path, id: u64) -> Result<Clip, String> {
     decode_with_music(path, id, None)
@@ -424,6 +441,27 @@ mod fuzz {
             decoded > 0 && refused > 0,
             "{decoded} decoded, {refused} refused"
         );
+    }
+
+    #[test]
+    fn a_kept_stretch_is_exactly_that_and_frees_the_rest() {
+        let path = std::env::temp_dir().join(format!("curado-keep-{}.wav", std::process::id()));
+        std::fs::write(&path, wav(48000, 2, 16)).unwrap();
+        let mut clip = decode_with_limit(&path, 1, None, 1 << 28).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let (rate, frames) = (clip.sample_rate as f64, clip.samples.len());
+        clip.keep(0.25, 0.75);
+        assert_eq!(
+            clip.samples.len(),
+            ((0.75 * rate) as usize).min(frames) - (0.25 * rate) as usize
+        );
+        assert_eq!(clip.samples.capacity(), clip.samples.len());
+        assert!((clip.duration() - 0.5).abs() < 0.01);
+        // Past the end stays inside, backward leaves nothing.
+        clip.keep(0.1, 99.);
+        assert!((clip.duration() - 0.4).abs() < 0.01);
+        clip.keep(0.3, 0.1);
+        assert!(clip.samples.is_empty());
     }
 
     #[test]

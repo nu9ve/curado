@@ -125,6 +125,17 @@ Import estimates BPM, beat offset, bars and key over the whole track. Library sh
 
 Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music. Tempos near 70–90 and 140–180 BPM can read at half or double, which ×2/÷2 fixes, and detected bars are a first guess. Extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
 
+## Pieces: tracks, loops, stems and samples
+
+Everything lives in one library. The chips above the list narrow it to **pistas, loops, stems** or **samples**, and to your tags; search reads tags too. **+ guardar búsqueda** keeps a search as a collection in the sidebar and under **Fuente**.
+
+- **Selecting a piece** shows **sample**, which marks it for the pads, its tags, **+ etiqueta**, **Separar** and, if its file is lost, **Reubicar…**.
+- **A loop** copies no audio. **+** beside **AUTO LOOP**, or `Control + C` and `Control + ,`, saves the deck's loop. The same stretch twice is one piece. In a deck, its hot cue A plays it as a loop.
+- **Samples:** **LISTA** in **SAMPLES** opens the quick select. Choose a pad, narrow by **SAMPLE**, **LARGO** (up to 5, 15 or 30 s), **PISTA** (what came from the master's track), **TONO** (what mixes with the master's key) or a tag, and touch a row to load it. ★ marks it. **1 2 3 4** are banks: a click loads its pads, Shift saves the current ones, and `Option + [` and `]` move between them. Pads a bank leaves empty keep what they hold.
+- **Stems:** **Separar** in the selection, with 4 or 6 stems. It runs apart from the music, one at a time, and can be cancelled; the first use of a model downloads it. They keep their track's grid, key and cues. **Configuración → Audio → stems** shows the engine, the folder and the limit. Past the limit the oldest unmarked ones go, and can be made again. Removing a stem deletes its file, the only case in which curado deletes one.
+- **Moved files:** an entry whose file is gone is crossed out, and **Buscar movidas** looks through your music folders and drives. It takes back only what it can show is the same; with two copies you choose with **Reubicar…**. A drive that is not connected is only noted as such. Cues, tags and playlists stay, since they belong to the entry.
+- **Importing** the same content twice does not add it. Existing duplicates are counted above the list to review.
+
 ## Sorting lists
 
 Click a column in any track list to sort by it: once upward, again downward, a third time back to the list's own order. In the player **#** also goes back. **pista** and **artista** sort separately, and key follows the Camelot wheel. The choice applies to every list and stays between launches, and tracks with no value stay last. A playlist's saved order does not change. **Play selection** and the arrow keys go in the order shown.

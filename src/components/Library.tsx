@@ -1,4 +1,6 @@
 import { tr, useLanguage } from '../lib/language';
+import { isSample, matchesPiece, NO_FILTER, SAMPLE_TAG, tagCounts } from '../lib/pieces';
+import type { PieceFilter, PieceView } from '../lib/pieces';
 import { libraryValue, sortTracks } from '../lib/sorting';
 import type { SortColumn, TrackSort } from '../lib/sorting';
 import { ariaSort, SortButton, SortReset } from './SortButton';
@@ -14,7 +16,13 @@ import {
   Disc3,
   Share,
 } from 'lucide-react';
-import type { Library as LibraryData, LibraryEdit, Track } from '../lib/types';
+import type {
+  Library as LibraryData,
+  LibraryEdit,
+  LibraryHealth,
+  StemsProgress,
+  Track,
+} from '../lib/types';
 import { TrackArt } from './Player';
 import { time } from '../lib/types';
 import { keyLabel } from '../lib/music';
@@ -25,6 +33,12 @@ export const Library = memo(function Library({
   sort,
   onSort,
   listOrder,
+  health,
+  stemJob,
+  onRelinkSearch,
+  onRelinkTrack,
+  onStems,
+  onStemsCancel,
   onSelect,
   onLoad,
   onEdit,
@@ -41,6 +55,12 @@ export const Library = memo(function Library({
   onSort: (column: SortColumn | null) => void;
   /** What the list shows, in its order, for the keys that walk it. */
   listOrder: { current: number[] | null };
+  health: LibraryHealth;
+  stemJob: StemsProgress | null;
+  onRelinkSearch: () => void;
+  onRelinkTrack: (id: number) => void;
+  onStems: (id: number, model: string) => void;
+  onStemsCancel: () => void;
   onSelect: (id: number) => void;
   onLoad: (slot: number, id: number) => void;
   onEdit: (edit: LibraryEdit) => void;
@@ -54,6 +74,17 @@ export const Library = memo(function Library({
   const [query, setQuery] = useState('');
   const [repeat, setRepeat] = useState<'off' | 'one' | 'all'>('off');
   const [playlist, setPlaylist] = useState('');
+  const [kind, setKind] = useState<PieceView | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
+  const [problem, setProblem] = useState<'missing' | 'duplicates' | null>(null);
+  const [newTag, setNewTag] = useState('');
+  const [naming, setNaming] = useState(false);
+  const [collectionName, setCollectionName] = useState('');
+  const [model, setModel] = useState('htdemucs');
+  const collection = data.collections.find((c) => `collection:${c.id}` === view);
+  const missing = useMemo(() => new Set(health.missing), [health.missing]);
+  const offline = useMemo(() => new Set(health.offline), [health.offline]);
+  const duplicates = useMemo(() => new Set(health.duplicates), [health.duplicates]);
   const active = data.playlists.find((p) => `playlist:${p.id}` === view);
   const filtered = useMemo(() => {
     let tracks = data.tracks;
@@ -62,13 +93,20 @@ export const Library = memo(function Library({
       tracks = active.tracks.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
     }
     if (view === 'favorites') tracks = tracks.filter((t) => t.favorite);
-    const q = query.toLocaleLowerCase();
+    if (collection)
+      tracks = tracks.filter((t) => matchesPiece(t, collection.filter as PieceFilter));
+    if (problem === 'missing') tracks = tracks.filter((t) => missing.has(t.id));
+    if (problem === 'duplicates') tracks = tracks.filter((t) => duplicates.has(t.id));
+    const chosen = { ...NO_FILTER, query, kind, tags };
     return sortTracks(
-      tracks.filter((t) => `${t.title} ${t.artist}`.toLocaleLowerCase().includes(q)),
+      tracks.filter((t) => matchesPiece(t, chosen)),
       sort,
       libraryValue,
     );
-  }, [data, active, view, query, sort]);
+  }, [data, active, collection, view, query, kind, tags, problem, missing, duplicates, sort]);
+  const usedTags = useMemo(() => tagCounts(data.tracks).slice(0, 12), [data.tracks]);
+  const allTags = useMemo(() => tagCounts(data.tracks).map(([tag]) => tag), [data.tracks]);
+  const filtering = !!(query || kind || tags.length);
   listOrder.current = filtered.slice(0, 500).map((t) => t.id);
   useEffect(
     () => () => {
@@ -92,6 +130,7 @@ export const Library = memo(function Library({
           <div className="eyebrow">{tr('tu espacio sonoro', 'your sound space')}</div>
           <h2>
             {active?.name ??
+              collection?.name ??
               (view === 'favorites' ? tr('favoritos', 'favorites') : tr('biblioteca', 'library'))}
             <span>{filtered.length}</span>
           </h2>
@@ -155,12 +194,135 @@ export const Library = memo(function Library({
           </button>
         </div>
       </div>
+      {stemJob && !['done', 'cancelled', 'error'].includes(stemJob.stage) && (
+        <div className="stems-job" role="status">
+          <span>
+            {tr('Separando', 'Separating')} <b>{stemJob.title}</b> · {stageLabel(stemJob.stage)}
+          </span>
+          <button className="subtle" onClick={onStemsCancel}>
+            {tr('Cancelar', 'Cancel')}
+          </button>
+        </div>
+      )}
+      {(health.missing.length > 0 || health.offline.length > 0 || health.duplicates.length > 0) && (
+        <div className="library-health">
+          {health.missing.length > 0 && (
+            <>
+              <button
+                className="subtle"
+                aria-pressed={problem === 'missing'}
+                onClick={() => setProblem(problem === 'missing' ? null : 'missing')}
+              >
+                {health.missing.length} {tr('no encontradas', 'not found')}
+              </button>
+              <button
+                className="subtle"
+                title={tr(
+                  'Busca en tu música y discos, y solo recupera las que puede comprobar que son las mismas',
+                  'Looks through your music and drives, and only takes back what it can show is the same',
+                )}
+                onClick={onRelinkSearch}
+              >
+                {tr('Buscar movidas', 'Find moved')}
+              </button>
+            </>
+          )}
+          {health.offline.length > 0 && (
+            <small>
+              {health.offline.length} {tr('en discos sin conectar', 'on drives not connected')}
+            </small>
+          )}
+          {health.duplicates.length > 0 && (
+            <button
+              className="subtle"
+              aria-pressed={problem === 'duplicates'}
+              title={tr(
+                'Mismo contenido que otra entrada anterior. Retirarla no borra su archivo.',
+                'Same content as an earlier entry. Removing it does not delete its file.',
+              )}
+              onClick={() => setProblem(problem === 'duplicates' ? null : 'duplicates')}
+            >
+              {health.duplicates.length} {tr('duplicadas', 'duplicates')}
+            </button>
+          )}
+        </div>
+      )}
+      <div className="piece-filters" role="group" aria-label={tr('Filtrar', 'Filter')}>
+        {(
+          [
+            [null, tr('todo', 'all')],
+            ['track', tr('pistas', 'tracks')],
+            ['loop', 'loops'],
+            ['stem', 'stems'],
+            ['sample', 'samples'],
+          ] as [PieceView | null, string][]
+        ).map(([value, label]) => (
+          <button key={label} aria-pressed={kind === value} onClick={() => setKind(value)}>
+            {label}
+          </button>
+        ))}
+        {usedTags.length > 0 && <i />}
+        {usedTags
+          .filter(([tag]) => tag !== SAMPLE_TAG)
+          .map(([tag, count]) => (
+            <button
+              key={tag}
+              aria-pressed={tags.includes(tag)}
+              title={`${count}`}
+              onClick={() =>
+                setTags(tags.includes(tag) ? tags.filter((t) => t !== tag) : [...tags, tag])
+              }
+            >
+              {tag}
+            </button>
+          ))}
+        {filtering && !collection && !naming && (
+          <button className="piece-save" onClick={() => setNaming(true)}>
+            {tr('+ guardar búsqueda', '+ save search')}
+          </button>
+        )}
+        {naming && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!collectionName.trim()) return;
+              onEdit({
+                kind: 'saveCollection',
+                name: collectionName,
+                filter: { ...NO_FILTER, query, kind, tags },
+              });
+              setCollectionName('');
+              setNaming(false);
+            }}
+          >
+            <input
+              autoFocus
+              aria-label={tr('Nombre de la colección', 'Collection name')}
+              placeholder={tr('nombre…', 'name…')}
+              value={collectionName}
+              onChange={(e) => setCollectionName(e.target.value)}
+              onBlur={() => setNaming(false)}
+            />
+          </form>
+        )}
+        {collection && (
+          <button
+            className="piece-save"
+            onClick={() => onEdit({ kind: 'deleteCollection', id: collection.id })}
+          >
+            {tr('quitar colección', 'remove collection')}
+          </button>
+        )}
+      </div>
       <div className="library-toolbar">
         <label className="search">
           <Search size={15} />
           <input
             aria-label={tr('Buscar música', 'Search music')}
-            placeholder={tr('Buscar por canción o artista…', 'Search by song or artist…')}
+            placeholder={tr(
+              'Buscar por canción, artista o etiqueta…',
+              'Search by song, artist or tag…',
+            )}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -210,6 +372,77 @@ export const Library = memo(function Library({
             <button onClick={() => onLoad(1, selection.id)}>
               {tr('Cargar en B', 'Load into B')}
               <ArrowUpRight size={13} />
+            </button>
+          )}
+          <button
+            aria-pressed={isSample(selection)}
+            title={tr(
+              'Márcala para encontrarla en la selección rápida de samples',
+              'Marks it to find in the samples quick select',
+            )}
+            onClick={() =>
+              onEdit({
+                kind: isSample(selection) ? 'removeTag' : 'addTag',
+                track: selection.id,
+                tag: SAMPLE_TAG,
+              })
+            }
+          >
+            sample
+          </button>
+          {selection.tags
+            .filter((tag) => tag !== SAMPLE_TAG)
+            .map((tag) => (
+              <button
+                key={tag}
+                className="piece-tag"
+                title={tr('Quitar etiqueta', 'Remove tag')}
+                onClick={() => onEdit({ kind: 'removeTag', track: selection.id, tag })}
+              >
+                {tag} ×
+              </button>
+            ))}
+          <form
+            className="piece-add-tag"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!newTag.trim()) return;
+              onEdit({ kind: 'addTag', track: selection.id, tag: newTag });
+              setNewTag('');
+            }}
+          >
+            <input
+              aria-label={tr('Añadir etiqueta', 'Add tag')}
+              placeholder={tr('+ etiqueta', '+ tag')}
+              list="piece-tags"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+            />
+            <datalist id="piece-tags">
+              {allTags.map((tag) => (
+                <option key={tag} value={tag} />
+              ))}
+            </datalist>
+          </form>
+          {selection.kind !== 'stem' && (
+            <span className="piece-stems">
+              <select
+                aria-label={tr('Modelo de stems', 'Stem model')}
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+              >
+                <option value="htdemucs">{tr('4 stems', '4 stems')}</option>
+                <option value="htdemucs_ft">{tr('4 stems, más lento', '4 stems, slower')}</option>
+                <option value="htdemucs_6s">{tr('6 stems', '6 stems')}</option>
+              </select>
+              <button onClick={() => onStems(selection.id, model)}>
+                {tr('Separar', 'Separate')}
+              </button>
+            </span>
+          )}
+          {missing.has(selection.id) && (
+            <button onClick={() => onRelinkTrack(selection.id)}>
+              {tr('Reubicar…', 'Locate…')}
             </button>
           )}
           <select
@@ -305,6 +538,7 @@ export const Library = memo(function Library({
                 track={track}
                 index={i}
                 selected={track.id === selected}
+                lost={missing.has(track.id) ? 'missing' : offline.has(track.id) ? 'offline' : null}
                 onSelect={onSelect}
                 onLoad={onLoad}
                 onEdit={onEdit}
@@ -362,10 +596,19 @@ export const Library = memo(function Library({
     </section>
   );
 });
+const stageLabel = (stage: string) =>
+  ({
+    preparing: tr('preparando', 'preparing'),
+    loading: tr('cargando el modelo', 'loading the model'),
+    separating: tr('separando', 'separating'),
+    writing: tr('escribiendo', 'writing'),
+    storing: tr('guardando', 'storing'),
+  })[stage] ?? stage;
 function TrackRow({
   track,
   index,
   selected,
+  lost,
   onSelect,
   onLoad,
   onEdit,
@@ -375,6 +618,7 @@ function TrackRow({
   track: Track;
   index: number;
   selected: boolean;
+  lost: 'missing' | 'offline' | null;
   onSelect: (id: number) => void;
   onLoad: (slot: number, id: number) => void;
   onEdit: (edit: LibraryEdit) => void;
@@ -388,7 +632,14 @@ function TrackRow({
   return (
     <tr
       ref={row}
-      className={selected ? 'selected' : ''}
+      className={`${selected ? 'selected' : ''} ${lost ? 'is-lost' : ''}`}
+      title={
+        lost === 'missing'
+          ? tr('No se encuentra su archivo', 'Its file cannot be found')
+          : lost === 'offline'
+            ? tr('Está en un disco sin conectar', 'It is on a drive not connected')
+            : undefined
+      }
       onClick={() => onSelect(track.id)}
       onDoubleClick={() => onLoad(0, track.id)}
       tabIndex={0}
@@ -405,8 +656,14 @@ function TrackRow({
         <div className="table-title">
           <TrackArt id={track.id} size="sm" />
           <div>
-            <strong>{track.title}</strong>
-            <small>{track.artist}</small>
+            <strong>
+              {track.kind !== 'track' && <em className="piece-kind">{track.stem ?? track.kind}</em>}
+              {track.title}
+            </strong>
+            <small>
+              {track.artist}
+              {track.tags.length > 0 && ` · ${track.tags.join(' · ')}`}
+            </small>
           </div>
         </div>
       </td>

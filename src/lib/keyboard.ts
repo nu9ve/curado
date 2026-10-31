@@ -62,6 +62,8 @@ export const DEFAULT_KEYS: KeyBinding[] = [
   key('ArrowDown', 0, 'crossfader', 0.5, 'ctrl'),
   key('ArrowRight', 0, 'crossfader', 1, 'ctrl'),
   key('KeyB', 2, 'beatFxOn', 1, 'alt'),
+  key('BracketLeft', 0, 'bankMove', -1, 'alt'),
+  key('BracketRight', 0, 'bankMove', 1, 'alt'),
   ...HANDS.flatMap((hand) => [
     // Plain plays a cue, Shift saves it, Control deletes it.
     ...hand.pads.flatMap((code, cue) => [
@@ -86,6 +88,7 @@ export const DEFAULT_KEYS: KeyBinding[] = [
     key(hand.loopIn, hand.slot, 'loopScale', 0.5, 'shift'),
     key(hand.loopOut, hand.slot, 'loopScale', 2, 'shift'),
     key(hand.reloop, hand.slot, 'quantize', 1, 'shift'),
+    key(hand.reloop, hand.slot, 'saveLoop', 0, 'ctrl'),
     key(hand.slip, hand.slot, 'slip', 1),
     key(hand.slip, hand.slot, 'reverse', 1, 'shift'),
     key(hand.fx, hand.slot, 'beatFxOn', 1),
@@ -102,7 +105,7 @@ export const DEFAULT_KEYS: KeyBinding[] = [
 /** A key can only say "pressed": these flip whatever the engine reports now. */
 export const TOGGLE_KINDS = new Set(['slip', 'reverse', 'beatFxOn', 'keyLock', 'sync', 'quantize']);
 /** Handled by the interface: they move through a list, which the engine knows nothing about. */
-export const LOCAL_KINDS = new Set(['listMove', 'listLoad']);
+export const LOCAL_KINDS = new Set(['listMove', 'listLoad', 'saveLoop', 'bankMove']);
 /** What can be typed in. It keeps its keys while it has focus, and only then. */
 export const TEXT_ENTRY =
   'input:not([type="range"],[type="checkbox"],[type="radio"],[type="button"],[type="color"]),textarea,[contenteditable="true"]';
@@ -145,20 +148,22 @@ export function keyIsForTheMix(
   if (target.closest(TEXT_ENTRY)) return false;
   return !(tabbed && CONTROL_KEYS.has(code) && target.closest(CONTROLS));
 }
-/** A layout saved before auto loop existed gets its keys, where they are still free. */
+const LATER_KINDS = new Set(['autoLoop', 'saveLoop', 'bankMove']);
+/** A layout saved before these existed gets their keys, where they are still free. */
 export function withAutoLoopKeys(saved: KeyBinding[]) {
-  if (saved.some((binding) => binding.action.kind === 'autoLoop')) return saved;
   const combo = (b: KeyBinding) => `${b.code}:${b.shift}:${!!b.ctrl}:${!!b.alt}`;
   const taken = new Set(saved.map(combo));
-  return [
-    ...saved,
-    ...DEFAULT_KEYS.filter(
-      (binding) =>
-        (binding.action.kind === 'autoLoop' ||
-          (binding.action.kind === 'loopScale' && ['KeyB', 'KeyN'].includes(binding.code))) &&
-        !taken.has(combo(binding)),
-    ),
-  ];
+  const known = new Set(saved.map((binding) => binding.action.kind));
+  const added = DEFAULT_KEYS.filter(
+    (binding) =>
+      !taken.has(combo(binding)) &&
+      (LATER_KINDS.has(binding.action.kind)
+        ? !known.has(binding.action.kind)
+        : binding.action.kind === 'loopScale' &&
+          ['KeyB', 'KeyN'].includes(binding.code) &&
+          !known.has('autoLoop')),
+  );
+  return added.length ? [...saved, ...added] : saved;
 }
 export function keyLabel(code: string) {
   return (
@@ -174,6 +179,8 @@ export function keyLabel(code: string) {
         Comma: ',',
         Period: '.',
         Slash: '/',
+        BracketLeft: '[',
+        BracketRight: ']',
       } as Record<string, string>
     )[code] ?? code.replace('Key', '').replace('Digit', '')
   );
@@ -188,6 +195,8 @@ export function actionLabel(kind: string) {
       toggleBoth: 'Play / pause all',
       autoLoop: 'Auto loop',
       setLoopCue: 'Save loop cue',
+      saveLoop: 'Save loop to library',
+      bankMove: 'Sample bank',
       listMove: 'Move in the list',
       listLoad: 'Load the selection',
       releaseFx: 'Release FX',
@@ -307,6 +316,8 @@ export function actionLabel(kind: string) {
         echoBeats: 'Echo en beats',
         quantize: 'Cuantizado',
         setLoopCue: 'Guardar loop cue',
+        saveLoop: 'Guardar loop en la biblioteca',
+        bankMove: 'Banco de samples',
         autoLoop: 'Auto loop',
         loopBeats: 'Loop en beats',
         sync: 'Sync de tempo',

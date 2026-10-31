@@ -111,6 +111,9 @@ describe('keyboard performance contract', () => {
     expect(pressed('KeyB', { shiftKey: true })).toMatchObject({ kind: 'loopScale', value: 0.5 });
     expect(pressed('KeyN', { ctrlKey: true })).toMatchObject({ slot: 1, value: 2 });
     expect(withAutoLoopKeys(DEFAULT_KEYS)).toBe(DEFAULT_KEYS);
+    expect(pressed('KeyC', { ctrlKey: true })).toMatchObject({ slot: 0, kind: 'saveLoop' });
+    expect(pressed('Comma', { ctrlKey: true })).toMatchObject({ slot: 1, kind: 'saveLoop' });
+    expect(pressed('BracketRight', { altKey: true })).toMatchObject({ kind: 'bankMove', value: 1 });
     const toggle = { slot: 0, kind: 'toggle', value: 0 };
     const merged = withAutoLoopKeys([{ code: 'KeyB', shift: false, action: toggle }]);
     expect(merged[0].action.kind).toBe('toggle');

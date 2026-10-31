@@ -155,6 +155,12 @@ Mode `all` runs both Vision requests on each frame. `Follower` adds `z`, relativ
 
 `lib/mixer-keys.ts` lists the targets and turns an arrow into an action from the current snapshot, with nothing kept in the interface but the aim, cleared when Option is released. These go straight to `audio_action`, since `resolveAction` would flip a switch they already set.
 
+## Pieces and files
+
+Schema v4 keeps tracks, loops and stems in `tracks`, with `kind`, `parent`, `clip_start`/`clip_end` and identity columns. Partial unique indexes say what each kind may not repeat. `tags` and `collections` are tables; banks are a setting. `identity.rs` computes size, fingerprint and drive; `relink.rs` reports health, heals and searches outside the database lock, and a background thread fingerprints what has none, 25 ms apart.
+
+`stems.rs` writes the source through curado's own decode to `<store>/.job-<id>/`, runs `native/separate.py` with structured arguments, and on success moves FLACs to `<store>/<fingerprint>/<model>/` beside a `manifest.json`, then commits in one transaction. The worker leaves when its input closes. At launch `tidy` removes job folders and adopts stems whose manifest the database does not know. Nothing here runs near the audio callback: a stem or loop loads as any track.
+
 ## Track order
 
 `lib/sorting.ts` orders any list from the shared `sort` in the workspace, without touching what it was given. A rendered list publishes its ids in `listOrder`, so the arrows and the selector walk exactly what is on screen. With no list on screen, `browseBy` works out what it would show, without a search.

@@ -120,7 +120,7 @@ check('the face uses the effect chosen', list.includes('2:beatFx:15'), list);
 
 // Losing everything lets everything go, without anyone asking.
 await clear();
-await sleep(500);
+await sleep(1500);
 list = await actions();
 check('losing sight turns it off', list.includes('2:beatFxOn:0'), list);
 

@@ -33,10 +33,18 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 - Taps' strength and density once felt on a trackpad; hints in the footer for the newest controls.
 - Dimmed RX3 controls that need other inputs and outputs: mic, AUX, input switches, booth and LINK.
 
+## P1 · Pieces
+
+- nüün: read where a file is from its catalog, and tell it what curado depends on so it does not free those copies. Both can use the identity already stored. Needs a full SHA-256 of library files, computed only then.
+- Stems live on a deck, muting parts as it plays: four synced voices per deck, an engine change.
+- Clearing pads from a bank, which needs an unload in the engine. Today empty pads keep what they hold.
+- Moving existing stems when their folder changes. Today new ones go to the new folder and old ones stay working where they are.
+- Merging duplicates instead of only listing them; audition before loading to a pad; multi-select to tag.
+
 ## P1 · Complete player
 
 - Editable queue/shuffle; next-track prefetch exists. Real gapless depends on the native clock.
-- Reorderable playlists, real tags, albums (covers show, but are not edited or searched), file relocation and cancellable incremental scans.
+- Reorderable playlists, reading file tags, albums (covers show, but are not edited or searched) and cancellable incremental scans.
 - Theme/style/mode persist; finish navigation state and validated startup output.
 - Alternate views (S6): mini exists; compact/focus/stage/floating visual and per-view size persistence remain.
 - macOS template tray icon/now-playing (S8).
