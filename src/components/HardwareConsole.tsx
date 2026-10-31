@@ -33,6 +33,13 @@ import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
 import { bindingLabel, TOGGLE_KINDS } from '../lib/keyboard';
+import {
+  useTrackedPoint,
+  useTrackingControl,
+  useTrackingPreview,
+  useTrackingStatus,
+} from '../lib/tracking';
+import type { TrackMode } from '../lib/tracking';
 import { XY_MODES, xyMoves, xyPoint, xyRelease } from '../lib/xy';
 import type { XYMode } from '../lib/xy';
 import { UnavailableControl } from './UnavailableControl';
@@ -211,18 +218,23 @@ function StepDial({
   return (
     <div className="rx-at rx-step" style={at(x, y)}>
       {label && (
-        <span className="rx-step-title" style={{ bottom: reach > 0 ? reach + 8 : size / 2 + 3 }}>
+        <span className="rx-step-title" style={{ bottom: size / 2 + 3 }}>
           {label}
         </span>
       )}
       {reach > 0 &&
         names.map((name, i) => {
-          const radians = (angle(i) * Math.PI) / 180;
+          // Two columns, bottom left around to bottom right, so long names never collide.
+          const half = Math.ceil(names.length / 2);
+          const left = i < half;
+          const row = left ? half - 1 - i : i - half;
+          const spacing = names.length > 6 ? 9.5 : 18;
+          const across = (Math.max(half, names.length - half) - 1) * spacing;
           return (
             <button
               key={name}
-              className={`rx-step-name ${i === index ? 'is-on' : ''} ${angle(i) < 0 ? 'to-left' : ''}`}
-              style={at(Math.sin(radians) * reach, -Math.cos(radians) * reach)}
+              className={`rx-step-name ${i === index ? 'is-on' : ''} ${left ? 'to-left' : ''}`}
+              style={at(left ? -reach : reach, row * spacing - across / 2)}
               data-action={action}
               onClick={() => onStep(i)}
             >
@@ -613,7 +625,7 @@ function RxDeck({
       </span>
       <Key
         label="SYNC"
-        x={437}
+        x={432}
         y={198}
         on={slot.sync}
         disabled={empty || masterDeck === index || !slot.music.bpm || !masterHasBpm}
@@ -622,7 +634,7 @@ function RxDeck({
       />
       <Key
         label="MASTER"
-        x={476}
+        x={474}
         y={198}
         on={masterDeck === index}
         disabled={empty}
@@ -1042,9 +1054,9 @@ function BeatFxBlock({
       <StepDial
         label=""
         x={x}
-        y={274}
-        size={32}
-        reach={32}
+        y={276}
+        size={30}
+        reach={19}
         index={order < 0 ? 1 : order}
         names={BEAT_FX_ORDER.map((kind) => BEAT_FX[kind])}
         action={act(unit, 'beatFx', state.kind)}
@@ -1054,8 +1066,8 @@ function BeatFxBlock({
         label="CH SELECT"
         x={x}
         y={350}
-        size={28}
-        reach={24}
+        size={26}
+        reach={17}
         index={unit}
         names={CH_SELECT}
         onStep={onUnit}
@@ -1352,6 +1364,23 @@ function XYPad({
     );
   };
   const [x, y] = xyPoint(mode, slot, fx);
+  // A tracked hand is one more way of pointing, through the same moves as a finger.
+  const tracked = useTrackedPoint(index);
+  const engaged = tracked?.engaged ?? false;
+  const held = useRef(false);
+  const modeNow = useRef(mode);
+  modeNow.current = mode;
+  useEffect(() => {
+    if (engaged && tracked) {
+      held.current = true;
+      for (const { kind, value } of xyMoves(modeNow.current, tracked.x, tracked.y))
+        parameter(index, kind, value, onError);
+    } else if (held.current) {
+      held.current = false;
+      for (const { kind, value } of xyRelease(modeNow.current))
+        parameter(index, kind, value, onError);
+    }
+  }, [engaged, tracked, index, onError]);
   const finish = () => {
     setTouching(false);
     send(xyRelease(mode));
@@ -1393,6 +1422,12 @@ function XYPad({
         onPointerCancel={finish}
       >
         <i style={{ left: `${x * 100}%`, bottom: `${y * 100}%` }} />
+        {tracked && (
+          <i
+            className={`rx-xy-hand ${engaged ? 'is-pressed' : ''}`}
+            style={{ left: `${tracked.x * 100}%`, bottom: `${tracked.y * 100}%` }}
+          />
+        )}
       </div>
     </div>
   );
@@ -1474,12 +1509,105 @@ function SamplesPanel({
   );
 }
 
+const CAMERA_STATUS: Record<string, [string, string]> = {
+  off: ['apagada', 'off'],
+  paused: ['en pausa · libre', 'paused · released'],
+  starting: ['abriendo…', 'opening…'],
+  asking: ['pide permiso…', 'asking permission…'],
+  running: ['encendida', 'on'],
+  lost: ['reconectando…', 'reconnecting…'],
+  busy: ['en uso por otra app', 'in use by another app'],
+  denied: ['sin permiso: Ajustes del Sistema', 'no permission: System Settings'],
+  nocamera: ['no hay cámara', 'no camera'],
+};
+/** Whether the camera is on is always in view here, and it runs only while this is on screen. */
+function CameraControls({
+  mode,
+  onMode,
+  preview,
+  onPreview,
+}: {
+  mode: TrackMode;
+  onMode: (mode: TrackMode) => void;
+  preview: boolean;
+  onPreview: (on: boolean) => void;
+}) {
+  const status = useTrackingStatus();
+  const words = CAMERA_STATUS[status] ?? CAMERA_STATUS.off;
+  return (
+    <div
+      className="rx-camera"
+      role="group"
+      aria-label={tr('Seguimiento con cámara', 'Camera tracking')}
+    >
+      <i className={`rx-led ${status === 'running' ? 'is-on' : ''}`} />
+      {(
+        [
+          ['off', 'OFF'],
+          ['hands', tr('MANOS', 'HANDS')],
+          ['face', tr('CARA', 'FACE')],
+        ] as const
+      ).map(([value, label]) => (
+        <button
+          key={value}
+          aria-pressed={mode === value}
+          title={
+            value === 'hands'
+              ? tr(
+                  'Pellizca para accionar XY: cada mano mueve su lado',
+                  'Pinch to work XY: each hand moves its side',
+                )
+              : value === 'face'
+                ? tr('Acércate para accionar XY 1', 'Lean in to work XY 1')
+                : tr('Apaga la cámara', 'Turns the camera off')
+          }
+          onClick={() => onMode(value)}
+        >
+          {label}
+        </button>
+      ))}
+      {mode !== 'off' && (
+        <button aria-pressed={preview} onClick={() => onPreview(!preview)}>
+          {tr('VER', 'VIEW')}
+        </button>
+      )}
+      <small>{tr(...words)}</small>
+    </div>
+  );
+}
+function CameraView({ mode }: { mode: TrackMode }) {
+  const image = useTrackingPreview();
+  const points = [useTrackedPoint(0), useTrackedPoint(1)];
+  return (
+    <div className="rx-camera-view">
+      {image && <img alt="" src={`data:image/jpeg;base64,${image}`} />}
+      {points.map(
+        (point, i) =>
+          point && (
+            <i
+              key={i}
+              className={point.engaged ? 'is-pressed' : ''}
+              style={{ left: `${point.x * 100}%`, bottom: `${point.y * 100}%` }}
+            />
+          ),
+      )}
+      <span>
+        {mode === 'hands'
+          ? tr('pellizca para accionar', 'pinch to work')
+          : tr('acércate para accionar', 'lean in to work')}
+      </span>
+    </div>
+  );
+}
+
 /** What is connected, and what it is doing right now. */
 function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
   const { midi, output } = useSnapshot();
   const devices = useDevices();
   const lastMidi = useRef('');
   const [active, setActive] = useState(false);
+  const [preview, setPreview] = useState(false);
+  const { mode, setMode } = useTrackingControl(preview);
   useEffect(() => {
     if (!midi.lastMessage || midi.lastMessage === lastMidi.current) return;
     lastMidi.current = midi.lastMessage;
@@ -1494,36 +1622,43 @@ function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
         <b>{tr('CONEXIONES', 'CONNECTIONS')}</b>
         <button onClick={onSettings}>MIDI LEARN</button>
       </div>
-      <dl>
-        <dt>
-          <i className={`rx-led ${midi.connected ? 'is-on' : ''} ${active ? 'is-hit' : ''}`} />
-          MIDI
-        </dt>
-        <dd>{midi.connected ?? tr('sin controlador', 'no controller')}</dd>
-        <dt />
-        <dd>{midi.lastMessage ?? `${midi.bindings.length} ${tr('asignaciones', 'mappings')}`}</dd>
-        <dt>
-          <i className={`rx-led ${output ? 'is-on' : ''}`} />
-          AUDIO
-        </dt>
-        <dd>
-          {output
-            ? `${output.channels} ch · ${output.sampleRate / 1000} kHz`
-            : tr('sin salida', 'no output')}
-        </dd>
-        <dt>
-          <i className={`rx-led ${cue ? 'is-on' : ''}`} />
-          CUE
-        </dt>
-        <dd>
-          {cue ? tr('salidas 3 y 4', 'outputs 3 and 4') : tr('sin salida propia', 'no own output')}
-        </dd>
-        <dt>
-          <i className={`rx-led ${devices.length ? 'is-on' : ''}`} />
-          USB
-        </dt>
-        <dd>{devices.map((device) => device.name).join(' · ') || '—'}</dd>
-      </dl>
+      <CameraControls mode={mode} onMode={setMode} preview={preview} onPreview={setPreview} />
+      {mode !== 'off' && preview ? (
+        <CameraView mode={mode} />
+      ) : (
+        <dl>
+          <dt>
+            <i className={`rx-led ${midi.connected ? 'is-on' : ''} ${active ? 'is-hit' : ''}`} />
+            MIDI
+          </dt>
+          <dd>{midi.connected ?? tr('sin controlador', 'no controller')}</dd>
+          <dt />
+          <dd>{midi.lastMessage ?? `${midi.bindings.length} ${tr('asignaciones', 'mappings')}`}</dd>
+          <dt>
+            <i className={`rx-led ${output ? 'is-on' : ''}`} />
+            AUDIO
+          </dt>
+          <dd>
+            {output
+              ? `${output.channels} ch · ${output.sampleRate / 1000} kHz`
+              : tr('sin salida', 'no output')}
+          </dd>
+          <dt>
+            <i className={`rx-led ${cue ? 'is-on' : ''}`} />
+            CUE
+          </dt>
+          <dd>
+            {cue
+              ? tr('salidas 3 y 4', 'outputs 3 and 4')
+              : tr('sin salida propia', 'no own output')}
+          </dd>
+          <dt>
+            <i className={`rx-led ${devices.length ? 'is-on' : ''}`} />
+            USB
+          </dt>
+          <dd>{devices.map((device) => device.name).join(' · ') || '—'}</dd>
+        </dl>
+      )}
     </div>
   );
 }

@@ -137,6 +137,10 @@ Metal is a separate process. The visual worker requests one preallocated 2,048-s
 
 The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular scope and a depth-tested low-poly spectral city. Controls for scene, glow, sensitivity, speed and color are temporary; H hides/restores controls, F toggles native fullscreen and R resets the spring camera. Dragging the visual moves its camera, then it springs back. Not every setting affects every scene: glow is procedural and applies to the screen shaders, not terrain or city, and is not a post-processing bloom. Drawing is bounded to 30 FPS and hidden/minimized skips drawing, though capture continues while the helper exists. The helper exits on window close/stdin close. Distribution requires replacing extraction with a signed in-bundle helper.
 
+## Camera tracking
+
+`native/CuradoTracker.swift` is a separate process: AVFoundation at 640×480, Vision at most 15 times a second, and JSON lines on its output. `tracking.rs` supervises it and passes checked frames as `tracking:frame`. `lib/tracking.ts` steadies them into points for the XY surfaces, which use the same moves as a finger. It never touches the audio path.
+
 ## Connected devices and rekordbox
 
 `devices.rs` lists mounted drives every 2 s on its own worker, without holding locks while it asks, because a dead network drive can take long to answer. `rekordbox.rs` reads `PIONEER/rekordbox/export.pdb` and `ANLZ` files with no new dependency, based on the formats documented by Deep Symmetry's Crate Digger. `exportLibrary.db` (OneLibrary) is ignored: it is encrypted, and the unencrypted export has the same library.

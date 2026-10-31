@@ -31,6 +31,8 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 
 **Above the console** there are panels the hardware has no room for: **SAMPLES** with its level, **XY 1** and **XY 2**, and **CONEXIONES** with MIDI activity, the audio output, the cue output and drives. An XY surface moves two parameters at once, one per channel with two fingers on a touchscreen, and returns to neutral on release. Its point also follows MIDI and the knobs. Its modes are COLOR, FILTER, BEAT FX and EQ.
 
+**Camera:** in **CONEXIONES**, **MANOS** or **CARA** drive the XY surfaces; off every time curado opens. Each hand moves the surface on its side and acts while pinching; a face moves XY 1 and acts on leaning in. **VER** shows the picture. It stops by itself when you leave Mix or switch to another app, the camera light goes off, and it comes back on return. Images stay on your Mac.
+
 **Headphones:** with an output of 4 or more channels, 3 and 4 are the cue: channel **CUE**, **MASTER**, **MIXING** and **LEVEL**. Holding the waveform of the selected track in **información** is **TOUCH PREVIEW**: it goes to the headphones, or at half level through the speakers on a stereo output, and says so.
 
 Dimmed controls (mic, AUX, input switches, booth, LINK) have no function: they need other inputs and outputs. **herramientas** in the side panel holds curado's own LP/HP, echo, grid and key editing, linked transport, sample levels and the full mixer. The **curado** layout has the same pad modes, slip, reverse and scratch, with color and beat effects in **herramientas**.

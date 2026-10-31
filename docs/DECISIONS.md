@@ -1,5 +1,17 @@
 # Technical decisions
 
+## ADR-027 · Camera tracking in a process that can be killed — accepted (2026-10-30)
+
+The maintainer asked for hand and face tracking as an option, with the camera released whenever it is not in view and recovered cleanly.
+
+- **A helper process, like the Metal window.** Stopping kills it, which frees the device whatever capture is doing, and a crash cannot reach the app or audio. Its input closing ends it too, so it cannot outlive curado holding the camera.
+- **Apple Vision, on the device.** No dependency, nothing remote. Images never leave the Mac and are not stored. The preview is a small JPEG sent to the interface only while **VER** is on, because a preview nobody looks at is wasted work.
+- **On only while asked, on this screen and in front.** Off on every launch, not saved. Leaving Mix, closing the console, hiding the window or switching to another app stops the helper; native code also stops it on losing focus, in case the interface does not get to run. Coming back starts a new one. This means tracking does not run with another app in front, which is the point.
+- **Recovery by starting fresh,** with backoff from 1 s to 10 s, when the helper dies, the device disconnects or the session fails. A denied permission or a missing camera does not retry, and the interface says which.
+- **A gesture never stays on.** Losing sight for 300 ms, a helper dying, or a stop all release to neutral through the same path as lifting a finger.
+- **Gestures:** a hand moves its own side's XY and acts only while pinching, since a hand in view is not a decision; pinch has hysteresis. A face moves XY 1 and acts on leaning in. Both are guesses at what will feel right, not yet tried.
+- **Not verified on a real camera:** the lifecycle is tested against a stand-in process, and the interface against simulated frames. Publisher signing with the hardened runtime would need the camera entitlement. An ad hoc rebuild can make macOS ask permission again.
+
 ## ADR-026 · Keys by hand, a cue bus, and panels beyond the hardware — accepted (2026-10-30)
 
 - **Each hand is a deck, and a modifier keeps one meaning.** Shift is the second function, Control the destructive or further one, Option the samples. Command stays the system's. The list moves with arrows, including a drive's, since that is where tracks come from. Toggles flip what the engine reports, because a key only knows it was pressed. A saved layout from before is left stored but not used.

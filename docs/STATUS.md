@@ -1,5 +1,17 @@
 # curado status
 
+## Press fix, layout review and camera tracking · 2026-10-30
+
+The maintainer reported controls jumping when pressed, needing a second click. Positions used `transform`, which the press style and key feedback replace. They now use `translate`; with a press applied to each of the 167 console buttons in a preview, none moved. Dial names no longer collide, labels stay in capitals under the gothic style, and SYNC and MASTER no longer touch.
+
+Added optional hand and face tracking for the XY surfaces, in a helper process. See [ADR-027](DECISIONS.md) and [Controls](CONTROLS.md).
+
+**Automatically tested:** with a stand-in process, a stop ends it at once, a dead one restarts, a denied one does not, a new start replaces the old, preview requests arrive. Gesture thresholds, mirroring, smoothing and release. **In a preview with simulated frames:** no action without a pinch, moves while pinching, neutral after losing sight, stop on blur, start on focus, stop on off, and the preview image goes when paused.
+
+**Not tried:** a real camera, permission prompt, Vision's accuracy or CPU cost, and whether pinch and leaning in feel usable. Swift only compiled.
+
+Verification: `bun run check` passed (77 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (187 tests, 7 more ignored that need real data) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built with the camera usage statement in its `Info.plist`, passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `ec455cd71fb7ea456cc6e0bf4d71b68e01599b00b4cacf3fc5121e04bf817d19`. Next: the maintainer should turn on MANOS and say whether it responds and how the camera light behaves when switching apps.
+
 ## Keyboard scheme, Release FX, X-Pad, Touch Preview and panels · 2026-10-30
 
 Every **cabina** control with a key shows it on a badge, and the keyboard was redone by hand and modifier. The rest of the console gained Release FX, X-Pad with an FX bank, Touch Preview on a new cue bus, sections on the overview, and panels above it: samples, two XY surfaces and connections. See [ADR-026](DECISIONS.md) and [Controls](CONTROLS.md).

@@ -9,6 +9,7 @@ mod preferences;
 mod rekordbox;
 mod rekordbox_xml;
 mod session;
+mod tracking;
 mod visuals;
 mod web;
 use curado_audio::{
@@ -36,6 +37,7 @@ pub struct AppState {
     decode_gate: Mutex<()>,
     midi: Mutex<midi::Midi>,
     visuals: Mutex<visuals::Visuals>,
+    tracking: Arc<tracking::Tracking>,
     data_dir: PathBuf,
     cache_dir: PathBuf,
     queue: Mutex<playback::Queue>,
@@ -551,6 +553,28 @@ async fn track_follow_tempo(
     })
     .await
 }
+/// Starts the camera helper. Everything it reports goes to the interface as events. Not async,
+/// like the actions: a stop and the start after it must run in the order they were asked.
+#[tauri::command]
+fn tracking_start(
+    mode: tracking::Mode,
+    app: tauri::AppHandle,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    let program = tracking::helper(&state.cache_dir)?;
+    state.tracking.start(program, mode, move |frame| {
+        let _ = app.emit("tracking:frame", frame);
+    });
+    Ok(())
+}
+#[tauri::command]
+fn tracking_stop(state: tauri::State<'_, Arc<AppState>>) {
+    state.tracking.stop();
+}
+#[tauri::command]
+fn tracking_preview(on: bool, state: tauri::State<'_, Arc<AppState>>) {
+    state.tracking.set_preview(on);
+}
 #[tauri::command]
 async fn track_beats(
     id: u64,
@@ -824,6 +848,7 @@ pub fn run() {
                 decode_gate: Mutex::new(()),
                 midi: Mutex::new(midi::Midi::new(bindings)),
                 visuals: Mutex::new(visuals::Visuals::new()),
+                tracking: Arc::default(),
                 data_dir,
                 cache_dir,
                 queue: Mutex::new(playback::Queue::default()),
@@ -927,6 +952,16 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
+            // Whether or not the interface gets to run first, leaving the window frees the camera.
+            if window.label() == "main" {
+                if let tauri::WindowEvent::Focused(false)
+                | tauri::WindowEvent::CloseRequested { .. } = event
+                {
+                    if let Some(state) = window.try_state::<Arc<AppState>>() {
+                        state.tracking.stop();
+                    }
+                }
+            }
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if web::hide_on_close(
                     window.label(),
@@ -947,6 +982,9 @@ pub fn run() {
                 import_media,
                 export_rekordbox_xml,
                 track_beats,
+                tracking_start,
+                tracking_stop,
+                tracking_preview,
                 track_follow_tempo,
                 create_demo,
                 load_track,

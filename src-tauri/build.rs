@@ -27,6 +27,27 @@ fn main() {
             .expect("Xcode Swift compiler is required for Metal visuals");
         assert!(status.success(), "Metal visualizer compilation failed");
         println!("cargo:rerun-if-changed=native/CuradoVisuals.swift");
+        let status = std::process::Command::new("xcrun")
+            .args([
+                "swiftc",
+                "-O",
+                "-framework",
+                "AVFoundation",
+                "-framework",
+                "Vision",
+                "-framework",
+                "CoreImage",
+                "native/CuradoTracker.swift",
+                "-o",
+            ])
+            .arg(out.join("curado-tracker"))
+            .arg("-module-cache-path")
+            .arg(out.join("swift-module-cache"))
+            .args(["-target", &target])
+            .status()
+            .expect("Xcode Swift compiler is required for camera tracking");
+        assert!(status.success(), "Camera tracker compilation failed");
+        println!("cargo:rerun-if-changed=native/CuradoTracker.swift");
     }
     println!("cargo:rerun-if-changed=app_commands.rs");
     tauri_build::try_build(

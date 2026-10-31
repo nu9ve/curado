@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Press fix and camera tracking
+
+Fixed console controls jumping when pressed. Added optional hand and face tracking for the XY surfaces, off by default, in a helper process that is killed whenever it is not in view. See [Status](STATUS.md) and ADR-027. Lesson: two features using one CSS property fight silently, and only a person clicking it noticed.
+
 ## 2026-10-30 · Keyboard scheme, Release FX, X-Pad, Touch Preview and panels
 
 Redid the keyboard by hand and modifier with badges on the console, arrows through any list and Space for the whole mix. Added Release FX, X-Pad, Touch Preview on a cue bus, estimated sections and panels above the console. See [Status](STATUS.md) and ADR-026. Lesson: a Space key is only global if a clicked button does not keep it, which the check for visible focus now handles.
