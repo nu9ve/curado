@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { control, parameter } from '../lib/bridge';
+import { control, getSnapshot, parameter } from '../lib/bridge';
+import { DECK_TRIGGERS, triggerDepth } from '../lib/trigger-fx';
 import {
   angleDelta,
   BEAT_FX,
@@ -10,7 +11,7 @@ import {
   jogSeconds,
   LOOP_PADS,
   nextDivision,
-  PAD_FX,
+  TRIGGER_FX,
   PITCH_FX,
   RELEASE_PADS,
   pitchLabel,
@@ -19,7 +20,7 @@ import {
 } from '../lib/console-pads';
 import type { PadMode } from '../lib/console-pads';
 import { actionKey } from '../lib/feedback';
-import { haptic } from '../lib/haptics';
+import { currentPressure, detent, haptic, onPressure } from '../lib/haptics';
 import { tr } from '../lib/language';
 import type { BeatFxState, Slot } from '../lib/types';
 import { Knob, tabbed } from './Controls';
@@ -130,6 +131,108 @@ export function useJog(
   };
 }
 
+/**
+ * For what lasts while held. On the window, since a pad under a moving pointer can lose its
+ * capture, and an effect or roll must never stay stuck on because of that.
+ */
+function whenLifted(run: () => void) {
+  const lifted = () => {
+    window.removeEventListener('pointerup', lifted);
+    window.removeEventListener('pointercancel', lifted);
+    run();
+  };
+  window.addEventListener('pointerup', lifted);
+  window.addEventListener('pointercancel', lifted);
+}
+/** How far up a drag reaches the most, for a pointer without pressure. */
+const TRIGGER_DRAG = 90;
+/** A Beat FX while held: harder, or dragging upward, means more. The track never stops. */
+function TriggerPad({
+  kind,
+  index,
+  shift,
+  disabled,
+  padClass,
+  activeClass,
+  onError,
+}: {
+  kind: number;
+  index: number;
+  shift: boolean;
+  disabled: boolean;
+  padClass: string;
+  activeClass: string;
+  onError: (e: unknown) => void;
+}) {
+  const trigger = DECK_TRIGGERS[index];
+  const send = (action: string, value: number) => {
+    control(index, action, value).catch(onError);
+  };
+  const level = useRef(0);
+  const setLevel = (next: number) => {
+    if (trigger.active() !== kind) return;
+    const feel = detent(level.current, next, 0, 1, 0, 8);
+    if (feel) haptic(feel);
+    level.current = next;
+    parameter(index, 'beatFxDepth', triggerDepth(next), onError);
+  };
+  const lift = () => trigger.lift(kind, send);
+  const on = trigger.active() === kind && !!getSnapshot().audio?.beatFx[index]?.on;
+  const label = BEAT_FX[kind];
+  return (
+    <button
+      className={`${padClass} ${on ? activeClass : ''}`}
+      disabled={disabled}
+      aria-pressed={on}
+      aria-label={`Deck ${index ? 'B' : 'A'} · Trigger FX ${label}`}
+      title={tr(
+        'Mantén: suena mientras presionas, más fuerte o arrastrando hacia arriba es más. Shift: se queda hasta volver a tocarlo. La pista no se detiene.',
+        'Hold: sounds while pressed, harder or dragging up is more. Shift: stays until touched again. The track never stops.',
+      )}
+      data-action={act(index, 'beatFx', kind)}
+      onPointerDown={(e) => {
+        const fx = getSnapshot().audio?.beatFx[index];
+        trigger.press(
+          kind,
+          e.shiftKey || shift,
+          { kind: fx?.kind ?? kind, depth: fx?.depth ?? 0.5, on: fx?.on ?? false },
+          send,
+        );
+        level.current = 0;
+        const startY = e.clientY;
+        const move = (event: PointerEvent) => {
+          const up = (startY - event.clientY) / TRIGGER_DRAG;
+          setLevel(Math.max(0, Math.min(1, Math.max(up, currentPressure()))));
+        };
+        const stopPressure = onPressure((next) => setLevel(next));
+        window.addEventListener('pointermove', move);
+        whenLifted(() => {
+          window.removeEventListener('pointermove', move);
+          stopPressure();
+          lift();
+        });
+      }}
+      onKeyDown={(e) => {
+        if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+          e.preventDefault();
+          const fx = getSnapshot().audio?.beatFx[index];
+          trigger.press(
+            kind,
+            false,
+            { kind: fx?.kind ?? kind, depth: fx?.depth ?? 0.5, on: fx?.on ?? false },
+            send,
+          );
+        }
+      }}
+      onKeyUp={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') lift();
+      }}
+    >
+      <span>{label}</span>
+    </button>
+  );
+}
+
 /** Pad modes both mixing views share. Hot cues and samples stay with each view's own pads. */
 export function PerformancePads({
   mode,
@@ -138,14 +241,17 @@ export function PerformancePads({
   disabled,
   padClass,
   activeClass,
+  shift = false,
   onError,
 }: {
-  mode: Exclude<PadMode, 'cue' | 'samples'>;
+  mode: Exclude<PadMode, 'cue' | 'loopcue' | 'samples'>;
   index: number;
   slot: Slot;
   disabled: boolean;
   padClass: string;
   activeClass: string;
+  /** The deck's SHIFT button is down. */
+  shift?: boolean;
   onError: (e: unknown) => void;
 }) {
   const name = index ? 'B' : 'A';
@@ -209,12 +315,10 @@ export function PerformancePads({
               : tr('Termina la pista con este efecto', 'Ends the track with this effect')
           }
           data-action={act(index, 'releaseFx', kind)}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
+          onPointerDown={() => {
             hold();
+            whenLifted(release);
           }}
-          onPointerUp={release}
-          onPointerCancel={release}
           onKeyDown={(e) => {
             if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
               e.preventDefault();
@@ -229,41 +333,19 @@ export function PerformancePads({
         </button>
       );
     });
-  if (mode === 'padfx')
-    return PAD_FX.map((kind) => {
-      const hold = () => {
-        send('beatFx', kind);
-        send('beatFxOn', 1);
-      };
-      const release = () => send('beatFxOn', 0);
-      return (
-        <button
-          key={kind}
-          className={padClass}
-          disabled={disabled}
-          aria-label={`Deck ${name} · ${BEAT_FX[kind]}`}
-          title={tr('Mantén para aplicar', 'Hold to apply')}
-          data-action={act(index, 'beatFx', kind)}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            hold();
-          }}
-          onPointerUp={release}
-          onPointerCancel={release}
-          onKeyDown={(e) => {
-            if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
-              e.preventDefault();
-              hold();
-            }
-          }}
-          onKeyUp={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') release();
-          }}
-        >
-          <span>{BEAT_FX[kind]}</span>
-        </button>
-      );
-    });
+  if (mode === 'trigger')
+    return TRIGGER_FX.map((kind) => (
+      <TriggerPad
+        key={kind}
+        kind={kind}
+        index={index}
+        shift={shift}
+        disabled={disabled}
+        padClass={padClass}
+        activeClass={activeClass}
+        onError={onError}
+      />
+    ));
   if (mode === 'jump')
     return JUMP_PADS.map((beats) => (
       <button
@@ -292,12 +374,10 @@ export function PerformancePads({
           'Hold: repeats, and on release returns to where the track would be',
         )}
         data-action={act(index, 'roll', beats)}
-        onPointerDown={(e) => {
-          e.currentTarget.setPointerCapture(e.pointerId);
+        onPointerDown={() => {
           hold();
+          whenLifted(release);
         }}
-        onPointerUp={release}
-        onPointerCancel={release}
         onKeyDown={(e) => {
           if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
             e.preventDefault();

@@ -94,6 +94,9 @@ pub enum Control {
     CueBoth(usize),
     Quantize(bool),
     LoopBeats(f64),
+    /// Saves the loop playing as a hot cue, or a new one of the last length from here without
+    /// entering it, so the track carries on.
+    SetLoopCue(usize),
     /// One press: a loop of the last length from here, or out of the one playing.
     AutoLoop,
     Sync(bool),
@@ -164,6 +167,13 @@ impl Action {
                 if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
             {
                 Control::SetCue(self.value as usize)
+            }
+            "setLoopCue"
+                if self.slot < 2
+                    && (0.0..HOT_CUES as f64).contains(&self.value)
+                    && self.value.fract() == 0. =>
+            {
+                Control::SetLoopCue(self.value as usize)
             }
             "clearCue"
                 if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
@@ -550,7 +560,7 @@ impl EngineHandle {
     }
     pub fn control(&self, slot: usize, control: Control) -> Result<(), String> {
         if slot >= SLOTS
-            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::ClearCue(i)|Control::CueBoth(i) if i>=HOT_CUES)
+            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::ClearCue(i)|Control::SetLoopCue(i)|Control::CueBoth(i) if i>=HOT_CUES)
             || (slot >= 2
                 && matches!(
                     control,
@@ -834,6 +844,12 @@ impl Deck {
         self.loop_in = start;
         self.loop_out = (start + span).min(len);
         self.looping = self.loop_out > self.loop_in;
+    }
+    fn save_loop_cue(&self, index: usize, rate: f64) {
+        if let (Some(clip), true) = (&self.clip, self.looping) {
+            let start = (self.loop_in / rate).max(CUE_AT_START);
+            clip.cues.set_loop(index, start, self.loop_out / rate);
+        }
     }
     /// A new length for the loop playing keeps its start, so it stays in time with the music.
     fn resize_loop(&mut self, beats: f64, len: f64, rate: f64) -> bool {
@@ -1579,6 +1595,23 @@ impl Deck {
                     channel.color.set_param(v);
                 }
             }
+            Control::SetLoopCue(i) => {
+                let entered = self.looping;
+                if !entered {
+                    let beats = if self.grid().is_some() {
+                        self.loop_beats
+                    } else {
+                        8.
+                    };
+                    self.make_loop(beats, len, rate);
+                }
+                self.save_loop_cue(i, rate);
+                if !entered {
+                    self.looping = false;
+                }
+            }
+            // Saved during a loop, a cue keeps the loop, as rekordbox's pads do.
+            Control::SetCue(i) if self.looping => self.save_loop_cue(i, rate),
             Control::SetCue(i) => {
                 if let Some(clip) = &self.clip {
                     let at = self.snap(self.position, f64::round).min(len) / rate;

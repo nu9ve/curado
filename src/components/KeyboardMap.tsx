@@ -1,4 +1,5 @@
 import { tr, useLanguage } from '../lib/language';
+import { MIXER_TARGETS } from '../lib/mixer-keys';
 import { memo } from 'react';
 import type { KeyBinding } from '../lib/types';
 import { actionLabel, allowedInMode, bindingLabel, keyLabel } from '../lib/keyboard';
@@ -103,6 +104,27 @@ export const KeyboardMap = memo(function KeyboardMap({
           })}
         </div>
       ))}
+      <div className="mixer-keys-guide">
+        <strong>{tr('Mixer con Option', 'Mixer with Option')}</strong>
+        <p>
+          {tr(
+            'Mantén Option, toca un control y usa flechas: ↑ arriba, ↓ silencio, ← → centro, Shift ↑ ↓ en pasos. En efectos, ← → eligen y ↑ ↓ encienden o apagan.',
+            'Hold Option, tap a control and use arrows: ↑ top, ↓ silent, ← → center, Shift ↑ ↓ in steps. On effects, ← → choose and ↑ ↓ switch on or off.',
+          )}
+        </p>
+        <ul>
+          {MIXER_TARGETS.filter((t) => t.slot === 0).map((target, i) => {
+            const other = MIXER_TARGETS.filter((t) => t.slot === 1)[i];
+            return (
+              <li key={target.code}>
+                <span>{target.label()}</span>
+                <kbd>{keyLabel(target.code)}</kbd>
+                {other && <kbd>{keyLabel(other.code)}</kbd>}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </section>
   );
 });

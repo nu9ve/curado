@@ -1,5 +1,24 @@
 # curado status
 
+## Loop cues, Trigger FX, mixer keys and keys in color · 2026-10-31
+
+See [ADR-030](DECISIONS.md) and [Controls](CONTROLS.md).
+
+- **Third row of pad modes:** **LOOP CUE** and **TRIGGER FX**, taking space from the pads' height. PAD FX, which was hidden behind a second press of RELEASE FX, is gone.
+- **Mixer under Option,** with badges while it is held and a list in the keyboard tab.
+- **Key chips in color** with the difference to the other deck, ready to press.
+- **Found on the way:** a pad could lose its pointer capture during a drag in the check, so held effects, rolls and Release FX now hear the release on the window.
+
+**Automatically tested:** loop cues saved with and without a loop, not entering it, calling it, plain saves over it, decks only; trigger borrow, give-back and latch; every Option target unique and accepted by the engine, and arrow meanings; on all 576 key pairs, both differences landing on the same wheel number; output key with tempo; color contrast with dark text.
+
+**With real input events in headless Chrome (`check:input`):** Option showing and hiding badges, chords on both decks, arrows returning to the list, **LOOP CUE** on empty and saved pads, a Trigger FX held, dragged up and released without any other action, pads fitting their deck, the key chips and the difference button. Stand-in engine, so no audio.
+
+**Not tried:** the installed app, pressure on a trackpad, how a track sounds when transposed five to seven semitones, and loop cues in rekordbox itself.
+
+Verification: `bun run check` passed (107 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (196 tests, 8 more ignored that need real data), `cargo clippy --workspace --all-targets -- -D warnings` and `bun run check:input` passed. Pictures remade with `bun run docs:pictures`.
+
+**Installation:** curado was closed, so `bun run desktop:install` built, verified, installed and registered the app without launching it, SHA-256 `bac8d433…`.
+
 ## List keys fixed and sorting by column · 2026-10-31
 
 The maintainer reported that the arrows only scrolled the list and tracks could not be loaded from the keyboard, and asked to sort by column. See [ADR-029](DECISIONS.md).

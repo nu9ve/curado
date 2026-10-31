@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · Loop cues, Trigger FX, mixer keys and keys in color
+
+Added a third row of pad modes with **LOOP CUE** and **TRIGGER FX**, the mixer under Option with arrows, and each deck's key in color on the screen with the semitones to the other deck, ready to press. Held pads can no longer stay stuck. See [Status](STATUS.md) and [ADR-030](DECISIONS.md).
+
 ## 2026-10-31 · List keys fixed and sorting by column
 
 Fixed a regression from the keyboard work below: after clicking a row, arrows only scrolled the list and Shift with an arrow loaded nothing. Lists now sort by any column, upward, downward or back to their own order, with the keys following what is shown. See [Status](STATUS.md).

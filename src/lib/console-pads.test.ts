@@ -7,7 +7,7 @@ import {
   BEAT_FX_ORDER,
   KEY_PADS,
   neighborCue,
-  PAD_FX,
+  TRIGGER_FX,
   beatLabel,
   COLOR_FX,
   JUMP_PADS,
@@ -109,9 +109,9 @@ test('every pad value is one the engine accepts', () => {
     'VINYL BRAKE',
     'HELIX',
   ]);
-  for (const kind of PAD_FX) expect(BEAT_FX[kind]).toBeDefined();
+  for (const kind of TRIGGER_FX) expect(BEAT_FX[kind]).toBeDefined();
   expect(KEY_PADS).toHaveLength(8);
-  expect(PAD_FX).toHaveLength(8);
+  expect(TRIGGER_FX).toHaveLength(8);
 });
 
 test('the interface and the engine agree on divisions, intervals and effect count', () => {

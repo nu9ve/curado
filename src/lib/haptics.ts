@@ -40,6 +40,12 @@ export function detent(
 /** Pressing harder on a Force Touch trackpad makes a drag move less, for fine work. */
 let pressure = 0;
 export const currentPressure = () => pressure;
+const pressureListeners = new Set<(level: number) => void>();
+/** Pressure can change with the pointer still. */
+export function onPressure(listen: (level: number) => void) {
+  pressureListeners.add(listen);
+  return () => pressureListeners.delete(listen);
+}
 /** WebKit reports 1 at a normal click and 2 at a force click, up to 3. */
 export function pressureFromForce(force: number): number {
   return Math.max(0, Math.min(1, force - 1));
@@ -49,6 +55,7 @@ export const fineFactor = (level: number, shift: boolean) =>
 if (typeof window !== 'undefined') {
   window.addEventListener('webkitmouseforcechanged', (event) => {
     pressure = pressureFromForce((event as unknown as { webkitForce: number }).webkitForce);
+    pressureListeners.forEach((listen) => listen(pressure));
   });
   // Without this, a deep press also asks the system to look up what is under the pointer.
   window.addEventListener('webkitmouseforcewillbegin', (event) => event.preventDefault());

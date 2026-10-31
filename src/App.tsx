@@ -80,6 +80,8 @@ import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
 import { setHapticsEnabled } from './lib/haptics';
+import { isArrow, mixerMove, mixerTarget, showMixerKeys } from './lib/mixer-keys';
+import type { MixerTarget } from './lib/mixer-keys';
 import { deviceValue, libraryValue, nextSort, sortTracks } from './lib/sorting';
 import type { SortColumn } from './lib/sorting';
 import { TrackInfo } from './components/TrackInfo';
@@ -175,8 +177,38 @@ export default function App() {
   useEffect(() => {
     if (settings || newPlaylist) return;
     let pressed = 0;
+    let mixerAim: MixerTarget | null = null;
+    /** Option, a control's key, then arrows, which keep working until Option is let go. */
+    const handleMixer = (e: KeyboardEvent) => {
+      if (mode !== 'mix' || !e.altKey || e.ctrlKey || e.metaKey) return false;
+      const aim = mixerTarget(e.code);
+      if (aim) {
+        mixerAim = aim;
+        showMixerKeys(true, aim);
+        e.preventDefault();
+        return true;
+      }
+      if (!mixerAim || !isArrow(e.code)) return false;
+      e.preventDefault();
+      const audio = getSnapshot().audio;
+      // Only steps run while held: the rest would just repeat the same jump.
+      if (!audio || (e.repeat && !e.shiftKey)) return true;
+      const action = mixerMove(mixerAim, e.code, e.shiftKey, audio);
+      if (action) {
+        call('audio_action', { action }).catch(onError);
+        feedback({ code: mixerAim.code, shift: false, alt: true, action });
+      }
+      return true;
+    };
+    const handleUp = (e: KeyboardEvent) => {
+      if (e.key !== 'Alt') return;
+      mixerAim = null;
+      showMixerKeys(false);
+    };
     const handle = (e: KeyboardEvent) => {
       if (!keyIsForTheMix(e.target as HTMLElement, e.code)) return;
+      if (e.key === 'Alt' && mode === 'mix') showMixerKeys(true, mixerAim);
+      if (handleMixer(e)) return;
       // Match ignoring mode first so blocked keys still explain themselves in the HUD.
       const binding = matchKey(e, keys, 'mix', pressed > 0);
       if (!binding) return;
@@ -195,20 +227,24 @@ export default function App() {
     };
     const forget = () => {
       pressed = 0;
+      mixerAim = null;
+      showMixerKeys(false);
     };
     window.addEventListener('keydown', handle);
+    window.addEventListener('keyup', handleUp);
     window.addEventListener('pointerdown', press, true);
     window.addEventListener('pointerup', lift, true);
     window.addEventListener('pointercancel', lift, true);
     window.addEventListener('blur', forget);
     return () => {
       window.removeEventListener('keydown', handle);
+      window.removeEventListener('keyup', handleUp);
       window.removeEventListener('pointerdown', press, true);
       window.removeEventListener('pointerup', lift, true);
       window.removeEventListener('pointercancel', lift, true);
       window.removeEventListener('blur', forget);
     };
-  }, [keys, settings, newPlaylist, trigger]);
+  }, [keys, settings, newPlaylist, trigger, mode, onError]);
   const loadWith = useCallback(
     async (slot: number, start: () => Promise<number | null>) => {
       setLoading((prev) => [...prev, slot]);

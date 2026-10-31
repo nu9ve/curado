@@ -13,11 +13,11 @@ _The console with invented tracks. Each pale badge is the key for that control._
 
 ## What you get
 
-**A console to play.** Platters you can scratch, hot cues, slip, reverse, beat jump, and pads for cues, loops, rolls, samples, key shifts and Release FX. Press **AUTO LOOP** for a loop with no IN or OUT to mark, and pick its length from 1/4 to 32 beats, even while it plays.
+**A console to play.** Platters you can scratch, hot cues, slip, reverse, beat jump, and pads for cues, loops, rolls, samples, key shifts and Release FX. Save hot cues that loop, hold a **TRIGGER FX** that follows your pressure, and press **AUTO LOOP** for a loop with no IN or OUT to mark, and pick its length from 1/4 to 32 beats, even while it plays.
 
 **Effects on every channel.** Six color effects and fourteen beat effects, different per channel and on the master.
 
-**Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or use MIDI Learn. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
+**Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or use MIDI Learn. Hold Option to reach the whole mixer with arrows. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
 
 **Your rekordbox USB as it is.** Playlists, covers, grids, keys and hot cues appear when you plug it in. curado only reads it, and it can send your cues back through a `rekordbox.xml`.
 
@@ -43,6 +43,7 @@ _A separate window on macOS with seven scenes, including a spectral city and a c
 
 - **Listen:** search your library, sort it by any column, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
 - **Mix:** two decks and a choice of console or curado's classic layout, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
+- **Match keys at a glance:** each deck's key in color on the screen, with the semitones to the other deck, one press away.
 - **Prepare:** BPM, grid, bars and key estimated over the whole track, in letter notation and Camelot. Correct any of them by hand. Key lock and ±12-semitone transposition. Tracks whose tempo moves can follow their own beats.
 - **Headphones:** with an output of four or more channels, 3 and 4 become a cue bus with mix and level, plus Touch Preview for the selected track.
 - **Extra surfaces:** two XY pads for effects by finger, pointer or, if you want, by hand or face through the camera, which is off until you ask and stays on your Mac.
@@ -119,7 +120,7 @@ Each hand plays its own deck, with the same finger for the same job:
 | Slip           | `V`       | `M`       | reverse     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads the selected track into deck 1 or 2. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
+`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads the selected track into deck 1 or 2. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Option` with a control's key and arrows sets the mixer: ↑ top, ↓ silent, ← → center. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
 
 ## Before you start
 

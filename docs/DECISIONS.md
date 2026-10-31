@@ -1,5 +1,16 @@
 # Technical decisions
 
+## ADR-030 · Loop cues in one bank, an effect while held, a mixer under Option, keys in color — accepted (2026-10-31)
+
+The maintainer asked for hot cue loops, an effect like Release FX that follows pressure without stopping the track, a third row of pad modes for curado's own, keyboard shortcuts for the mixer, and a quicker read of each deck's key and distance.
+
+- **Loop cues share the A–H bank,** because rekordbox's do: a hot cue either has a loop or does not, and rekordbox exports and reads them that way. Saving during a loop now keeps the loop, in any mode and from the keyboard, as its pads do. **LOOP CUE** adds what is missing: an empty pad saves the loop playing or, without one, a new one from here with the last length, without entering it so the track carries on.
+- **TRIGGER FX replaces the hidden PAD FX.** It reuses the channel's Beat FX with its existing smoothing, so no new DSP or callback work. Pressing starts at a gentle 35 %, more pressure or an upward drag reaches 100 %, Shift keeps it on, and letting go stops the effect but never the track. The unit's kind and level return after two seconds so a tail is not cut, or at once if it was already on.
+- **Held pads listen on the window.** In a check, a pad lost its pointer capture during a drag and never heard the release. Rolls and Release FX pads had the same path and could have stayed stuck, so all of them now use the window.
+- **Option, not Control.** Control with these letters already deletes cues and jumps, and a chord aimed at a control must never do that by accident. Hold Option, tap a control's key, then arrows, which keep working until Option is let go, so several moves need no re-aiming. ↑ is top, ↓ silent, ← → center, Shift ↑ ↓ steps. Each hand reaches its own deck, with the outer column down the EQ. The fader's ↑ stops at unity, since its real top is over 5 dB louder, and Shift reaches it. Badges appear only while Option is held, and the side panel's keyboard tab lists them. They are not remappable yet.
+- **A key is a color and a difference.** The chip's color follows the Camelot wheel so neighbours look alike, and its number and letter stay readable. It reads what actually sounds, with transposition and, without key lock, tempo. Under it, the semitones to reach the other deck's wheel number, the shorter way: green when mixing already works, amber when it clashes, and = when it fits. Pressing applies it without touching key lock; Shift goes the other way, as −7 for +5.
+- **Not verified:** pressure on real hardware, how a transposed track sounds at these distances, and whether colors and pads read well at a real session's distance. Option chords depend on the keyboard's own limits.
+
 ## ADR-029 · The keyboard belongs to the mix, a loop takes one press, lists sort by column — accepted (2026-10-31)
 
 The maintainer found that dragging or touching a control stopped the keyboard, and asked for auto loops without marking IN and OUT, in the empty stretch above the decks, and for sorting lists by column.

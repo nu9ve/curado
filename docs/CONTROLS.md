@@ -25,6 +25,8 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 - **Deck:** **IN, OUT, RELOOP/EXIT**, **1/2X** and **2X** (in a loop they resize it; otherwise they call the previous or next cue), **SLIP**, **QUANTIZE**, **REV**, **TRACK SEARCH** (previous or next track), **SEARCH** (one beat), **SYNC, MASTER**, tempo range, **MASTER TEMPO** (key lock).
 - **AUTO LOOP:** above each deck, one press starts a loop from where the music is, with no **IN** or **OUT** to mark, and another leaves it. The row below picks its length from 1/4 to 32 beats, starting one or resizing the one playing from its start. Keys: `B` and `N`, Shift shorter, Control longer, also before there is a loop. Without a BPM it is dimmed.
 - **Pads:** **HOT CUE** (empty saves, saved calls, SHIFT deletes), **BEAT LOOP**, **SLIP LOOP** (hold to repeat; on release the track returns to where it would have been), **BEAT JUMP**. With **SHIFT**, or the small label under each: **KEYBOARD** (plays hot cue A at a pitch), **KEY SHIFT**, **RELEASE FX**, which pressed again gives **PAD FX** (hold an effect), and **SAMPLER** (eight shared samples; Alt-click stops one, Shift-click replaces it).
+- **LOOP CUE:** hot cues that loop, in the same A–H as the others and marked ↻. An empty pad saves the loop playing or, without one, a new one from here with the auto loop's length, and the track carries on; a saved pad enters it; **SHIFT** deletes. In **HOT CUE**, or with Shift and a number, saving during a loop also keeps the loop.
+- **TRIGGER FX:** an effect while the pad is held, using the channel's Beat FX: echo, reverb, ping pong, flanger, phaser, filter, trans, roll. It starts gentle; press harder on a Force Touch trackpad, or drag upward, for more. Letting go stops the effect, never the track, and the unit goes back to what it had. Shift or **SHIFT** keeps it on until touched again.
 - **Release FX:** end a track with Brake or Spin, short or long, Echo Out or Mute, and the deck stops. **BUILD UP** and **DUCKING** last while held.
 - **Screen:** three effects to choose at a touch and the **X-PAD**: slide for the division, and the effect runs while a finger is down. The overview shows sections as colored marks: an energy estimate, not a real reading of the song's structure.
 - **Mixer:** **TRIM**, EQ, **COLOR**, faders and **CROSSFADER CURVE**. **SOUND COLOR FX** applies to both channels; its **1** and **2** to one, so they can differ. **PARAMETER** sets its character per channel. The knob does nothing at its center.
@@ -59,6 +61,10 @@ Deck diagnostics distinguish paused, EOF, playing, zero master/channel, outside 
 
 Knobs/faders: vertical drag (Shift = fine), wheel, arrows (Shift = fine; Page Up/Down = coarse), Home = default, double-click = reset. Dragging displays local input until control returns to engine snapshots. Keyboard feedback illuminates the control and shows a key/action HUD; blocked mode actions show “no disponible” and send nothing.
 
+## Keys on the screen
+
+Beside each waveform, the deck's key on the Camelot wheel in color: close numbers look alike, and major is lighter. It shows what sounds now, with transposition and, without key lock, tempo. A small number by **DECK** is the transposition. Under the key is the difference to the other deck in semitones, the shorter way: **=** already fits, green mixes as it is, amber clashes. Press it to transpose that deck to the other's wheel number, without touching key lock; Shift goes the other way, such as −7 instead of +5.
+
 ## Default keyboard
 
 Each hand plays its own deck, with the same finger for the same job. In **cabina** every control shows its key on a small badge; **teclas** in the toolbar hides them.
@@ -82,6 +88,17 @@ Each hand plays its own deck, with the same finger for the same job. In **cabina
 - **Shift + ← →:** loads the selection into deck 1 or 2.
 - **Control + ← ↓ →:** crossfader to A, center or B.
 - **Option + a hot cue's number:** fires samples 1–8. **Option + B:** master Beat FX. **Escape:** mutes all.
+- **The mixer, with Option:** hold Option and the console shows its keys. Tap a control, then use arrows until you let go: **↑** top, **↓** silent, **← →** center, **Shift + ↑ ↓** in steps. Effects: **← →** choose, **↑ ↓** on or off (for divisions, longer or shorter). The fader's ↑ stops at unity; Shift goes beyond.
+
+| With Option | Deck 1 | Deck 2 |
+| --- | --- | --- |
+| HI / MID / LOW | `Q` `A` `Z` | `P` `;` `/` |
+| TRIM / COLOR / FADER | `W` `S` `X` | `O` `L` `.` |
+| Color effect / Beat FX / division | `E` `D` `C` | `I` `K` `,` |
+| PARAMETER / LEVEL-DEPTH | `R` `F` | `U` `J` |
+
+`Option + G` is master level and `Option + H` sampler level.
+
 - Command is left to the system. Keys hit hot cues whatever mode the pads are in. **Settings** reassigns any of these, with Shift, Control or Option.
 
 A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All eight start at 0:00 and display their time before saving; keys cover the first three, and pads or MIDI Learn reach the rest. A cue saved as a loop also starts looping, marked ↻; pressing one you never saved starts at the track's first sound, on the nearest beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.

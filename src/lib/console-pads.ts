@@ -19,7 +19,16 @@ export function samplePadIntent(
 }
 
 export type PadMode =
-  'cue' | 'loop' | 'jump' | 'roll' | 'samples' | 'keyboard' | 'keys' | 'padfx' | 'release';
+  | 'cue'
+  | 'loop'
+  | 'jump'
+  | 'roll'
+  | 'samples'
+  | 'keyboard'
+  | 'keys'
+  | 'trigger'
+  | 'loopcue'
+  | 'release';
 /** In the engine's order. Build Up and Ducking last while the pad is held. */
 export const RELEASE_PADS = [
   'BRAKE S',
@@ -39,8 +48,8 @@ export const BEAT_DIVISIONS = [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4, 8, 16, 3
 export const COLOR_FX = ['SPACE', 'DUB ECHO', 'SWEEP', 'NOISE', 'CRUSH', 'FILTER'];
 /** Semitones on the pads for KEY SHIFT and KEYBOARD. */
 export const KEY_PADS = [-3, -2, -1, 0, 1, 2, 3, 4];
-/** Beat FX held under the pads: the rhythmic ones work best for a moment. */
-export const PAD_FX = [7, 8, 9, 1, 5, 4, 10, 13];
+/** Beat FX held under the pads: echo, reverb, ping pong, flanger, phaser, filter, trans, roll. */
+export const TRIGGER_FX = [1, 3, 2, 4, 5, 6, 7, 8];
 export const BEAT_FX = [
   'DELAY',
   'ECHO',

@@ -26,7 +26,7 @@ import type { PadMode } from '../lib/console-pads';
 import { cueColor, useCueInfo } from '../lib/cues';
 import { useCover } from '../lib/covers';
 import { haptic } from '../lib/haptics';
-import { keyLabel, transposeKey } from '../lib/music';
+import { keyColor, keyLabel, keyMatch, outputKey } from '../lib/music';
 import { useLivePosition } from '../lib/position';
 import { EMPTY_SLOT, remaining } from '../lib/types';
 import type { BeatFxState, KeyBinding, Library, LibraryEdit, Slot, Track } from '../lib/types';
@@ -35,7 +35,8 @@ import { PerformancePads, useJog } from './Performance';
 import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
-import { bindingLabel, TOGGLE_KINDS } from '../lib/keyboard';
+import { bindingLabel, keyLabel as keyLabel_, TOGGLE_KINDS } from '../lib/keyboard';
+import { mixerTargetFor } from '../lib/mixer-keys';
 import {
   overlayPlacement,
   setTrackingOverlay,
@@ -441,12 +442,7 @@ function RxDeck({
   const modes: { mode: PadMode; label: string; second: PadMode; secondLabel: string }[] = [
     { mode: 'cue', label: 'HOT CUE', second: 'keyboard', secondLabel: 'KEYBOARD' },
     { mode: 'loop', label: 'BEAT LOOP', second: 'keys', secondLabel: 'KEY SHIFT' },
-    {
-      mode: 'roll',
-      label: 'SLIP LOOP',
-      second: padMode === 'release' ? 'padfx' : 'release',
-      secondLabel: padMode === 'padfx' ? 'PAD FX' : 'RELEASE FX',
-    },
+    { mode: 'roll', label: 'SLIP LOOP', second: 'release', secondLabel: 'RELEASE FX' },
     { mode: 'jump', label: 'BEAT JUMP', second: 'samples', secondLabel: 'SAMPLER' },
   ];
   return (
@@ -789,20 +785,37 @@ function RxDeck({
               <button
                 type="button"
                 className="rx-pad-second"
-                aria-pressed={
-                  padMode === second || (mode === 'roll' && ['release', 'padfx'].includes(padMode))
-                }
-                title={
-                  mode === 'roll'
-                    ? tr('Vuelve a pulsar para PAD FX', 'Press again for PAD FX')
-                    : undefined
-                }
+                aria-pressed={padMode === second}
                 onClick={() => setPadMode(second)}
               >
                 {secondLabel}
               </button>
             </div>
           ))}
+          <div className="rx-pad-extra">
+            <button
+              type="button"
+              aria-pressed={padMode === 'loopcue'}
+              title={tr(
+                'Hot cues que hacen loop, en los mismos A–H: vacío guarda el loop que suena o uno nuevo',
+                'Hot cues that loop, in the same A–H: empty saves the loop playing or a new one',
+              )}
+              onClick={() => setPadMode('loopcue')}
+            >
+              LOOP CUE
+            </button>
+            <button
+              type="button"
+              aria-pressed={padMode === 'trigger'}
+              title={tr(
+                'Un efecto mientras presionas, según la presión, sin detener la pista',
+                'An effect while pressed, by pressure, without stopping the track',
+              )}
+              onClick={() => setPadMode('trigger')}
+            >
+              TRIGGER FX
+            </button>
+          </div>
         </div>
         <div className="rx-pads">
           {padMode === 'samples' &&
@@ -850,7 +863,7 @@ function RxDeck({
                 </button>
               );
             })}
-          {padMode === 'cue' &&
+          {(padMode === 'cue' || padMode === 'loopcue') &&
             Array.from({ length: 8 }, (_, cue) => (
               <button
                 key={cue}
@@ -859,28 +872,35 @@ function RxDeck({
                 disabled={empty}
                 title={
                   cueInfo.hot[cue]?.label ??
-                  tr(
-                    'Vacío: guarda aquí · guardado: salta y reproduce · SHIFT: borra',
-                    'Empty: saves here · saved: jumps and plays · SHIFT: deletes',
-                  )
+                  (padMode === 'loopcue'
+                    ? tr(
+                        `Vacío: guarda el loop que suena o uno de ${beatLabel(slot.loopBeats)} beats · guardado: entra al loop · SHIFT: borra`,
+                        `Empty: saves the loop playing or one of ${beatLabel(slot.loopBeats)} beats · saved: enters the loop · SHIFT: deletes`,
+                      )
+                    : tr(
+                        'Vacío: guarda aquí, con el loop si hay uno · guardado: salta y reproduce · SHIFT: borra',
+                        'Empty: saves here, with the loop if there is one · saved: jumps and plays · SHIFT: deletes',
+                      ))
                 }
                 aria-label={`Deck ${name} · Hot cue ${padName(cue)}${cueInfo.hot[cue]?.label ? ` · ${cueInfo.hot[cue]?.label}` : ''}`}
-                data-action={`${act(index, 'cue', cue)} ${act(index, 'setCue', cue)}`}
+                data-action={`${act(index, 'cue', cue)} ${act(index, padMode === 'loopcue' ? 'setLoopCue' : 'setCue', cue)}`}
                 onClick={(e) => {
                   if (e.shiftKey || shift) send('clearCue', cue);
-                  else send(slot.cues[cue] > 0 ? 'cue' : 'setCue', cue);
+                  else if (slot.cues[cue] > 0) send('cue', cue);
+                  else send(padMode === 'loopcue' ? 'setLoopCue' : 'setCue', cue);
                 }}
               >
                 <span>{padName(cue)}</span>
                 <KeyBadge action={act(index, 'cue', cue)} />
               </button>
             ))}
-          {padMode !== 'cue' && padMode !== 'samples' && (
+          {padMode !== 'cue' && padMode !== 'loopcue' && padMode !== 'samples' && (
             <PerformancePads
               mode={padMode}
               index={index}
               slot={slot}
               disabled={empty}
+              shift={shift}
               padClass="rx-pad"
               activeClass="is-set"
               onError={onError}
@@ -922,6 +942,7 @@ function RxChannel({
           format={eqValue}
           onChange={send('trim')}
         />
+        <MixKey slot={index} kind="trim" />
       </div>
       {(['high', 'mid', 'low'] as const).map((kind, i) => (
         <div key={kind} {...place(86 + i * 54)}>
@@ -936,6 +957,7 @@ function RxChannel({
             format={eqValue}
             onChange={send(kind)}
           />
+          <MixKey slot={index} kind={kind} />
         </div>
       ))}
       <div className="rx-at rx-color-knob" style={at(x, 250)}>
@@ -951,6 +973,7 @@ function RxChannel({
           format={(v) => (Math.abs(v) < 0.01 ? tr('centro', 'center') : v.toFixed(2))}
           onChange={send('color')}
         />
+        <MixKey slot={index} kind="color" />
       </div>
       <Key
         label="CUE"
@@ -979,8 +1002,20 @@ function RxChannel({
           value={slot.gain}
           onChange={send('gain')}
         />
+        <MixKey slot={index} kind="gain" />
       </div>
     </>
+  );
+}
+
+/** Shown while Option is held: the key that points the arrows at this control. */
+function MixKey({ slot, kind }: { slot: number; kind: string }) {
+  const target = mixerTargetFor(slot, kind);
+  if (!target) return null;
+  return (
+    <kbd className="rx-badge rx-mix-key" data-code={target.code}>
+      ⌥ {keyLabel_(target.code)}
+    </kbd>
   );
 }
 
@@ -1787,6 +1822,62 @@ function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
   );
 }
 
+const signed = (semitones: number) =>
+  `${semitones > 0 ? '+' : semitones < 0 ? '−' : ''}${Math.abs(semitones)}`;
+/** The key in color, and how far this deck is from fitting the other, ready to press. */
+function KeyTag({
+  slot,
+  other,
+  index,
+  onError,
+}: {
+  slot: Slot;
+  other: Slot;
+  index: number;
+  onError: (e: unknown) => void;
+}) {
+  const key = outputKey(slot);
+  const match = keyMatch(key, outputKey(other));
+  const apply = (shift: number) => {
+    // The engine reaches an octave each way, and an octave away is the same key.
+    let target = slot.tuning.semitones + shift;
+    if (target > 12) target -= 12;
+    if (target < -12) target += 12;
+    control(index, 'transpose', target).catch(onError);
+  };
+  return (
+    <>
+      <span
+        className="rx-key-chip"
+        style={{ '--key': keyColor(key) ?? '#3a3f45' } as CSSProperties}
+        title={keyLabel(key)}
+      >
+        {keyLabel(key, 'camelot')}
+      </span>
+      {match && (
+        <button
+          type="button"
+          className="rx-key-diff"
+          data-state={match.state}
+          disabled={match.shift === 0}
+          data-action={act(index, 'transpose', slot.tuning.semitones + match.shift)}
+          title={
+            match.shift === 0
+              ? tr('Ya encaja con el otro deck', 'Already fits the other deck')
+              : tr(
+                  `Clic: ${signed(match.shift)} semitonos para igualar al otro deck, sin key lock · Shift: ${signed(match.other)}`,
+                  `Click: ${signed(match.shift)} semitones to match the other deck, without key lock · Shift: ${signed(match.other)}`,
+                )
+          }
+          onClick={(e) => apply(e.shiftKey ? match.other : match.shift)}
+        >
+          {match.shift === 0 ? '=' : signed(match.shift)}
+        </button>
+      )}
+    </>
+  );
+}
+
 function Screen({
   slots,
   tracks,
@@ -1821,8 +1912,12 @@ function Screen({
           {slots.map((slot, i) => (
             <div className="rx-display-row" key={i}>
               <div className="rx-display-tag">
-                <small>DECK {i + 1}</small>
-                <b>{keyLabel(transposeKey(slot.music.key, slot.tuning.semitones), 'camelot')}</b>
+                <small>
+                  DECK {i + 1}
+                  {slot.tuning.semitones !== 0 &&
+                    ` ${slot.tuning.semitones > 0 ? '+' : ''}${slot.tuning.semitones}`}
+                </small>
+                <KeyTag slot={slot} other={slots[1 - i]} index={i} onError={onError} />
                 <small>{shownBpm(slot)?.toFixed(1) ?? '—'}</small>
               </div>
               <ZoomWave
@@ -2168,6 +2263,7 @@ export function HardwareConsole({
                 value={audio?.master ?? 0.75}
                 onChange={(v) => parameter(0, 'master', v, onError)}
               />
+              <MixKey slot={0} kind="master" />
             </div>
             <div className="rx-at rx-meters" style={at(216, 165)}>
               <span>CH1 · MASTER · CH2</span>

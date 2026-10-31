@@ -1330,3 +1330,48 @@ fn only_decks_take_an_auto_loop() {
     assert!(action(1).validate().is_ok());
     assert!(action(2).validate().is_err());
 }
+
+#[test]
+fn a_hot_cue_can_hold_a_loop() {
+    let (h, mut r) = timed_deck();
+    // With no loop: saved from here with the last length, and the track carries on.
+    h.control(0, Control::Seek(OFFSET + 8. * BEAT)).unwrap();
+    h.control(0, Control::Play).unwrap();
+    h.control(0, Control::SetLoopCue(2)).unwrap();
+    render(&mut r, 1024);
+    let saved = h.snapshot().slots[0].clone();
+    assert!(!saved.looping, "saving does not trap the track");
+    assert!((saved.cues[2] - (OFFSET + 8. * BEAT)).abs() < 1e-6);
+    assert!((saved.cue_ends[2] - saved.cues[2] - 4. * BEAT).abs() < 1e-6);
+
+    // Calling it from elsewhere plays the loop.
+    h.control(0, Control::Seek(OFFSET + 30. * BEAT)).unwrap();
+    h.control(0, Control::Cue(2)).unwrap();
+    render(&mut r, 4096);
+    let called = h.snapshot().slots[0].clone();
+    assert!(called.looping);
+    assert!((called.loop_in - saved.cues[2]).abs() < 1e-6);
+    assert!((called.loop_out - saved.cue_ends[2]).abs() < 1e-6);
+
+    // During a loop, a plain save keeps the loop, whatever length it has now.
+    h.control(0, Control::LoopBeats(2.)).unwrap();
+    h.control(0, Control::SetCue(5)).unwrap();
+    render(&mut r, 1);
+    let looped = h.snapshot().slots[0].clone();
+    assert!((looped.cues[5] - looped.loop_in).abs() < 1e-6);
+    assert!((looped.cue_ends[5] - looped.cues[5] - 2. * BEAT).abs() < 1e-6);
+    assert!(looped.looping, "saving does not leave it either");
+
+    // Out of a loop, a plain save is a plain cue again, even over a loop cue.
+    h.control(0, Control::AutoLoop).unwrap();
+    h.control(0, Control::SetCue(5)).unwrap();
+    render(&mut r, 1);
+    assert_eq!(h.snapshot().slots[0].cue_ends[5], 0.);
+    let action = |slot| Action {
+        slot,
+        kind: "setLoopCue".into(),
+        value: 1.,
+    };
+    assert!(action(1).validate().is_ok());
+    assert!(action(2).validate().is_err());
+}

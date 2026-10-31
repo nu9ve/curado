@@ -188,6 +188,137 @@ const layout = await page.run(`(() => {
   return { out, cut };
 })()`);
 check('the strips touch nothing', layout.out.length === 0 && layout.cut.length === 0, layout);
+// The mixer through Option: aim at a control, then arrows.
+await page.run(`document.activeElement?.blur?.()`);
+await page.send('Input.dispatchKeyEvent', {
+  type: 'rawKeyDown',
+  code: 'AltLeft',
+  key: 'Alt',
+  modifiers: 1,
+  windowsVirtualKeyCode: 18,
+});
+check(
+  'holding Option shows the mixer keys',
+  (await page.run(`getComputedStyle(document.querySelector('.rx-mix-key')).display`)) !== 'none',
+);
+await clear();
+await page.key('KeyZ', 'z', ['alt']);
+await page.key('ArrowDown', 'ArrowDown', ['alt'], 40);
+await page.key('ArrowUp', 'ArrowUp', ['alt'], 38);
+await page.key('ArrowLeft', 'ArrowLeft', ['alt'], 37);
+list = await actions();
+check(
+  'Option Z and arrows: silent, top, center',
+  JSON.stringify(list) === JSON.stringify(['0:low:0', '0:low:2', '0:low:1']),
+  list,
+);
+await clear();
+await page.key('Period', '.', ['alt']);
+await page.key('ArrowDown', 'ArrowDown', ['alt'], 40);
+await page.key('KeyD', 'd', ['alt']);
+await page.key('ArrowRight', 'ArrowRight', ['alt'], 39);
+await page.key('ArrowUp', 'ArrowUp', ['alt'], 38);
+list = await actions();
+check(
+  'another deck and a Beat FX',
+  list[0] === '1:gain:0' && list[1].startsWith('0:beatFx:') && list[2] === '0:beatFxOn:1',
+  list,
+);
+await page.send('Input.dispatchKeyEvent', {
+  type: 'keyUp',
+  code: 'AltLeft',
+  key: 'Alt',
+  windowsVirtualKeyCode: 18,
+});
+await sleep(30);
+check(
+  'letting go hides them',
+  (await page.run(`getComputedStyle(document.querySelector('.rx-mix-key')).display`)) === 'none',
+);
+await clear();
+await page.key('ArrowDown', 'ArrowDown', [], 40);
+list = await actions();
+check('and arrows go back to the list', list.length === 0, list);
+
+// Loop cues and Trigger FX on the third row.
+const mode = async (label: string) => {
+  const at = await page.run(
+    `(() => { const e = [...document.querySelectorAll('.rx-deck-0 .rx-pad-extra button')].find((b) => b.textContent.trim() === ${JSON.stringify(label)}); const r = e.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; })()`,
+  );
+  await page.mouse('mousePressed', at.x, at.y);
+  await page.mouse('mouseReleased', at.x, at.y);
+  await sleep(60);
+};
+const pad = (n: number) => page.at(`.rx-deck-0 .rx-pads button:nth-child(${n})`);
+await mode('LOOP CUE');
+await clear();
+const empty = await pad(7);
+await page.mouse('mousePressed', empty.x, empty.y);
+await page.mouse('mouseReleased', empty.x, empty.y);
+await sleep(40);
+const saved = await pad(1);
+await page.mouse('mousePressed', saved.x, saved.y);
+await page.mouse('mouseReleased', saved.x, saved.y);
+await sleep(40);
+list = await actions();
+check(
+  'LOOP CUE saves on empty pads and calls saved ones',
+  list[0] === '0:setLoopCue:6' && list[1] === '0:cue:0',
+  list,
+);
+await mode('TRIGGER FX');
+const fx = await pad(2);
+await clear();
+await page.mouse('mouseMoved', fx.x, fx.y);
+await page.mouse('mousePressed', fx.x, fx.y);
+await sleep(40);
+list = await actions();
+check(
+  'holding a pad runs its effect, gently',
+  list.join() === '0:beatFx:3,0:beatFxDepth:0.35,0:beatFxOn:1',
+  list,
+);
+await clear();
+await page.mouse('mouseMoved', fx.x, fx.y - 90);
+await sleep(50);
+list = await actions();
+check('dragging up gives it all', list.includes('0:beatFxDepth:1'), list);
+await clear();
+await page.mouse('mouseReleased', fx.x, fx.y - 90);
+await sleep(40);
+list = await actions();
+check('letting go stops the effect and only that', list.join() === '0:beatFxOn:0', list);
+await clear();
+await page.mouse('mousePressed', fx.x, fx.y);
+await page.mouse('mouseReleased', fx.x, fx.y);
+await sleep(30);
+const bounds = await page.run(
+  `(() => { const p = document.querySelector('.rx-deck-0 .rx-pads').getBoundingClientRect(); const d = document.querySelector('.rx-deck-0').getBoundingClientRect(); const t = [...document.querySelectorAll('.rx-pad-modes button')].filter((b) => b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent); return { fits: p.bottom <= d.bottom + 0.5, cut: t }; })()`,
+);
+check('the pads still fit their deck', bounds.fits && bounds.cut.length === 0, bounds);
+// The key on the screen, and matching it from there.
+const tags = await page.run(
+  `[...document.querySelectorAll('.rx-display-tag')].map((t) => ({ key: t.querySelector('.rx-key-chip').textContent, color: getComputedStyle(t.querySelector('.rx-key-chip')).backgroundColor, diff: t.querySelector('.rx-key-diff').textContent, cut: t.scrollHeight > t.clientHeight + 1 }))`,
+);
+console.log('     tags:', JSON.stringify(tags));
+check(
+  'each deck shows its key and the way to the other',
+  tags.length === 2 &&
+    tags[0].color !== tags[1].color &&
+    tags.every((t: { diff: string; cut: boolean }) => t.diff && !t.cut),
+  tags,
+);
+const diff = await page.at('.rx-display-tag .rx-key-diff');
+await clear();
+await page.mouse('mousePressed', diff.x, diff.y);
+await page.mouse('mouseReleased', diff.x, diff.y);
+await sleep(40);
+list = await actions();
+check(
+  'pressing the difference transposes that deck',
+  list.length === 1 && list[0].startsWith('0:transpose:'),
+  list,
+);
 const covered = await page.run(`(() => {
   const out = [];
   for (const e of document.querySelectorAll('.rx-body button, .rx-body [role="slider"]')) {

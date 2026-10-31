@@ -187,6 +187,7 @@ export function actionLabel(kind: string) {
     const english: Record<string, string> = {
       toggleBoth: 'Play / pause all',
       autoLoop: 'Auto loop',
+      setLoopCue: 'Save loop cue',
       listMove: 'Move in the list',
       listLoad: 'Load the selection',
       releaseFx: 'Release FX',
@@ -305,6 +306,7 @@ export function actionLabel(kind: string) {
         highPass: 'Filtro HP',
         echoBeats: 'Echo en beats',
         quantize: 'Cuantizado',
+        setLoopCue: 'Guardar loop cue',
         autoLoop: 'Auto loop',
         loopBeats: 'Loop en beats',
         sync: 'Sync de tempo',

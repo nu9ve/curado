@@ -12,6 +12,42 @@ export function keyLabel(key: MusicalKey | null, notation: 'american' | 'camelot
     : `${NOTES[key.tonic]}${key.minor ? 'm' : ''}`;
 }
 
+/** The key a deck sounds in now, with its transposition and, without key lock, its tempo. */
+export function outputKey(slot: {
+  music: { key: MusicalKey | null };
+  rate: number;
+  tuning: { semitones: number; keyLock: boolean };
+}) {
+  const shift = slot.tuning.semitones + (slot.tuning.keyLock ? 0 : 12 * Math.log2(slot.rate));
+  return transposeKey(slot.music.key, shift);
+}
+/** A place on the Camelot wheel as a color, so neighbours look alike. Major is lighter. */
+export function keyColor(key: MusicalKey | null): string | undefined {
+  if (!key) return undefined;
+  const number = (key.minor ? MINOR : MAJOR)[key.tonic];
+  return `hsl(${(number - 1) * 30} 78% ${key.minor ? 68 : 80}%)`;
+}
+export interface KeyMatch {
+  /** Semitones that put this key on the other's wheel number, the shorter way. */
+  shift: number;
+  /** The same result going the other way, an octave apart. */
+  other: number;
+  state: 'same' | 'near' | 'far';
+}
+/** What to transpose `from` by to fit `to`. Across modes, the goal is the relative key. */
+export function keyMatch(from: MusicalKey | null, to: MusicalKey | null): KeyMatch | null {
+  if (!from || !to) return null;
+  const relative = from.minor === to.minor ? 0 : to.minor ? 3 : -3;
+  const difference = (((to.tonic + relative - from.tonic) % 12) + 12) % 12;
+  const shift = difference > 6 ? difference - 12 : difference;
+  const fit = harmony(from, to);
+  return {
+    shift,
+    other: shift > 0 ? shift - 12 : shift + 12,
+    state: shift === 0 ? 'same' : fit === 'clash' ? 'far' : 'near',
+  };
+}
+
 /** Whether beat `n` of a map starts a bar, counting from the beat nearest the downbeat. */
 export function isMapDownbeat(beats: number[], n: number, downbeat: number, beatsPerBar = 4) {
   let nearest = 0;

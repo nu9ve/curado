@@ -11,11 +11,11 @@ _La consola con pistas inventadas. Cada etiqueta clara es la tecla de ese contro
 
 ## Qué trae
 
-**Una consola para tocar.** Platos para hacer scratch, hot cues, slip, reversa, beat jump y pads de cues, loops, rolls, samples, cambios de tono y Release FX. Presiona **AUTO LOOP** para hacer un loop sin marcar IN ni OUT, y elige su duración de 1/4 a 32 beats, incluso mientras suena.
+**Una consola para tocar.** Platos para hacer scratch, hot cues, slip, reversa, beat jump y pads de cues, loops, rolls, samples, cambios de tono y Release FX. Guarda hot cues que hacen loop, mantén un **TRIGGER FX** que sigue tu presión y presiona **AUTO LOOP** para hacer un loop sin marcar IN ni OUT, y elige su duración de 1/4 a 32 beats, incluso mientras suena.
 
 **Efectos en cada canal.** Seis efectos de color y catorce de beat, distintos por canal y en el master.
 
-**El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o usa MIDI Learn. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
+**El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o usa MIDI Learn. Mantén Option para llegar a todo el mixer con flechas. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
 
 **Tu USB de rekordbox tal como está.** Playlists, covers, grids, tonalidades y hot cues aparecen al conectarlo. curado solo lo lee, y puede devolver tus cues con un `rekordbox.xml`.
 
@@ -41,6 +41,7 @@ _Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el os
 
 - **Escuchar:** busca en tu biblioteca, ordénala por cualquier columna, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
 - **Mezclar:** dos decks con vista de consola o la clásica de curado, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
+- **Iguala tonalidades de un vistazo:** la tonalidad de cada deck en color en la pantalla, con los semitonos hasta el otro, a una pulsación.
 - **Preparar:** BPM, grid, compases y tonalidad estimados sobre toda la pista, en notación americana y Camelot. Corrígelos a mano. Key lock y transposición de ±12 semitonos. Las pistas cuyo tempo se mueve pueden seguir sus propios beats.
 - **Audífonos:** con una salida de cuatro canales o más, el 3 y el 4 se vuelven un bus de cue con mezcla y nivel, más Touch Preview de la pista seleccionada.
 - **Superficies extra:** dos pads XY para efectos con el dedo, el puntero o, si quieres, con la mano o la cara por cámara, que está apagada hasta que la pidas y se queda en tu Mac.
@@ -109,7 +110,7 @@ Cada mano toca su deck, con el mismo dedo para la misma función:
 | Slip           | `V`       | `M`       | reversa     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga la pista seleccionada en el deck 1 o 2. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
+`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga la pista seleccionada en el deck 1 o 2. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Option` con la tecla de un control y flechas ajusta el mixer: ↑ arriba, ↓ silencio, ← → centro. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
 
 ## Antes de empezar
 

@@ -145,6 +145,14 @@ The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular
 
 `keyIsForTheMix` in `lib/keyboard.ts` decides who owns a key: fields keep all of them, a control reached with Tab keeps Space, Enter and arrows, and focus left by a click claims nothing. `:focus-visible` cannot decide this, since browsers turn it on at the first key pressed, so `reachedWithTab` tracks it: Tab sets it, a pointer press clears it. Controls check the same thing in their own key handlers. `App` counts pointers down, so `matchKey` can ignore a modifier that means nothing during a drag, and blurs whatever held focus when something else is pressed.
 
+## Pad modes of its own
+
+`setLoopCue` and a `SetCue` during a loop store a position and an end through `CueState::set_loop`, with atomics like other cues, and persist as before. `lib/trigger-fx.ts` holds what a Trigger FX borrowed from the channel's Beat FX unit and gives back; it only sends existing actions. Anything lasting while held listens for the release on the window.
+
+## Mixer keys
+
+`lib/mixer-keys.ts` lists the targets and turns an arrow into an action from the current snapshot, with nothing kept in the interface but the aim, cleared when Option is released. These go straight to `audio_action`, since `resolveAction` would flip a switch they already set.
+
 ## Track order
 
 `lib/sorting.ts` orders any list from the shared `sort` in the workspace, without touching what it was given. A rendered list publishes its ids in `listOrder`, so the arrows and the selector walk exactly what is on screen. With no list on screen, `browseBy` works out what it would show, without a search.

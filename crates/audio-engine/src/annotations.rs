@@ -56,6 +56,14 @@ impl CueState {
             }
         }
     }
+    /// A hot cue that loops when called, in the same bank as plain ones, as on rekordbox.
+    pub fn set_loop(&self, index: usize, start: f64, end: f64) {
+        if index < HOT_CUES && start.is_finite() && end.is_finite() && start >= 0. && end > start {
+            self.values[index].store(start.to_bits(), Release);
+            self.ends[index].store(end.to_bits(), Release);
+            self.revision.fetch_add(1, Release);
+        }
+    }
     /// Replaces every cue at once, for a track re-imported while it is known to this session.
     pub fn replace(&self, values: [f64; HOT_CUES], ends: [f64; HOT_CUES]) {
         for index in 0..HOT_CUES {
