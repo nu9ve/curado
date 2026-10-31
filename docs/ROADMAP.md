@@ -36,7 +36,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 
 ## P1 · rekordbox and devices
 
-- USB reading exists, read only (S11). Next: `rekordbox.xml` export and import so that cues set in curado reach rekordbox, then writing to a USB only with validation on real players.
+- USB reading and `rekordbox.xml` export exist (S11). Next: confirm the export in rekordbox, then import an XML from rekordbox, which also gives exact file locations, then writing to a USB only with validation on real players.
 - Memory cues in the transport, queueing from a device playlist, tracks across a device and the local library, and Engine DJ libraries.
 
 ## P1 · Deeper mixing

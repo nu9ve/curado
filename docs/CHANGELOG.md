@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Export to rekordbox.xml
+
+Added **To rekordbox** in the library: a `rekordbox.xml` with cues, loops, hand-corrected grids and keys and curado's playlists, written only to a file chosen in a native dialog. Tracks with nothing to say are left out, unknown fields are omitted, and USB tracks are relocated to their original when exactly one file matches by name and size. Colors and labels no longer follow a cue that moved. Not yet imported into rekordbox. See [Status](STATUS.md) and ADR-021. Lesson: measuring early changed the risk, because only 77 of 2,802 USB tracks have a certain original in the places searched here.
+
 ## 2026-10-30 · Connected drives and rekordbox USB
 
 Connected drives appear in the sidebar. A rekordbox USB shows its playlists, and its tracks load with their grids, keys and hot cues; any drive can be browsed for audio. Read only: edits stay in curado. The engine now has eight hot cues that can be loops. See [Status](STATUS.md) and ADR-020. Lesson: real data corrects assumptions, because the maintainer's own cues showed rekordbox's bar numbers were reliable and curado's bars better than earlier agreement figures suggested.

@@ -356,7 +356,7 @@ const sections: Record<string, [string, string]> = {
   ],
   devices: [
     'Discos y USB conectados.',
-    'Un USB de rekordbox muestra sus playlists, grids y cues; en cualquier disco puedes explorar sus carpetas con audio. curado no escribe nada en el dispositivo: lo que cambies aquí queda en curado. Lo cargado sigue sonando aunque lo desconectes.',
+    'Un USB de rekordbox muestra sus playlists, grids y cues; en cualquier disco puedes explorar sus carpetas con audio. curado no escribe nada en el dispositivo: lo que cambies aquí queda en curado, y “A rekordbox” en la biblioteca lo guarda en un XML que rekordbox puede importar. Lo cargado sigue sonando aunque lo desconectes.',
   ],
   limiter: [
     'Indica cuánto está bajando el limitador la mezcla.',
@@ -399,7 +399,7 @@ const englishSections: Record<string, [string, string]> = {
   ],
   devices: [
     'Connected drives and USB sticks.',
-    'A rekordbox USB shows its playlists, grids and cues; on any drive you can browse folders with audio. curado writes nothing to the device: what you change here stays in curado. What is loaded keeps playing if you unplug it.',
+    'A rekordbox USB shows its playlists, grids and cues; on any drive you can browse folders with audio. curado writes nothing to the device: what you change here stays in curado, and “To rekordbox” in the library saves it to an XML rekordbox can import. What is loaded keeps playing if you unplug it.',
   ],
   limiter: [
     'Shows how much the limiter is turning the mix down.',

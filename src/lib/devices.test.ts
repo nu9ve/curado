@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import {
   deviceViewId,
+  exportSummary,
   matchesQuery,
   parseDeviceView,
   playlistTree,
@@ -85,6 +86,39 @@ test('hot cue colors are valid CSS or absent', () => {
   expect(cueColor({ color: null, label: 'x' })).toBeUndefined();
   expect(cueColor(null)).toBeUndefined();
   expect(cueColor(undefined)).toBeUndefined();
+});
+
+test('the export report warns about tracks rekordbox will not match', () => {
+  const report = {
+    saved: true,
+    tracks: 3,
+    changed: 2,
+    hotCues: 4,
+    memoryCues: 1,
+    grids: 1,
+    playlists: 2,
+    relocated: 0,
+    onDevice: 0,
+    searchComplete: true,
+  };
+  expect(exportSummary(report)).toContain('3');
+  expect(exportSummary(report)).not.toMatch(/USB/);
+  const risky = exportSummary({ ...report, relocated: 1, onDevice: 2, searchComplete: false });
+  expect(risky).toMatch(/\b1\b.*USB/);
+  expect(risky).toMatch(/\b2\b.*USB/);
+});
+
+test('the export destination comes from the native dialog alone', () => {
+  const app = readFileSync('src-tauri/src/lib.rs', 'utf8');
+  const command = app.slice(app.indexOf('async fn export_rekordbox_xml'));
+  const signature = command.slice(0, command.indexOf('->'));
+  expect(signature).not.toContain('path');
+  expect(command).toContain('save_file()');
+  expect(readFileSync('src/App.tsx', 'utf8')).toContain("call<RekordboxExportReport>('export_rekordbox_xml')");
+  const source = readFileSync('src-tauri/src/rekordbox_xml.rs', 'utf8').split('#[cfg(test)]')[0];
+  // The only write in the export goes through the destination it was handed.
+  expect(source.match(/fs::write|File::create|OpenOptions/g)).toEqual(['fs::write']);
+  expect(source).toContain('fs::write(&temporary, text)');
 });
 
 test('the interface never handles paths on a device', () => {

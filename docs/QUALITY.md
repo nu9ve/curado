@@ -50,6 +50,8 @@ The following is a **plan**, not a completed test record. Respect current author
 
 11. Connect a rekordbox USB: sidebar entry, playlists in order, load with grid and cues, pads and colors; unplug during playback; plug in another with the same name.
 
+12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
+
 ## Measurement
 
 Synthetic clicks/triads do not certify musical accuracy, and `bun run music:eval` measures agreement with stored rekordbox grids, not truth. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Music probes measure no DAC/perceived quality.

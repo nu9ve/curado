@@ -63,13 +63,23 @@ Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading m
 
 ## USB drives and rekordbox
 
-Connected drives appear in the sidebar under **dispositivos** within a couple of seconds. curado never writes to them: what you change here stays in curado and is not exported to rekordbox or the USB.
+Connected drives appear in the sidebar under **dispositivos** within a couple of seconds. curado never writes to them: what you change here stays in curado until you export it.
 
 - **rekordbox USB:** select it to see **todas las pistas**, its playlists and **archivos**. Double-click or use A/B to load. The track arrives with rekordbox's BPM, grid, bars, key and hot cues with their colors, and memory cues appear as small marks on the overview. The analysis label then reads **rekordbox**.
 - **Any drive:** **archivos** browses folders with audio and hides everything else. Tracks without rekordbox data get curado's own analysis.
 - **Unplugging:** whatever is loaded keeps playing, since it is in memory. A new rekordbox export updates cues and grids, except those you edited in curado.
 
 Loading a track here does not add it to your library. Import it on purpose if you want that.
+
+## Sending cues to rekordbox
+
+**A rekordbox** in the library saves a `rekordbox.xml` wherever you choose. It holds tracks with cues or loops set here or grids corrected by hand, plus your playlists, in a `curado` folder. Importing has not been tried in rekordbox yet, so back up its library first and start with one or two tracks:
+
+1. In rekordbox, **Preferences > Advanced > Database > rekordbox xml > Imported Library**: choose the file.
+2. **Preferences > View > Layout**: enable **rekordbox xml**, then restart rekordbox if the tree does not show it.
+3. In the **rekordbox xml** tree open **curado > curado cues**, select the tracks, right-click and use **Import To Collection**. Importing only a playlist reportedly does not update tracks rekordbox already has.
+
+An import can replace a track's cues and grid in rekordbox, so a track prepared there and also edited here keeps curado's version. The message after exporting says how many USB tracks found their original on this computer; the others would arrive as another track on the USB.
 
 ## Context footer
 

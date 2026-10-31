@@ -32,6 +32,7 @@ import {
 import type {
   DeviceExport,
   ImportReport,
+  RekordboxExportReport,
   KeyBinding,
   Library as LibraryData,
   LibraryEdit,
@@ -41,7 +42,7 @@ import { DEFAULT_KEYS, allowedInMode, matchKey } from './lib/keyboard';
 import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
 import { invalidateCueInfo } from './lib/cues';
-import { deviceViewId, parseDeviceView, playlistTree } from './lib/devices';
+import { deviceViewId, exportSummary, parseDeviceView, playlistTree } from './lib/devices';
 import { setMiniWindow } from './lib/window';
 import { readMixLayout, saveMixLayout } from './lib/mix-layout';
 import type { MixLayout } from './lib/mix-layout';
@@ -242,6 +243,17 @@ export default function App() {
     },
     [notify, onError],
   );
+  const exportRekordbox = useCallback(async () => {
+    setBusy(tr('Exportando a rekordbox…', 'Exporting to rekordbox…'));
+    try {
+      const report = await call<RekordboxExportReport>('export_rekordbox_xml');
+      if (report.saved) notify(exportSummary(report), report.onDevice > 0);
+    } catch (e) {
+      onError(e);
+    } finally {
+      setBusy(null);
+    }
+  }, [notify, onError]);
   const demo = async () => {
     setBusy(tr('Preparando sesión de prueba…', 'Preparing demo session…'));
     try {
@@ -576,6 +588,7 @@ export default function App() {
               onLoad={load}
               onEdit={edit}
               onImport={importMedia}
+              onExport={() => void exportRekordbox()}
               onQueue={(ids, repeat) =>
                 call('play_queue', { ids, repeat })
                   .then(() =>

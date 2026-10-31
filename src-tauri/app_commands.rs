@@ -6,6 +6,7 @@ pub const COMMANDS: &[&str] = &[
     "track_waveform",
     "edit_library",
     "import_media",
+    "export_rekordbox_xml",
     "create_demo",
     "load_track",
     "device_library",

@@ -1,5 +1,19 @@
 # Technical decisions
 
+## ADR-021 · rekordbox.xml export, conservative by default — accepted (2026-10-30)
+
+The maintainer wanted cues set in curado to reach rekordbox. `rekordbox.xml` is the documented route, needs no reverse engineering and leaves the decision to import with the user. It has **not been imported into rekordbox yet**: everything below about import behavior comes from third-party documentation and needs the maintainer's confirmation.
+
+- **Destination from a native dialog.** The interface cannot name a path. The file is written through a temporary file and a rename, so a failure leaves any earlier export intact. Nothing is written to a drive unless the user picks it.
+- **Only what has something to say.** Third parties report that importing a track overwrites its cues, grid and tags in rekordbox. So the collection holds tracks with cues set or edited here, or a grid corrected by hand, plus tracks in curado playlists. A drive's track nobody edited is left out, because resending it could undo newer work in rekordbox.
+- **Estimated grids and keys are not sent.** Only `manual` corrections are. An estimate would replace rekordbox's analysis, and a one-tempo grid would flatten its variable ones.
+- **Unknown fields are omitted, not written blank,** because curado never sees comments, genres or ratings. The placeholder artist is not sent either.
+- **Stale styles are dropped.** A color or label describes the position rekordbox saved it for, so it goes away once curado moves that cue. The interface applies the same rule.
+- **A `curado` folder with a `curado cues` playlist,** so playlists cannot land beside a same-named one in rekordbox, and importing "what changed" does not need the tracks that are only listed.
+- **Locating originals.** rekordbox identifies a track by location, and its collection knows the computer's file, not the USB copy. A file with the same name and size under `~/Music` or a drive without a rekordbox export replaces the USB path, only if there is exactly one. Two copies leave no way to know which it uses. Without one, the USB path stays and the report warns that rekordbox will treat it as another track. Searching is bounded by 2 million entries and 120 s, never follows links and skips hidden folders. Comparing names by Unicode normalization changed nothing on 469 non-ASCII names, so exact bytes stay and no dependency was added.
+- **Why not read rekordbox's own paths:** `master.db` is encrypted and stays closed. An XML exported by rekordbox would give exact locations, and importing one is the natural next step.
+- **Sources:** [official XML format](https://cdn.rekordbox.com/files/20200410160904/xml_format_list.pdf), [pyrekordbox](https://pyrekordbox.readthedocs.io/en/stable/formats/xml.html), [Lexicon](https://www.lexicondj.com/manual/sync-rekordbox-xml), [DJ Tools](https://a-rich.github.io/DJ-Tools-dev-docs/conceptual_guides/rekordbox_collection/), [Mixed In Key](https://mixedinkey.com/rekordbox-cue-points/), [MIXO](https://www.mixo.dj/guides/tracks-to-rekordbox-via-xml). The official format omits `Red`, `Green` and `Blue` on `POSITION_MARK` and lists only three hot cue numbers; those come from third-party descriptions of rekordbox's exports.
+
 ## ADR-020 · Read-only device access with its own reader — accepted (2026-10-30)
 
 The maintainer asked to see USB drives in the sidebar, browse their playlists and files, and integrate rekordbox's formats.

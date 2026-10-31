@@ -7,6 +7,7 @@ mod midi;
 mod playback;
 mod preferences;
 mod rekordbox;
+mod rekordbox_xml;
 mod session;
 mod visuals;
 mod web;
@@ -511,11 +512,27 @@ async fn track_cue_info(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<devices::CueInfo, String> {
     let s = state.inner().clone();
+    work(move || Ok(devices::current_cue_info(&s.db.lock().unwrap(), id))).await
+}
+/// The destination comes from the native dialog alone: the interface cannot name a path.
+#[tauri::command]
+async fn export_rekordbox_xml(
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<rekordbox_xml::ExportReport, String> {
+    let s = state.inner().clone();
+    let file = rfd::AsyncFileDialog::new()
+        .set_title("Exportar a rekordbox")
+        .set_file_name("curado-rekordbox.xml")
+        .add_filter("rekordbox XML", &["xml"])
+        .save_file()
+        .await;
+    let Some(file) = file else {
+        return Ok(rekordbox_xml::ExportReport::default());
+    };
     work(move || {
-        let db = s.db.lock().unwrap();
-        Ok(db
-            .setting::<devices::CueInfo>(&format!("cue-info:{id}"))
-            .unwrap_or_default())
+        s.flush_cues();
+        let plan = rekordbox_xml::plan(&s.db.lock().unwrap())?;
+        rekordbox_xml::export(plan, file.path())
     })
     .await
 }
@@ -850,6 +867,7 @@ pub fn run() {
                 track_waveform,
                 edit_library,
                 import_media,
+                export_rekordbox_xml,
                 create_demo,
                 load_track,
                 device_library,

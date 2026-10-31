@@ -1,4 +1,5 @@
-import type { DevicePlaylist, DeviceTrack } from './types';
+import { tr } from './language';
+import type { DevicePlaylist, DeviceTrack, RekordboxExportReport } from './types';
 
 export type DeviceSection =
   { kind: 'tracks' } | { kind: 'playlist'; id: number } | { kind: 'files' };
@@ -83,4 +84,33 @@ export function tracksInSection(
 export function matchesQuery(track: DeviceTrack, query: string): boolean {
   const text = `${track.title} ${track.artist} ${track.album} ${track.genre}`;
   return text.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+}
+
+/** What the file holds, then what rekordbox will not be able to match to its collection. */
+export function exportSummary(report: RekordboxExportReport): string {
+  const parts = [
+    tr(`XML guardado: ${report.tracks} pistas`, `XML saved: ${report.tracks} tracks`),
+    tr(`${report.hotCues} hot cues`, `${report.hotCues} hot cues`),
+    tr(`${report.memoryCues} memory cues`, `${report.memoryCues} memory cues`),
+    tr(`${report.grids} grids corregidos`, `${report.grids} corrected grids`),
+  ];
+  if (report.relocated)
+    parts.push(
+      tr(
+        `${report.relocated} del USB enlazadas a su original`,
+        `${report.relocated} from USB linked to their original`,
+      ),
+    );
+  if (report.onDevice)
+    parts.push(
+      tr(
+        `${report.onDevice} sin original seguro: rekordbox las verá como otra pista en el USB`,
+        `${report.onDevice} with no certain original: rekordbox will see them as another track on the USB`,
+      ),
+    );
+  if (!report.searchComplete)
+    parts.push(
+      tr('la búsqueda de originales no terminó', 'the search for originals did not finish'),
+    );
+  return parts.join(' · ');
 }

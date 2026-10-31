@@ -11,10 +11,10 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S11 · rekordbox interchange (P1)
 
-**USB reading implemented 2026-10-30:** see Status and ADR-020.
+**USB reading implemented 2026-10-30:** see Status and ADR-020. **XML export implemented 2026-10-30, not yet confirmed in rekordbox:** see ADR-021.
 
-- **Context:** curado reads a rekordbox USB but cannot give anything back.
-- **Scope:** export and import `rekordbox.xml`, the documented route that needs no reverse engineering. Writing `export.pdb` and `ANLZ` files comes after, and only to exports curado itself created.
+- **Context:** curado reads a rekordbox USB and exports an XML, but cannot read an XML from rekordbox.
+- **Scope:** confirm the export, then import `rekordbox.xml`, the documented route that needs no reverse engineering. Writing `export.pdb` and `ANLZ` files comes after, and only to exports curado itself created.
 - **Done when:** cues set in curado appear in rekordbox and on a real player, confirmed by the maintainer.
 - **Risks:** undocumented details of the formats decide whether hardware accepts a USB; never touching an existing library without a backup.
 

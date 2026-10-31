@@ -201,6 +201,18 @@ export interface AppSnapshot {
   error: string | null;
   midi: MidiState;
 }
+export interface RekordboxExportReport {
+  saved: boolean;
+  tracks: number;
+  changed: number;
+  hotCues: number;
+  memoryCues: number;
+  grids: number;
+  playlists: number;
+  relocated: number;
+  onDevice: number;
+  searchComplete: boolean;
+}
 export interface ImportReport {
   added: number;
   skipped: number;

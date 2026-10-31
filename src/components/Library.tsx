@@ -1,6 +1,16 @@
 import { tr, useLanguage } from '../lib/language';
 import { memo, useMemo, useState } from 'react';
-import { Search, ArrowUpRight, Star, Play, X, Music2, FolderOpen, Disc3 } from 'lucide-react';
+import {
+  Search,
+  ArrowUpRight,
+  Star,
+  Play,
+  X,
+  Music2,
+  FolderOpen,
+  Disc3,
+  Share,
+} from 'lucide-react';
 import type { Library as LibraryData, LibraryEdit, Track } from '../lib/types';
 import { TrackArt } from './Player';
 import { time } from '../lib/types';
@@ -13,6 +23,7 @@ export const Library = memo(function Library({
   onLoad,
   onEdit,
   onImport,
+  onExport,
   onQueue,
   busy,
   mode,
@@ -24,6 +35,7 @@ export const Library = memo(function Library({
   onLoad: (slot: number, id: number) => void;
   onEdit: (edit: LibraryEdit) => void;
   onImport: (folder: boolean) => void;
+  onExport: () => void;
   onQueue: (ids: number[], repeat: 'off' | 'one' | 'all') => void;
   busy: string | null;
   mode: 'player' | 'mix';
@@ -89,6 +101,17 @@ export const Library = memo(function Library({
               {tr('Escuchar selección', 'Play selection')}{' '}
             </button>
           )}
+          <button
+            onClick={onExport}
+            disabled={!!busy}
+            title={tr(
+              'Guarda un rekordbox.xml con tus cues, loops y grids corregidos. No escribe en ningún USB.',
+              'Saves a rekordbox.xml with your cues, loops and corrected grids. Writes to no USB drive.',
+            )}
+          >
+            <Share size={14} />
+            {tr('A rekordbox', 'To rekordbox')}{' '}
+          </button>
           <button onClick={() => onImport(true)} disabled={!!busy}>
             <FolderOpen size={14} />
             {tr('Carpeta', 'Folder')}{' '}

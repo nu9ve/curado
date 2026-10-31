@@ -49,6 +49,7 @@ The interface defaults to Spanish; an English option is in progress, with some n
 - **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
 - **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
 - **Bring your USB:** connected drives appear in the sidebar. A rekordbox USB shows its playlists, and tracks load with their grids, keys and hot cues. Any drive can be browsed for audio. curado only reads them.
+- **Back to rekordbox:** save a `rekordbox.xml` with your cues, loops and corrected grids, and import it from rekordbox.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
 Local listening and mixing work offline. Web services need internet. There is no WebAudio replacement for the native engine.
@@ -113,7 +114,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does n
 ## Before you start
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
-- rekordbox USBs are read only: cues you set here stay in curado, and USBs with only the newer OneLibrary database show as plain files.
+- rekordbox USBs are read only, and USBs with only the newer OneLibrary database show as plain files. Cues reach rekordbox through an XML export that has not been tried in rekordbox yet, so back up its library first. USB tracks with no certain original on the computer arrive there as other tracks.
 - BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Tempo and key change at once; when transposing, very low notes can sit slightly sharp.
 - Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.
 - One stereo output; no independent headphone cue. Device recovery is manual.

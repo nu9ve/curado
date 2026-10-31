@@ -64,7 +64,7 @@ pub struct Devices {
     entries: Mutex<Entries>,
 }
 /// Where operating systems mount external drives. The startup disk is not one of them.
-fn mount_points() -> Vec<PathBuf> {
+pub fn mount_points() -> Vec<PathBuf> {
     let roots: Vec<PathBuf> = if cfg!(target_os = "macos") {
         vec!["/Volumes".into()]
     } else if let (true, Some(user)) = (cfg!(target_os = "linux"), std::env::var_os("USER")) {
@@ -99,6 +99,10 @@ fn mount_points() -> Vec<PathBuf> {
     mounts.sort();
     mounts
 }
+/// A drive prepared by rekordbox rather than one that just holds files.
+pub fn has_export(mount: &Path) -> bool {
+    mount.join(EXPORT_FILE).is_file()
+}
 impl Devices {
     /// Looks at every mount, outside any lock: a dead network drive can take long to answer.
     pub fn refresh(&self) {
@@ -112,7 +116,7 @@ impl Devices {
                 let info = DeviceInfo {
                     id: name.clone(),
                     name,
-                    rekordbox: path.join(EXPORT_FILE).is_file(),
+                    rekordbox: has_export(&path),
                 };
                 (info, path)
             })
@@ -126,6 +130,10 @@ impl Devices {
                 .retain(|id, _| found.iter().any(|(info, _)| info.id == *id));
             *known = found;
         }
+    }
+    #[cfg(test)]
+    pub fn remember(&self, info: DeviceInfo, root: PathBuf) {
+        self.known.lock().unwrap().push((info, root));
     }
     pub fn list(&self) -> Vec<DeviceInfo> {
         let known = self.known.lock().unwrap();
@@ -444,6 +452,38 @@ pub fn import_track(
     }
     db.save(&key, &record)?;
     Ok(id)
+}
+/// Positions travel through JSON, so "the same" allows for less than a millisecond.
+fn same_position(saved: &[f64], i: usize, now: f64) -> bool {
+    (saved.get(i).copied().unwrap_or(0.) - now).abs() < 0.0005
+}
+/// Whether the cues are still the ones the drive brought.
+pub fn unchanged_cues(
+    record: &DeviceRecord,
+    cues: &[f64; HOT_CUES],
+    ends: &[f64; HOT_CUES],
+) -> bool {
+    (0..HOT_CUES).all(|i| {
+        same_position(&record.imported_cues, i, cues[i])
+            && same_position(&record.imported_ends, i, ends[i])
+    })
+}
+/// A color and label describe the position rekordbox saved them for. Once curado moves or
+/// replaces that cue they no longer belong to it.
+pub fn current_cue_info(db: &Database, id: u64) -> CueInfo {
+    let mut info: CueInfo = db.setting(&format!("cue-info:{id}")).unwrap_or_default();
+    let record: DeviceRecord = db
+        .setting(&format!("device-track:{id}"))
+        .unwrap_or_default();
+    let (cues, ends) = db.saved_cues(id);
+    for (i, style) in info.hot.iter_mut().enumerate().take(HOT_CUES) {
+        if !same_position(&record.imported_cues, i, cues[i])
+            || !same_position(&record.imported_ends, i, ends[i])
+        {
+            *style = None;
+        }
+    }
+    info
 }
 /// A file from a drive with no rekordbox data: curado analyzes it like any other.
 pub fn register_file(db: &Database, path: &Path) -> Result<u64, String> {

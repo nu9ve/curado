@@ -1,5 +1,17 @@
 # curado status
 
+## Export to rekordbox.xml · 2026-10-30
+
+**To rekordbox** in the library saves a `rekordbox.xml` with cues and loops set here, and grids and keys corrected by hand, plus curado's playlists, in a file the user chooses. See [ADR-021](DECISIONS.md) and [Controls](CONTROLS.md). **It has not been imported into rekordbox:** only the maintainer can confirm that it imports, matches tracks and does not disturb the rest.
+
+Measured on the maintainer's USB, in an in-memory library with one cue added to 200 tracks and only reads on the drive: a valid file for `xmllint`, with counts, ids, playlist references, sizes and loop ends checked by a script against the disk, and every location resolving to an existing file, in 1.4 s. `export.pdb` kept its date.
+
+**Finding originals is the main limit.** Of 2,802 USB tracks, searching `~/Music` and the other drive (144,018 entries, 4.9 s) found 77 with one file of the same name and size, 27 with several copies, 229 with the same name and another size, and 2,469 with no match. Most of this USB's originals are not on those two locations, so most edited USB tracks would keep their USB path, and rekordbox would see them as other tracks. Tracks edited from the local library do not have this problem.
+
+Limits: behavior on import comes from third-party documentation. Percent-encoding of locations, classic key names (this USB's are Camelot and Open Key) and accented paths are unverified with rekordbox. A hot cue exactly at 0:00 cannot be exported, because zero still means unset. Comments, memory cues edited here and active loops do not exist or are not sent. Windows paths are written but unverified. No visual test: the button has not been seen on screen. Cached cue colors in the interface may stay until the track is loaded again.
+
+Verification: `bun run check` passed (44 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (117 tests, 4 more ignored that need a real USB) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (14.04 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `ab5a9a74947c21e174c1f098c68c12cf0641b71ead4c675f46cc6f28727649b3`. Next: the maintainer should back up rekordbox's library, export, and import one or two tracks with known cues into rekordbox; what happens there decides whether location encoding or field choices need changing.
+
 ## Connected drives and rekordbox USB · 2026-10-30
 
 Connected drives now appear in the sidebar. A rekordbox USB lists its playlists, tracks load with rekordbox's grid, key and hot cues, and any drive can be browsed for audio. See [ADR-020](DECISIONS.md) and [Architecture](ARCHITECTURE.md). **Read only:** nothing is written to a device, and cues set here stay in curado.

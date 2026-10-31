@@ -46,6 +46,8 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
 - **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
 - **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
+- **Trae tu USB:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists, y las pistas cargan con sus grids, tonalidades y hot cues. Cualquier disco se puede explorar para buscar audio. curado solo los lee.
+- **De vuelta a rekordbox:** guarda un `rekordbox.xml` con tus cues, loops y grids corregidos, e impórtalo desde rekordbox.
 - **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
 
 Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí necesitan conexión.
@@ -102,7 +104,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (n
 ## Límites actuales
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
-- Los USB de rekordbox son de solo lectura: los cues que pongas aquí quedan en curado, y los USB que solo tengan la base OneLibrary se ven como archivos normales.
+- Los USB de rekordbox son de solo lectura, y los que solo tengan la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
 - El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Tempo y tono cambian al instante; al transponer, las notas muy graves pueden quedar algo altas.
 - Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.
 - Una salida estéreo, sin preescucha independiente por auriculares; recuperación de dispositivos manual.
