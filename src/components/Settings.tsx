@@ -52,11 +52,20 @@ export function Settings({
         setCapture(null);
         return;
       }
-      if (e.ctrlKey || e.metaKey || e.altKey || e.code.startsWith('Shift')) return;
-      const next = keys.map((k, i) =>
-        i === capture ? { ...k, code: e.code, shift: e.shiftKey } : k,
-      );
-      if (next.some((k, i) => i !== capture && k.code === e.code && k.shift === e.shiftKey)) {
+      // Command belongs to the system; a modifier alone is not a shortcut yet.
+      if (e.metaKey || /^(Shift|Control|Alt|Meta)/.test(e.code)) return;
+      const combination = { code: e.code, shift: e.shiftKey, ctrl: e.ctrlKey, alt: e.altKey };
+      const next = keys.map((k, i) => (i === capture ? { ...k, ...combination } : k));
+      if (
+        next.some(
+          (k, i) =>
+            i !== capture &&
+            k.code === e.code &&
+            k.shift === e.shiftKey &&
+            !!k.ctrl === e.ctrlKey &&
+            !!k.alt === e.altKey,
+        )
+      ) {
         onError(
           new Error(
             tr(

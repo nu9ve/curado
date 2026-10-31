@@ -12,6 +12,7 @@ import {
   nextDivision,
   PAD_FX,
   PITCH_FX,
+  RELEASE_PADS,
   pitchLabel,
   ROLL_PADS,
   tapTempo,
@@ -177,6 +178,42 @@ export function PerformancePads({
           onClick={() => {
             send('transpose', semitones);
             if (mode === 'keyboard') send('cue', 0);
+          }}
+        >
+          <span>{label}</span>
+        </button>
+      );
+    });
+  if (mode === 'release')
+    return RELEASE_PADS.map((label, kind) => {
+      const hold = () => send('releaseFx', kind);
+      const release = () => send('releaseEnd');
+      return (
+        <button
+          key={label}
+          className={padClass}
+          disabled={disabled}
+          aria-label={`Deck ${name} · Release FX ${label}`}
+          title={
+            kind === 5 || kind === 7
+              ? tr('Mantén para aplicar', 'Hold to apply')
+              : tr('Termina la pista con este efecto', 'Ends the track with this effect')
+          }
+          data-action={act(index, 'releaseFx', kind)}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            hold();
+          }}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+              e.preventDefault();
+              hold();
+            }
+          }}
+          onKeyUp={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') release();
           }}
         >
           <span>{label}</span>

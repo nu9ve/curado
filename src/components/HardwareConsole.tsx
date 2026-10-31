@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { control, parameter, useDevices, useSnapshot } from '../lib/bridge';
@@ -29,10 +29,12 @@ import { EMPTY_SLOT, remaining } from '../lib/types';
 import type { BeatFxState, KeyBinding, Library, LibraryEdit, Slot, Track } from '../lib/types';
 import { Knob, LimiterLamp, Meter, Slider } from './Controls';
 import { PerformancePads, useJog } from './Performance';
-import { keyFor } from './Deck';
 import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
+import { bindingLabel, TOGGLE_KINDS } from '../lib/keyboard';
+import { XY_MODES, xyMoves, xyPoint, xyRelease } from '../lib/xy';
+import type { XYMode } from '../lib/xy';
 import { UnavailableControl } from './UnavailableControl';
 import './hardware-console.css';
 
@@ -43,6 +45,28 @@ const eqValue = (v: number) => (v > 0 ? `${(20 * Math.log10(v)).toFixed(0)} dB` 
 const padName = (index: number) => String.fromCharCode(65 + index);
 /** Controls sit where they do on the hardware, by the center of each. */
 const at = (x: number, y: number): CSSProperties => ({ left: x, top: y });
+
+const KeysContext = createContext<KeyBinding[]>([]);
+/**
+ * The key for a control, printed on it. Any control saying what it does gets one; digits win for
+ * a hot cue, since those are the pad's own keys.
+ */
+function KeyBadge({ action }: { action?: string }) {
+  const keys = useContext(KeysContext);
+  if (!action) return null;
+  for (const token of action.split(' ')) {
+    const [slot, kind, value] = token.split(':');
+    const matches = keys.filter(
+      (key) =>
+        key.action.slot === +slot &&
+        key.action.kind === kind &&
+        (TOGGLE_KINDS.has(kind) || key.action.value === +value),
+    );
+    const binding = matches.find((key) => key.code.startsWith('Digit')) ?? matches[0];
+    if (binding) return <kbd className="rx-badge">{bindingLabel(binding)}</kbd>;
+  }
+  return null;
+}
 
 /** A visible, focusable reference control, never an audio action. */
 function Soon({
@@ -95,6 +119,7 @@ function Key({
       onClick={onClick}
     >
       {label}
+      <KeyBadge action={action} />
     </button>
   );
 }
@@ -134,6 +159,7 @@ function Lamp({
         title={title}
         onClick={onClick}
       />
+      <KeyBadge action={action} />
     </div>
   );
 }
@@ -265,11 +291,24 @@ function JogDisc({ index, slot, name }: { index: number; slot: Slot; name: strin
   );
 }
 
+/** The CUE button's own key, not the hot cue A key it shares an action with. */
+function CueKey({ index }: { index: number }) {
+  const keys = useContext(KeysContext);
+  const binding =
+    keys.find(
+      (key) =>
+        key.action.slot === index &&
+        key.action.kind === 'cue' &&
+        key.action.value === 0 &&
+        !key.code.startsWith('Digit'),
+    ) ?? null;
+  return binding ? <kbd className="rx-badge">{bindingLabel(binding)}</kbd> : null;
+}
+
 function RxDeck({
   index,
   slot,
   track,
-  keys,
   loading,
   masterDeck,
   masterHasBpm,
@@ -283,7 +322,6 @@ function RxDeck({
   index: number;
   slot: Slot;
   track?: Track;
-  keys: KeyBinding[];
   loading: boolean;
   masterDeck: number;
   masterHasBpm: boolean;
@@ -321,7 +359,12 @@ function RxDeck({
   const modes: { mode: PadMode; label: string; second: PadMode; secondLabel: string }[] = [
     { mode: 'cue', label: 'HOT CUE', second: 'keyboard', secondLabel: 'KEYBOARD' },
     { mode: 'loop', label: 'BEAT LOOP', second: 'keys', secondLabel: 'KEY SHIFT' },
-    { mode: 'roll', label: 'SLIP LOOP', second: 'padfx', secondLabel: 'PAD FX' },
+    {
+      mode: 'roll',
+      label: 'SLIP LOOP',
+      second: padMode === 'release' ? 'padfx' : 'release',
+      secondLabel: padMode === 'padfx' ? 'PAD FX' : 'RELEASE FX',
+    },
     { mode: 'jump', label: 'BEAT JUMP', second: 'samples', secondLabel: 'SAMPLER' },
   ];
   return (
@@ -473,6 +516,7 @@ function RxDeck({
           onClick={() => send('beatJump', -1)}
         >
           ◀◀
+          <KeyBadge action={act(index, 'beatJump', -1)} />
         </button>
         <button
           aria-label={tr('Un beat adelante', 'One beat forward')}
@@ -481,6 +525,7 @@ function RxDeck({
           onClick={() => send('beatJump', 1)}
         >
           ▶▶
+          <KeyBadge action={act(index, 'beatJump', 1)} />
         </button>
       </div>
       <button
@@ -629,7 +674,8 @@ function RxDeck({
         data-action={act(index, 'cue', 0)}
         onClick={() => send('cue', 0)}
       >
-        CUE {keyFor(keys, index, 'cue', 0)}
+        CUE
+        <CueKey index={index} />
       </button>
       <span className="rx-at rx-print" style={at(66, 474)}>
         PLAY/PAUSE
@@ -642,7 +688,8 @@ function RxDeck({
         data-action={act(index, 'toggle')}
         onClick={() => send('toggle')}
       >
-        {slot.playing ? <Pause size={20} /> : <Play size={20} />} {keyFor(keys, index, 'toggle')}
+        {slot.playing ? <Pause size={20} /> : <Play size={20} />}
+        <KeyBadge action={act(index, 'toggle')} />
       </button>
 
       <div className="rx-pad-section">
@@ -660,7 +707,14 @@ function RxDeck({
               <button
                 type="button"
                 className="rx-pad-second"
-                aria-pressed={padMode === second}
+                aria-pressed={
+                  padMode === second || (mode === 'roll' && ['release', 'padfx'].includes(padMode))
+                }
+                title={
+                  mode === 'roll'
+                    ? tr('Vuelve a pulsar para PAD FX', 'Press again for PAD FX')
+                    : undefined
+                }
                 onClick={() => setPadMode(second)}
               >
                 {secondLabel}
@@ -705,7 +759,7 @@ function RxDeck({
                   }}
                 >
                   <span>S{cue + 1}</span>
-                  {keyFor(keys, sampleSlot, 'trigger')}
+                  <KeyBadge action={act(sampleSlot, 'trigger')} />
                   <small>
                     {loadingSlots.includes(sampleSlot)
                       ? tr('cargando', 'loading')
@@ -736,7 +790,7 @@ function RxDeck({
                 }}
               >
                 <span>{padName(cue)}</span>
-                {keyFor(keys, index, 'cue', cue, true)}
+                <KeyBadge action={act(index, 'cue', cue)} />
               </button>
             ))}
           {padMode !== 'cue' && padMode !== 'samples' && (
@@ -760,11 +814,13 @@ function RxChannel({
   index,
   x,
   slot,
+  hasCue,
   onError,
 }: {
   index: number;
   x: number;
   slot: Slot;
+  hasCue: boolean;
   onError: (e: unknown) => void;
 }) {
   const tone = index ? 'b' : 'a';
@@ -814,9 +870,20 @@ function RxChannel({
           onChange={send('color')}
         />
       </div>
-      <Soon x={x} y={298}>
-        CUE
-      </Soon>
+      <Key
+        label="CUE"
+        x={x}
+        y={298}
+        on={slot.cue}
+        disabled={!hasCue}
+        title={
+          hasCue
+            ? tr('Escucha este canal en los audífonos', 'Hears this channel in the headphones')
+            : NO_CUE
+        }
+        action={act(index, 'channelCue', slot.cue ? 0 : 1)}
+        onClick={() => control(index, 'channelCue', slot.cue ? 0 : 1).catch(onError)}
+      />
       <b className="rx-at rx-channel-number" style={at(x, 322)}>
         {index + 1}
       </b>
@@ -905,6 +972,7 @@ function ColorFxBlock({ slots, onError }: { slots: Slot[]; onError: (e: unknown)
   );
 }
 
+const NO_CUE = 'Requiere una salida de 4 canales: la 3 y la 4 van a los audífonos';
 const CH_SELECT = ['1', '2', 'MASTER'];
 /** One set of controls over three independent units, chosen with CH SELECT. */
 function BeatFxBlock({
@@ -1022,7 +1090,9 @@ function BeatFxBlock({
         aria-label={tr('Encender Beat FX', 'Turn Beat FX on')}
         data-action={act(unit, 'beatFxOn', state.on ? 0 : 1)}
         onClick={() => send('beatFxOn', state.on ? 0 : 1)}
-      />
+      >
+        <KeyBadge action={act(unit, 'beatFxOn', 1)} />
+      </button>
     </>
   );
 }
@@ -1201,6 +1271,262 @@ const SCREEN_KEYS: [ScreenKey, string][] = [
   ['menu', 'MENU'],
 ];
 const BANK_DIVISIONS = [0.0625, 0.125, 0.25, 0.5, 0.75, 1, 2, 4];
+const FX_BANK = [7, 10, 4];
+
+/** Slide along it to choose the division. The effect runs for as long as a finger is down. */
+function XPad({
+  unit,
+  fx,
+  onError,
+}: {
+  unit: number;
+  fx: BeatFxState;
+  onError: (e: unknown) => void;
+}) {
+  const wasOn = useRef(false);
+  const at = (element: Element, x: number) => {
+    const bounds = element.getBoundingClientRect();
+    const place = Math.floor(((x - bounds.left) / bounds.width) * BANK_DIVISIONS.length);
+    return BANK_DIVISIONS[Math.max(0, Math.min(BANK_DIVISIONS.length - 1, place))];
+  };
+  const send = (kind: string, value: number) => control(unit, kind, value).catch(onError);
+  return (
+    <div
+      className="rx-xpad"
+      role="group"
+      aria-label="X-PAD"
+      title={tr(
+        'X-PAD: desliza para la división; el efecto suena mientras lo tocas',
+        'X-PAD: slide for the division; the effect runs while you touch it',
+      )}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        wasOn.current = fx.on;
+        send('beatFxBeats', at(e.currentTarget, e.clientX));
+        send('beatFxOn', 1);
+      }}
+      onPointerMove={(e) => {
+        if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+        const beats = at(e.currentTarget, e.clientX);
+        if (beats !== fx.beats) send('beatFxBeats', beats);
+      }}
+      onPointerUp={() => {
+        if (!wasOn.current) send('beatFxOn', 0);
+      }}
+      onPointerCancel={() => {
+        if (!wasOn.current) send('beatFxOn', 0);
+      }}
+    >
+      {BANK_DIVISIONS.map((beats) => (
+        <i key={beats} className={fx.beats === beats ? 'is-on' : ''}>
+          {fx.kind === PITCH_FX ? pitchLabel(beats) : beatLabel(beats)}
+        </i>
+      ))}
+    </div>
+  );
+}
+
+/** A surface for two hands at once, one per channel, showing what the engine has set. */
+function XYPad({
+  index,
+  slot,
+  fx,
+  onError,
+}: {
+  index: number;
+  slot: Slot;
+  fx: BeatFxState;
+  onError: (e: unknown) => void;
+}) {
+  const [mode, setMode] = useState<XYMode>('color');
+  const [touching, setTouching] = useState(false);
+  const send = (moves: { kind: string; value: number }[]) => {
+    for (const { kind, value } of moves) parameter(index, kind, value, onError);
+  };
+  const point = (element: Element, e: React.PointerEvent) => {
+    const bounds = element.getBoundingClientRect();
+    return xyMoves(
+      mode,
+      (e.clientX - bounds.left) / bounds.width,
+      1 - (e.clientY - bounds.top) / bounds.height,
+    );
+  };
+  const [x, y] = xyPoint(mode, slot, fx);
+  const finish = () => {
+    setTouching(false);
+    send(xyRelease(mode));
+  };
+  return (
+    <div className={`rx-xy tone-${index ? 'b' : 'a'}`}>
+      <div className="rx-xy-modes" role="group" aria-label={`XY ${index + 1}`}>
+        <b>XY {index + 1}</b>
+        {XY_MODES.map((entry) => (
+          <button
+            key={entry.mode}
+            aria-pressed={mode === entry.mode}
+            onClick={() => setMode(entry.mode)}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      <div
+        className={`rx-xy-surface ${touching ? 'is-touched' : ''}`}
+        role="application"
+        aria-label={tr(
+          `Superficie XY del canal ${index + 1}`,
+          `XY surface of channel ${index + 1}`,
+        )}
+        title={tr(
+          'Arrastra para mover dos parámetros a la vez; al soltar vuelve a neutro',
+          'Drag to move two parameters at once; letting go returns to neutral',
+        )}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          setTouching(true);
+          send(point(e.currentTarget, e));
+        }}
+        onPointerMove={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) send(point(e.currentTarget, e));
+        }}
+        onPointerUp={finish}
+        onPointerCancel={finish}
+      >
+        <i style={{ left: `${x * 100}%`, bottom: `${y * 100}%` }} />
+      </div>
+    </div>
+  );
+}
+
+/** What the hardware keeps on its screen, always in view: samples at a glance. */
+function SamplesPanel({
+  samples,
+  tracks,
+  selected,
+  sampler,
+  loading,
+  onLoad,
+  onError,
+}: {
+  samples: Slot[];
+  tracks: Track[];
+  selected: number | null;
+  sampler: number;
+  loading: number[];
+  onLoad: (slot: number, id: number) => void;
+  onError: (e: unknown) => void;
+}) {
+  return (
+    <div className="rx-module rx-samples">
+      <div className="rx-module-head">
+        <b>SAMPLES</b>
+        <div className="rx-mini-knob">
+          <Knob
+            label="LEVEL"
+            tone="master"
+            action={act(2, 'sampler')}
+            max={1.5}
+            defaultValue={1}
+            origin={1}
+            value={sampler}
+            onChange={(v) => parameter(2, 'sampler', v, onError)}
+          />
+        </div>
+      </div>
+      <div className="rx-sample-grid">
+        {samples.map((sample, i) => {
+          const slot = i + 2;
+          const track = tracks.find((t) => t.id === sample.id);
+          return (
+            <button
+              key={i}
+              className={sample.playing ? 'is-on' : ''}
+              disabled={loading.includes(slot) || (!track && selected === null)}
+              title={`${track?.title ?? tr('Vacío', 'Empty')} · ${tr(
+                'Clic: reproducir · Shift: cargar selección · Alt: detener',
+                'Click: play · Shift: load selection · Alt: stop',
+              )}`}
+              data-action={act(slot, 'trigger')}
+              onClick={(e) => {
+                if (e.altKey) {
+                  control(slot, 'pause').catch(onError);
+                  return;
+                }
+                const intent = samplePadIntent(
+                  i,
+                  !!track,
+                  selected,
+                  e.shiftKey,
+                  loading.includes(slot),
+                );
+                if (intent?.kind === 'load') onLoad(intent.slot, intent.id);
+                else if (intent?.kind === 'trigger') control(intent.slot, 'trigger').catch(onError);
+              }}
+            >
+              <span>S{i + 1}</span>
+              <small>{track?.title ?? ''}</small>
+              <KeyBadge action={act(slot, 'trigger')} />
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** What is connected, and what it is doing right now. */
+function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
+  const { midi, output } = useSnapshot();
+  const devices = useDevices();
+  const lastMidi = useRef('');
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    if (!midi.lastMessage || midi.lastMessage === lastMidi.current) return;
+    lastMidi.current = midi.lastMessage;
+    setActive(true);
+    const timer = setTimeout(() => setActive(false), 180);
+    return () => clearTimeout(timer);
+  }, [midi.lastMessage]);
+  const cue = (output?.channels ?? 2) >= 4;
+  return (
+    <div className="rx-module rx-connections">
+      <div className="rx-module-head">
+        <b>{tr('CONEXIONES', 'CONNECTIONS')}</b>
+        <button onClick={onSettings}>MIDI LEARN</button>
+      </div>
+      <dl>
+        <dt>
+          <i className={`rx-led ${midi.connected ? 'is-on' : ''} ${active ? 'is-hit' : ''}`} />
+          MIDI
+        </dt>
+        <dd>{midi.connected ?? tr('sin controlador', 'no controller')}</dd>
+        <dt />
+        <dd>{midi.lastMessage ?? `${midi.bindings.length} ${tr('asignaciones', 'mappings')}`}</dd>
+        <dt>
+          <i className={`rx-led ${output ? 'is-on' : ''}`} />
+          AUDIO
+        </dt>
+        <dd>
+          {output
+            ? `${output.channels} ch · ${output.sampleRate / 1000} kHz`
+            : tr('sin salida', 'no output')}
+        </dd>
+        <dt>
+          <i className={`rx-led ${cue ? 'is-on' : ''}`} />
+          CUE
+        </dt>
+        <dd>
+          {cue ? tr('salidas 3 y 4', 'outputs 3 and 4') : tr('sin salida propia', 'no own output')}
+        </dd>
+        <dt>
+          <i className={`rx-led ${devices.length ? 'is-on' : ''}`} />
+          USB
+        </dt>
+        <dd>{devices.map((device) => device.name).join(' · ') || '—'}</dd>
+      </dl>
+    </div>
+  );
+}
 
 function Screen({
   slots,
@@ -1257,17 +1583,18 @@ function Screen({
             <small>{fx.on ? 'ON' : 'OFF'}</small>
           </div>
         </div>
-        <div className="rx-display-bank" role="group" aria-label="Beat FX">
-          {BANK_DIVISIONS.map((beats) => (
+        <div className="rx-display-bank">
+          {FX_BANK.map((kind) => (
             <button
-              key={beats}
-              aria-pressed={fx.beats === beats}
-              data-action={act(unit, 'beatFxBeats', beats)}
-              onClick={() => control(unit, 'beatFxBeats', beats).catch(onError)}
+              key={kind}
+              aria-pressed={fx.kind === kind}
+              data-action={act(unit, 'beatFx', kind)}
+              onClick={() => control(unit, 'beatFx', kind).catch(onError)}
             >
-              {fx.kind === PITCH_FX ? pitchLabel(beats) : beatLabel(beats)}
+              {BEAT_FX[kind]}
             </button>
           ))}
+          <XPad unit={unit} fx={fx} onError={onError} />
         </div>
         <div className="rx-display-decks">
           {slots.map((slot, i) => (
@@ -1298,6 +1625,7 @@ function Screen({
 }
 
 const CURVES = ['THRU', '⌒', '⊓'];
+const IDLE_FX: BeatFxState = { kind: 1, on: false, beats: 1, depth: 0.5, bpm: 0 };
 
 export function HardwareConsole({
   library,
@@ -1307,6 +1635,7 @@ export function HardwareConsole({
   selected,
   onLoad,
   onEdit,
+  badges,
   autoGain,
   onAutoGain,
   onScreenKey,
@@ -1319,13 +1648,15 @@ export function HardwareConsole({
   selected: number | null;
   onLoad: (slot: number, id: number) => void;
   onEdit: (edit: LibraryEdit) => unknown;
+  badges: boolean;
   autoGain: boolean;
   onAutoGain: (on: boolean) => void;
   onScreenKey: (key: ScreenKey) => void;
   onBrowse: (delta: number) => void;
 }) {
-  const { audio } = useSnapshot();
+  const { audio, output } = useSnapshot();
   const devices = useDevices();
+  const hasCue = (output?.channels ?? 2) >= 4;
   const scrollRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef(1);
@@ -1364,14 +1695,13 @@ export function HardwareConsole({
   const samples = Array.from({ length: SAMPLE_PADS }, (_, i) => audio?.slots[i + 2] ?? EMPTY_SLOT);
   const selection = library.tracks.find((track) => track.id === selected);
   const tracks = slots.map((slot) => library.tracks.find((track) => track.id === slot.id));
-  const fx = audio?.beatFx?.[unit] ?? { kind: 1, on: false, beats: 1, depth: 0.5, bpm: 0 };
+  const fx = audio?.beatFx?.[unit] ?? IDLE_FX;
   const drives = devices.slice(0, 2);
   const deck = (index: number): ReactNode => (
     <RxDeck
       index={index}
       slot={slots[index]}
       track={tracks[index]}
-      keys={keys}
       loading={loading.includes(index)}
       masterDeck={audio?.masterDeck ?? 0}
       masterHasBpm={!!audio?.slots[audio.masterDeck]?.music.bpm}
@@ -1391,213 +1721,268 @@ export function HardwareConsole({
       aria-label={tr('Cabina de mezcla', 'Mixing console')}
       tabIndex={0}
     >
-      <div ref={bodyRef} className="rx-body" style={{ zoom: scale }}>
-        <div className="rx-chassis" />
-        <div className="rx-band rx-band-left" aria-label="MIC">
-          <span className="rx-at rx-section-title" style={at(236, 24)}>
-            MIC
-          </span>
-          <Soon x={95} y={72}>
-            OFF / ON / TALK
-          </Soon>
-          <Soon dial x={190} y={72}>
-            LOW
-          </Soon>
-          <Soon dial x={245} y={72}>
-            HI
-          </Soon>
-          <Soon dial x={310} y={72}>
-            MIC 1
-          </Soon>
-          <Soon dial x={370} y={72}>
-            MIC 2
-          </Soon>
-        </div>
-        <div className="rx-band rx-band-right">
-          <b className="rx-at rx-brand" style={at(250, 36)}>
-            curado
-          </b>
-          {[0, 1].map((i) => (
-            <div
-              key={i}
-              className={`rx-at rx-usb ${drives[i] ? 'is-on' : ''}`}
-              style={at(i ? 415 : 335, 62)}
-              title={drives[i]?.name}
-            >
-              <span>USB {i + 1}</span>
-              <i />
-              <small>{drives[i]?.name ?? '—'}</small>
-            </div>
-          ))}
-        </div>
-        <Screen
-          slots={slots}
-          tracks={tracks}
-          unit={unit}
-          fx={fx}
-          onKey={onScreenKey}
-          onError={onError}
-        />
-        <div className="rx-browser">
-          <Key label="BACK" x={22} y={24} onClick={() => onScreenKey('browse')} />
-          <Key
-            label="TAG TRACK"
-            x={82}
-            y={24}
-            wide
-            disabled={!selection}
-            on={!!selection?.favorite}
-            title={tr(
-              'Marca la pista seleccionada como favorita',
-              'Marks the selected track as a favorite',
-            )}
-            onClick={() =>
-              selection &&
-              onEdit({ kind: 'favorite', track: selection.id, value: !selection.favorite })
-            }
-          />
-          <div className="rx-at rx-selector" style={at(52, 82)}>
-            <StepDial
-              label=""
-              x={0}
-              y={0}
-              size={62}
-              index={50}
-              names={Array.from({ length: 101 }, (_, i) => String(i))}
-              onStep={(next) => onBrowse(next - 50)}
+      <KeysContext.Provider value={keys}>
+        <div
+          ref={bodyRef}
+          className={`rx-body ${badges ? '' : 'no-badges'}`}
+          style={{ zoom: scale }}
+        >
+          <div className="rx-top rx-top-left">
+            <SamplesPanel
+              samples={samples}
+              tracks={library.tracks}
+              selected={selected}
+              sampler={audio?.sampler ?? 1}
+              loading={loading}
+              onLoad={onLoad}
+              onError={onError}
             />
+            <XYPad index={0} slot={slots[0]} fx={audio?.beatFx?.[0] ?? IDLE_FX} onError={onError} />
           </div>
-          <span className="rx-at rx-print" style={at(52, 128)}>
-            LOAD
-          </span>
-          <Key
-            label="1"
-            x={32}
-            y={148}
-            disabled={!selected || loading.includes(0)}
-            title={tr('Cargar la selección en el deck 1', 'Load the selection into deck 1')}
-            onClick={() => selected && onLoad(0, selected)}
-          />
-          <Key
-            label="2"
-            x={72}
-            y={148}
-            disabled={!selected || loading.includes(1)}
-            title={tr('Cargar la selección en el deck 2', 'Load the selection into deck 2')}
-            onClick={() => selected && onLoad(1, selected)}
-          />
-        </div>
-        {deck(0)}
-        <div className="rx-mixer">
-          <Soon x={55} y={32}>
-            DECK 1 / LINE / PHONO
-          </Soon>
-          <span className="rx-at rx-section-title" style={at(55, 62)}>
-            AUX
-          </span>
-          <Soon x={55} y={86}>
-            OFF / LINE / PORTABLE
-          </Soon>
-          <Soon dial x={55} y={130}>
-            TRIM
-          </Soon>
-          <ColorFxBlock slots={slots} onError={onError} />
-          <span className="rx-at rx-section-title" style={at(55, 368)}>
-            HEADPHONES
-          </span>
-          <Soon x={30} y={392}>
-            LINK
-          </Soon>
-          <Soon dial x={72} y={400}>
-            MIXING
-          </Soon>
-          <Soon dial x={55} y={456}>
-            LEVEL
-          </Soon>
-
-          <RxChannel index={0} x={150} slot={slots[0]} onError={onError} />
-          <RxChannel index={1} x={282} slot={slots[1]} onError={onError} />
-
-          <div className="rx-at rx-mini-knob" style={at(216, 32)}>
-            <Knob
-              label="MASTER LEVEL"
-              tone="master"
-              action={act(0, 'master')}
-              defaultValue={0.75}
-              value={audio?.master ?? 0.75}
-              onChange={(v) => parameter(0, 'master', v, onError)}
-            />
+          <div className="rx-top rx-top-right">
+            <XYPad index={1} slot={slots[1]} fx={audio?.beatFx?.[1] ?? IDLE_FX} onError={onError} />
+            <ConnectionsPanel onSettings={() => onScreenKey('menu')} />
           </div>
-          <div className="rx-at rx-meters" style={at(216, 165)}>
-            <span>CH1 · MASTER · CH2</span>
-            <div>
-              <Meter vertical value={slots[0].peak} label="CH 1" />
-              <Meter vertical value={audio?.peak ?? 0} label={tr('Nivel master', 'Master level')} />
-              <Meter vertical value={slots[1].peak} label="CH 2" />
-            </div>
+          <div className="rx-chassis" />
+          <div className="rx-band rx-band-left" aria-label="MIC">
+            <span className="rx-at rx-section-title" style={at(236, 24)}>
+              MIC
+            </span>
+            <Soon x={95} y={72}>
+              OFF / ON / TALK
+            </Soon>
+            <Soon dial x={190} y={72}>
+              LOW
+            </Soon>
+            <Soon dial x={245} y={72}>
+              HI
+            </Soon>
+            <Soon dial x={310} y={72}>
+              MIC 1
+            </Soon>
+            <Soon dial x={370} y={72}>
+              MIC 2
+            </Soon>
           </div>
-          <div className="rx-at" style={at(216, 266)}>
-            <LimiterLamp reduction={audio?.limiterDb ?? 0} />
-          </div>
-          <Key
-            label="AUTO GAIN"
-            x={216}
-            y={298}
-            wide
-            on={autoGain}
-            title={tr(
-              'Iguala el nivel de las pistas a −14 LUFS, hasta ±12 dB',
-              'Matches track levels to −14 LUFS, up to ±12 dB',
-            )}
-            onClick={() => {
-              onAutoGain(!autoGain);
-              control(0, 'autoGain', autoGain ? 0 : 1).catch(onError);
-            }}
-          />
-          <span className="rx-at rx-print" style={at(216, 340)}>
-            CROSSFADER CURVE
-          </span>
-          <div className="rx-at rx-curve" role="group" style={at(216, 362)}>
-            {CURVES.map((label, curve) => (
-              <button
-                key={label}
-                aria-pressed={(audio?.crossfaderCurve ?? 1) === curve}
-                data-action={act(0, 'crossfaderCurve', curve)}
-                onClick={() => control(0, 'crossfaderCurve', curve).catch(onError)}
+          <div className="rx-band rx-band-right">
+            <b className="rx-at rx-brand" style={at(250, 36)}>
+              curado
+            </b>
+            {[0, 1].map((i) => (
+              <div
+                key={i}
+                className={`rx-at rx-usb ${drives[i] ? 'is-on' : ''}`}
+                style={at(i ? 415 : 335, 62)}
+                title={drives[i]?.name}
               >
-                {label}
-              </button>
+                <span>USB {i + 1}</span>
+                <i />
+                <small>{drives[i]?.name ?? '—'}</small>
+              </div>
             ))}
           </div>
-          <b className="rx-at rx-brand" style={at(216, 440)}>
-            curado
-          </b>
-
-          <Soon x={372} y={32}>
-            DECK 2 / LINE / PHONO
-          </Soon>
-          <Soon dial x={372} y={92}>
-            BOOTH MONITOR
-          </Soon>
-          <BeatFxBlock x={372} unit={unit} onUnit={setUnit} state={fx} onError={onError} />
-
-          <div className="rx-at rx-cross" style={at(216, 505)}>
-            <b>A</b>
-            <Slider
-              vertical={false}
-              label=""
-              tone="master"
-              action={act(0, 'crossfader')}
-              origin={0.5}
-              defaultValue={0.5}
-              value={audio?.crossfader ?? 0.5}
-              onChange={(v) => parameter(0, 'crossfader', v, onError)}
+          <Screen
+            slots={slots}
+            tracks={tracks}
+            unit={unit}
+            fx={fx}
+            onKey={onScreenKey}
+            onError={onError}
+          />
+          <div className="rx-browser">
+            <Key label="BACK" x={22} y={24} onClick={() => onScreenKey('browse')} />
+            <Key
+              label="TAG TRACK"
+              x={82}
+              y={24}
+              wide
+              disabled={!selection}
+              on={!!selection?.favorite}
+              title={tr(
+                'Marca la pista seleccionada como favorita',
+                'Marks the selected track as a favorite',
+              )}
+              onClick={() =>
+                selection &&
+                onEdit({ kind: 'favorite', track: selection.id, value: !selection.favorite })
+              }
             />
-            <b>B</b>
+            <div className="rx-at rx-selector" style={at(52, 82)}>
+              <StepDial
+                label=""
+                x={0}
+                y={0}
+                size={62}
+                index={50}
+                names={Array.from({ length: 101 }, (_, i) => String(i))}
+                onStep={(next) => onBrowse(next - 50)}
+              />
+            </div>
+            <span className="rx-at rx-print" style={at(52, 128)}>
+              LOAD
+            </span>
+            <kbd className="rx-at rx-badge rx-badge-free" style={at(92, 82)}>
+              ↑↓
+            </kbd>
+            <Key
+              label="1"
+              x={32}
+              y={148}
+              action={act(0, 'listLoad')}
+              disabled={!selected || loading.includes(0)}
+              title={tr('Cargar la selección en el deck 1', 'Load the selection into deck 1')}
+              onClick={() => selected && onLoad(0, selected)}
+            />
+            <Key
+              label="2"
+              x={72}
+              y={148}
+              action={act(1, 'listLoad')}
+              disabled={!selected || loading.includes(1)}
+              title={tr('Cargar la selección en el deck 2', 'Load the selection into deck 2')}
+              onClick={() => selected && onLoad(1, selected)}
+            />
           </div>
+          {deck(0)}
+          <div className="rx-mixer">
+            <Soon x={55} y={32}>
+              DECK 1 / LINE / PHONO
+            </Soon>
+            <span className="rx-at rx-section-title" style={at(55, 62)}>
+              AUX
+            </span>
+            <Soon x={55} y={86}>
+              OFF / LINE / PORTABLE
+            </Soon>
+            <Soon dial x={55} y={130}>
+              TRIM
+            </Soon>
+            <ColorFxBlock slots={slots} onError={onError} />
+            <span className="rx-at rx-section-title" style={at(55, 368)}>
+              HEADPHONES
+            </span>
+            <Key
+              label="MASTER"
+              x={28}
+              y={392}
+              on={audio?.cueMaster}
+              disabled={!hasCue}
+              title={
+                hasCue
+                  ? tr('Oye la mezcla en los audífonos', 'Hears the mix in the headphones')
+                  : NO_CUE
+              }
+              action={act(0, 'masterCue', audio?.cueMaster ? 0 : 1)}
+              onClick={() => control(0, 'masterCue', audio?.cueMaster ? 0 : 1).catch(onError)}
+            />
+            <div className="rx-at rx-mini-knob" style={at(74, 402)}>
+              <Knob
+                label="MIXING"
+                tone="master"
+                action={act(0, 'cueMix')}
+                value={audio?.cueMix ?? 0}
+                onChange={(v) => parameter(0, 'cueMix', v, onError)}
+              />
+            </div>
+            <div className="rx-at rx-mini-knob" style={at(55, 462)}>
+              <Knob
+                label="LEVEL"
+                tone="master"
+                action={act(0, 'cueLevel')}
+                defaultValue={0.7}
+                value={audio?.cueLevel ?? 0.7}
+                onChange={(v) => parameter(0, 'cueLevel', v, onError)}
+              />
+            </div>
+
+            <RxChannel index={0} x={150} slot={slots[0]} hasCue={hasCue} onError={onError} />
+            <RxChannel index={1} x={282} slot={slots[1]} hasCue={hasCue} onError={onError} />
+
+            <div className="rx-at rx-mini-knob" style={at(216, 32)}>
+              <Knob
+                label="MASTER LEVEL"
+                tone="master"
+                action={act(0, 'master')}
+                defaultValue={0.75}
+                value={audio?.master ?? 0.75}
+                onChange={(v) => parameter(0, 'master', v, onError)}
+              />
+            </div>
+            <div className="rx-at rx-meters" style={at(216, 165)}>
+              <span>CH1 · MASTER · CH2</span>
+              <div>
+                <Meter vertical value={slots[0].peak} label="CH 1" />
+                <Meter
+                  vertical
+                  value={audio?.peak ?? 0}
+                  label={tr('Nivel master', 'Master level')}
+                />
+                <Meter vertical value={slots[1].peak} label="CH 2" />
+              </div>
+            </div>
+            <div className="rx-at" style={at(216, 266)}>
+              <LimiterLamp reduction={audio?.limiterDb ?? 0} />
+            </div>
+            <Key
+              label="AUTO GAIN"
+              x={216}
+              y={298}
+              wide
+              on={autoGain}
+              title={tr(
+                'Iguala el nivel de las pistas a −14 LUFS, hasta ±12 dB',
+                'Matches track levels to −14 LUFS, up to ±12 dB',
+              )}
+              onClick={() => {
+                onAutoGain(!autoGain);
+                control(0, 'autoGain', autoGain ? 0 : 1).catch(onError);
+              }}
+            />
+            <span className="rx-at rx-print" style={at(216, 340)}>
+              CROSSFADER CURVE
+            </span>
+            <div className="rx-at rx-curve" role="group" style={at(216, 362)}>
+              {CURVES.map((label, curve) => (
+                <button
+                  key={label}
+                  aria-pressed={(audio?.crossfaderCurve ?? 1) === curve}
+                  data-action={act(0, 'crossfaderCurve', curve)}
+                  onClick={() => control(0, 'crossfaderCurve', curve).catch(onError)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <b className="rx-at rx-brand" style={at(216, 440)}>
+              curado
+            </b>
+
+            <Soon x={372} y={32}>
+              DECK 2 / LINE / PHONO
+            </Soon>
+            <Soon dial x={372} y={92}>
+              BOOTH MONITOR
+            </Soon>
+            <BeatFxBlock x={372} unit={unit} onUnit={setUnit} state={fx} onError={onError} />
+
+            <div className="rx-at rx-cross" style={at(216, 505)}>
+              <b>A</b>
+              <Slider
+                vertical={false}
+                label=""
+                tone="master"
+                action={act(0, 'crossfader')}
+                origin={0.5}
+                defaultValue={0.5}
+                value={audio?.crossfader ?? 0.5}
+                onChange={(v) => parameter(0, 'crossfader', v, onError)}
+              />
+              <b>B</b>
+            </div>
+          </div>
+          {deck(1)}
         </div>
-        {deck(1)}
-      </div>
+      </KeysContext.Provider>
     </div>
   );
 }

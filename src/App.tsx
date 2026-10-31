@@ -43,11 +43,17 @@ import type {
   LibraryEdit,
 } from './lib/types';
 import { EMPTY_SLOT } from './lib/types';
-import { DEFAULT_KEYS, allowedInMode, matchKey } from './lib/keyboard';
+import { DEFAULT_KEYS, allowedInMode, matchKey, resolveAction } from './lib/keyboard';
 import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
 import { invalidateCueInfo } from './lib/cues';
-import { deviceViewId, exportSummary, parseDeviceView, playlistTree } from './lib/devices';
+import {
+  deviceViewId,
+  exportSummary,
+  parseDeviceView,
+  playlistTree,
+  tracksInSection,
+} from './lib/devices';
 import type { PlaylistRow } from './lib/devices';
 import { setMiniWindow } from './lib/window';
 import { readMixLayout, saveMixLayout } from './lib/mix-layout';
@@ -118,7 +124,10 @@ export default function App() {
         .catch(onError);
       call<KeyBinding[] | null>('get_keyboard')
         .then((data) => {
-          if (data && !disposed) setKeys(data);
+          // Saved under the old layout, without the bar's new meaning: it stays stored until a
+          // new choice is saved, but the scheme it was made for is gone.
+          if (data && !disposed && data.some((key) => key.action.kind === 'toggleBoth'))
+            setKeys(data);
         })
         .catch(onError);
     }
@@ -134,12 +143,20 @@ export default function App() {
     await call('save_keyboard', { bindings });
     setKeys(bindings);
   }, []);
+  const listKeys = useRef({ move: (_delta: number) => {}, load: (_slot: number) => {} });
   /** Keyboard, keycap clicks and the HUD share one dispatch path to the native queue. */
   const trigger = useCallback(
     (binding: KeyBinding) => {
       const allowed = allowedInMode(binding.action, mode);
       feedback(binding, allowed);
-      if (allowed) call('audio_action', { action: binding.action }).catch(onError);
+      if (!allowed) return;
+      const { kind, slot, value } = binding.action;
+      if (kind === 'listMove') listKeys.current.move(value);
+      else if (kind === 'listLoad') listKeys.current.load(slot);
+      else {
+        const action = resolveAction(binding.action, getSnapshot().audio, mode);
+        call('audio_action', { action }).catch(onError);
+      }
     },
     [mode, onError],
   );
@@ -148,7 +165,8 @@ export default function App() {
     const handle = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target.closest('input,textarea,select,[contenteditable="true"],[role="slider"]')) return;
-      if (target.closest('button') && ['Space', 'Enter'].includes(e.code)) return;
+      // A button keeps focus after a click, and the bar must still mean the whole mix then.
+      if (target.closest('button:focus-visible') && ['Space', 'Enter'].includes(e.code)) return;
       // Match ignoring mode first so blocked keys still explain themselves in the HUD.
       const binding = matchKey(e, keys, 'mix');
       if (!binding) return;
@@ -190,6 +208,7 @@ export default function App() {
     : null;
   const [deviceLibraries, setDeviceLibraries] = useState<Record<string, DeviceExport>>({});
   const [deviceError, setDeviceError] = useState<string | null>(null);
+  const [deviceSelected, setDeviceSelected] = useState<number | null>(null);
   // Listed on opening each device, so a drive exported again while plugged in is picked up.
   const openDevice = activeDevice?.rekordbox ? activeDevice.id : null;
   useEffect(() => {
@@ -346,8 +365,20 @@ export default function App() {
       requestAnimationFrame(() => document.querySelector<HTMLElement>(target)?.focus());
     }
   };
-  /** The selector moves through what the panel lists, in its order. */
+  /** The selector and the arrows move through what the panel lists, in its order. */
   const browseBy = (delta: number) => {
+    if (deviceView && openedLibrary) {
+      const listed = tracksInSection(
+        openedLibrary.tracks,
+        openedLibrary.playlists,
+        deviceView.section,
+      );
+      if (!listed.length) return;
+      const at = listed.findIndex((t) => t.id === deviceSelected);
+      const next = at < 0 ? 0 : Math.max(0, Math.min(listed.length - 1, at + delta));
+      setDeviceSelected(listed[next].id);
+      return;
+    }
     const active = library.playlists.find((p) => `playlist:${p.id}` === view);
     const listed = active
       ? active.tracks.flatMap((id) => localLibrary.tracks.filter((t) => t.id === id))
@@ -359,6 +390,18 @@ export default function App() {
     const next = at < 0 ? 0 : Math.max(0, Math.min(listed.length - 1, at + delta));
     setSelected(listed[next].id);
   };
+  const loadDeviceTrack = (slot: number, track: number) => {
+    if (!activeDevice) return;
+    void loadWith(slot, () =>
+      call<number | null>('device_load_track', { slot, device: activeDevice.id, track }),
+    );
+  };
+  const loadChosen = (slot: number) => {
+    if (deviceView) {
+      if (deviceSelected !== null) loadDeviceTrack(slot, deviceSelected);
+    } else if (selected !== null) load(slot, selected);
+  };
+  listKeys.current = { move: browseBy, load: loadChosen };
   const rail = mode === 'mix' ? workspace.railMix : workspace.railPlayer;
   const inWorkspace = mode === 'mix' && view !== 'web';
   const browser = (
@@ -382,15 +425,9 @@ export default function App() {
           mix={mode === 'mix'}
           loading={loading.length > 0}
           onError={onError}
-          onLoadTrack={(slot, track) =>
-            void loadWith(slot, () =>
-              call<number | null>('device_load_track', {
-                slot,
-                device: activeDevice.id,
-                track,
-              }),
-            )
-          }
+          selected={deviceSelected}
+          onSelect={setDeviceSelected}
+          onLoadTrack={loadDeviceTrack}
           onLoadFile={(slot, entry) =>
             void loadWith(slot, () => call<number | null>('device_load_file', { slot, entry }))
           }
@@ -949,6 +986,19 @@ function MixView({
           >
             {tr('cabina', 'console')}
           </button>
+          {layout === 'console' && (
+            <button
+              type="button"
+              aria-pressed={workspace.badges}
+              title={tr(
+                'Muestra en cada control su atajo de teclado',
+                'Shows each control its keyboard shortcut',
+              )}
+              onClick={() => onWorkspace({ badges: !workspace.badges })}
+            >
+              {tr('teclas', 'keys')}
+            </button>
+          )}
           <span className="mix-bar-gap" />
           <button
             type="button"
@@ -978,6 +1028,7 @@ function MixView({
               selected={selected}
               onLoad={onLoad}
               onEdit={onEdit}
+              badges={workspace.badges}
               autoGain={workspace.autoGain}
               onAutoGain={(autoGain) => onWorkspace({ autoGain })}
               onScreenKey={onScreenKey}

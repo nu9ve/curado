@@ -1084,3 +1084,170 @@ fn sync_stays_on_the_beat_of_a_moving_tempo() {
     let beat_ms = 60_000. / r.decks[0].local_bpm().unwrap();
     assert!(gap.abs() * beat_ms < 15., "{} ms apart", gap * beat_ms);
 }
+
+fn run_to_silence(h: &EngineHandle, r: &mut Renderer) {
+    for _ in 0..100 {
+        if !h.snapshot().slots[0].playing {
+            return;
+        }
+        render(r, 4800);
+    }
+    panic!("the deck never stopped");
+}
+
+#[test]
+fn a_vinyl_brake_release_winds_down_and_stops() {
+    for (kind, least) in [(0., 0.1), (1., 0.5)] {
+        let (h, mut r) = playing_deck(30);
+        let before = position(&h);
+        h.action(Action {
+            slot: 0,
+            kind: "releaseFx".into(),
+            value: kind,
+        })
+        .unwrap();
+        render(&mut r, 256);
+        assert!(h.snapshot().slots[0].playing, "it does not cut");
+        run_to_silence(&h, &mut r);
+        let moved = position(&h) - before;
+        assert!(moved > least, "{moved}");
+    }
+}
+
+#[test]
+fn a_backspin_goes_backward_and_stops() {
+    let (h, mut r) = playing_deck(30);
+    render(&mut r, SR as usize * 4);
+    let before = position(&h);
+    h.control(0, Control::Release(3)).unwrap();
+    let output = render(&mut r, 9600);
+    assert!(position(&h) < before, "{}", position(&h));
+    assert!(output.iter().any(|v| v.abs() > 0.05), "it is audible");
+    run_to_silence(&h, &mut r);
+    assert!(position(&h) < before - 0.5);
+    render(&mut r, 2400);
+    h.control(0, Control::Play).unwrap();
+    render(&mut r, 2400);
+    assert!(r.decks[0].spin_left == 0 && h.snapshot().slots[0].playing);
+}
+
+#[test]
+fn echo_out_stops_the_track_keeps_the_repeats_and_restores_the_unit() {
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::BeatFx(7)).unwrap();
+    render(&mut r, 512);
+    h.control(0, Control::Release(4)).unwrap();
+    render(&mut r, SR as usize / 2);
+    assert!(!h.snapshot().slots[0].playing);
+    let tail = render(&mut r, 4800);
+    assert!(tail.iter().any(|v| v.abs() > 0.01), "the repeats ring on");
+    render(&mut r, SR as usize * 7);
+    render(&mut r, 512);
+    assert_eq!(
+        h.snapshot().beat_fx[0].kind,
+        7,
+        "the unit is back as it was"
+    );
+}
+
+#[test]
+fn build_up_and_ducking_last_while_held() {
+    let measure = |kind: u8| {
+        let (h, mut r) = playing_deck(30);
+        let peak = |v: &[f32]| v.iter().fold(0_f32, |p, x| p.max(x.abs()));
+        let before = peak(&render(&mut r, 4800));
+        h.control(0, Control::Release(kind)).unwrap();
+        render(&mut r, SR as usize * 8);
+        let held: Vec<f32> = render(&mut r, 24000);
+        let during = held.iter().map(|v| v * v).sum::<f32>() / held.len() as f32;
+        h.control(0, Control::ReleaseEnd).unwrap();
+        render(&mut r, 4800);
+        let after = peak(&render(&mut r, 4800));
+        assert!(h.snapshot().slots[0].playing, "the deck keeps playing");
+        (before, during.sqrt(), after)
+    };
+    for kind in [5, 7] {
+        let (before, during, after) = measure(kind);
+        assert!(during < before * 0.6, "{kind}: {during} against {before}");
+        assert!(
+            (after - before).abs() < before * 0.1,
+            "{kind}: back to {after}"
+        );
+    }
+    let (h, mut r) = playing_deck(30);
+    h.control(0, Control::Release(6)).unwrap();
+    render(&mut r, 512);
+    assert!(!h.snapshot().slots[0].playing, "mute cuts at once");
+}
+
+#[test]
+fn the_space_bar_action_pauses_anything_playing_or_starts_both() {
+    let (h, mut r) = engine(SR);
+    h.load(0, clip_of(1, sine(10, 110., 0.5), true)).unwrap();
+    render(&mut r, 256);
+    h.load(1, clip_of(2, sine(10, 110., 0.5), true)).unwrap();
+    render(&mut r, 256);
+    h.control(0, Control::ToggleBoth).unwrap();
+    render(&mut r, 2048);
+    let s = h.snapshot();
+    assert!(s.slots[0].playing && s.slots[1].playing);
+    h.control(1, Control::Pause).unwrap();
+    render(&mut r, 2048);
+    h.control(0, Control::ToggleBoth).unwrap();
+    render(&mut r, 2048);
+    let s = h.snapshot();
+    assert!(
+        !s.slots[0].playing && !s.slots[1].playing,
+        "one playing is enough to pause"
+    );
+}
+
+fn render_channels(r: &mut Renderer, frames: usize, channels: usize) -> Vec<f32> {
+    let mut out = vec![0_f32; frames * channels];
+    for block in out.chunks_mut(256 * channels) {
+        r.render(block, channels);
+    }
+    out
+}
+
+#[test]
+fn a_cue_bus_goes_out_on_channels_three_and_four() {
+    let (h, mut r) = settled();
+    h.load_and_play(0, clip_of(1, sine(10, 220., 0.5), true))
+        .unwrap();
+    h.control(0, Control::Gain(0.)).unwrap();
+    render_channels(&mut r, 4800, 4);
+    let level = |out: &[f32], c: usize| out.chunks(4).fold(0_f32, |p, f| p.max(f[c].abs()));
+    // Fader down: nothing on the mains and nothing cued.
+    let silent = render_channels(&mut r, 4800, 4);
+    assert!(level(&silent, 0) < 1e-3 && level(&silent, 2) < 1e-3);
+    // The cue is before the fader, so it is heard with the fader closed.
+    h.control(0, Control::Cue2(true)).unwrap();
+    render_channels(&mut r, 4800, 4);
+    let cued = render_channels(&mut r, 4800, 4);
+    assert!(level(&cued, 0) < 1e-3, "mains stay silent");
+    assert!(level(&cued, 2) > 0.2, "{}", level(&cued, 2));
+    h.control(0, Control::CueLevel(0.)).unwrap();
+    render_channels(&mut r, 256, 4);
+    assert!(level(&render_channels(&mut r, 2048, 4), 2) < 1e-3);
+}
+
+#[test]
+fn a_preview_goes_to_the_cue_bus_or_quietly_to_the_mains() {
+    let run = |channels: usize| {
+        let (h, mut r) = settled();
+        h.load(PREVIEW_SLOT, clip_of(9, sine(5, 220., 0.5), false))
+            .unwrap();
+        render_channels(&mut r, 256, channels);
+        h.control(PREVIEW_SLOT, Control::Play).unwrap();
+        render_channels(&mut r, 2400, channels);
+        let out = render_channels(&mut r, 2400, channels);
+        let level = |c: usize| out.chunks(channels).fold(0_f32, |p, f| p.max(f[c].abs()));
+        (level(0), if channels >= 4 { level(2) } else { 0. })
+    };
+    let (mains, phones) = run(4);
+    assert!(mains < 1e-3, "{mains}");
+    assert!(phones > 0.1, "{phones}");
+    let (mains, _) = run(2);
+    assert!(mains > 0.05, "{mains}");
+}

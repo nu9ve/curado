@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowUpRight, CornerLeftUp, Disc3, FileAudio, Folder, Search, Usb, X } from 'lucide-react';
 import { call } from '../lib/bridge';
 import { matchesQuery, tracksInSection } from '../lib/devices';
@@ -44,15 +44,71 @@ function LoadButtons({
   );
 }
 
+function DeviceRow({
+  track,
+  index,
+  chosen,
+  mix,
+  loading,
+  onSelect,
+  onLoad,
+}: {
+  track: DeviceTrack;
+  index: number;
+  chosen: boolean;
+  mix: boolean;
+  loading: boolean;
+  onSelect: (track: number) => void;
+  onLoad: (slot: number, track: number) => void;
+}) {
+  const row = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (chosen) row.current?.scrollIntoView({ block: 'nearest' });
+  }, [chosen]);
+  return (
+    <tr
+      ref={row}
+      className={chosen ? 'selected' : ''}
+      aria-selected={chosen}
+      tabIndex={0}
+      onClick={() => onSelect(track.id)}
+      onDoubleClick={() => onLoad(0, track.id)}
+    >
+      <td className="number">{String(index + 1).padStart(2, '0')}</td>
+      <td>
+        <div className="table-title">
+          <div>
+            <strong>{track.title}</strong>
+            <small>{track.artist || track.album}</small>
+          </div>
+        </div>
+      </td>
+      <td>
+        <small>{track.genre}</small>
+      </td>
+      <td className="duration">{time(track.duration)}</td>
+      <td className="mono">{track.bpm > 0 ? track.bpm.toFixed(2) : '—'}</td>
+      <td className="mono">{track.key ?? '—'}</td>
+      <td>
+        <LoadButtons mix={mix} disabled={loading} onLoad={(slot) => onLoad(slot, track.id)} />
+      </td>
+    </tr>
+  );
+}
+
 function TrackTable({
   tracks,
   mix,
   loading,
+  selected,
+  onSelect,
   onLoad,
 }: {
   tracks: DeviceTrack[];
   mix: boolean;
   loading: boolean;
+  selected: number | null;
+  onSelect: (track: number) => void;
   onLoad: (slot: number, track: number) => void;
 }) {
   return (
@@ -71,30 +127,16 @@ function TrackTable({
         </thead>
         <tbody>
           {tracks.slice(0, VISIBLE_ROWS).map((track, i) => (
-            <tr key={track.id} tabIndex={0} onDoubleClick={() => onLoad(0, track.id)}>
-              <td className="number">{String(i + 1).padStart(2, '0')}</td>
-              <td>
-                <div className="table-title">
-                  <div>
-                    <strong>{track.title}</strong>
-                    <small>{track.artist || track.album}</small>
-                  </div>
-                </div>
-              </td>
-              <td>
-                <small>{track.genre}</small>
-              </td>
-              <td className="duration">{time(track.duration)}</td>
-              <td className="mono">{track.bpm > 0 ? track.bpm.toFixed(2) : '—'}</td>
-              <td className="mono">{track.key ?? '—'}</td>
-              <td>
-                <LoadButtons
-                  mix={mix}
-                  disabled={loading}
-                  onLoad={(slot) => onLoad(slot, track.id)}
-                />
-              </td>
-            </tr>
+            <DeviceRow
+              key={track.id}
+              track={track}
+              index={i}
+              chosen={track.id === selected}
+              mix={mix}
+              loading={loading}
+              onSelect={onSelect}
+              onLoad={onLoad}
+            />
           ))}
         </tbody>
       </table>
@@ -196,6 +238,8 @@ export function DeviceBrowser({
   mix,
   loading,
   onError,
+  selected,
+  onSelect,
   onLoadTrack,
   onLoadFile,
 }: {
@@ -206,6 +250,8 @@ export function DeviceBrowser({
   mix: boolean;
   loading: boolean;
   onError: (e: unknown) => void;
+  selected: number | null;
+  onSelect: (track: number) => void;
   onLoadTrack: (slot: number, track: number) => void;
   onLoadFile: (slot: number, entry: number) => void;
 }) {
@@ -290,7 +336,14 @@ export function DeviceBrowser({
           ) : !library ? (
             <p className="device-note">{tr('Leyendo biblioteca…', 'Reading library…')}</p>
           ) : (
-            <TrackTable tracks={shown} mix={mix} loading={loading} onLoad={onLoadTrack} />
+            <TrackTable
+              tracks={shown}
+              mix={mix}
+              loading={loading}
+              selected={selected}
+              onSelect={onSelect}
+              onLoad={onLoadTrack}
+            />
           )}
           {library && !shown.length && (
             <div className="empty">

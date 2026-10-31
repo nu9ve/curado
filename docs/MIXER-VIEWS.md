@@ -4,7 +4,7 @@ Research and initial console view, 2026-10-29. The console is a visual approxima
 
 **Update, ADR-024:** **cabina** now follows the hardware diagram's plan. Sections below that describe an earlier arrangement are history.
 
-**Update, ADR-022 and ADR-023:** the console now has per-channel Sound Color FX, Beat FX on CH 1, CH 2 and master, trim, beat loop, beat jump and roll pads, slip, reverse, platter scratch, vinyl brake and eight samples. Where the sections below list these as gaps, this update replaces them. Headphone cue, input sources, booth, microphone, Release FX, X-Pad and four channels remain gaps. These effects are curado's own and were not compared with hardware.
+**Update, ADR-022 and ADR-023:** the console now has per-channel Sound Color FX, Beat FX on CH 1, CH 2 and master, trim, beat loop, beat jump and roll pads, slip, reverse, platter scratch, vinyl brake and eight samples. Where the sections below list these as gaps, this update replaces them. Input sources, booth, microphone and four channels remain gaps. These effects are curado's own and were not compared with hardware.
 
 ## Current foundation
 

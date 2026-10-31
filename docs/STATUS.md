@@ -1,5 +1,17 @@
 # curado status
 
+## Keyboard scheme, Release FX, X-Pad, Touch Preview and panels · 2026-10-30
+
+Every **cabina** control with a key shows it on a badge, and the keyboard was redone by hand and modifier. The rest of the console gained Release FX, X-Pad with an FX bank, Touch Preview on a new cue bus, sections on the overview, and panels above it: samples, two XY surfaces and connections. See [ADR-026](DECISIONS.md) and [Controls](CONTROLS.md).
+
+**Checked in a browser preview with a simulated engine:** layout, badges, and each key sends the right action, including list movement, loading and toggles.
+
+**Automatically tested, not listened to:** every Release FX, the cue bus on 4 channels with the fader closed, preview routing on 2 and 4 channels, the global toggle, the allocator audit over all of it.
+
+**Not tried:** a real 4-channel interface, audio of any Release FX, touch on a real screen. Phrases are unvalidated: the USB has no rekordbox phrases in 400 files checked. Keys do not follow the pad mode. Face and hand tracking do not exist.
+
+Verification: `bun run check` passed (70 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (181 tests, 7 more ignored that need real data) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built, passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `06ff23a3cde558a4361dc408df978296e3db6697814bb1bbe75251a8f8aed21b`. Next: the maintainer should learn the keyboard in real use and say what feels wrong, then try Release FX by ear.
+
 ## Console as an RX3, measured key, tempo maps and damaged files · 2026-10-30
 
 The maintainer authorized reviewing the screen, and rejected the console as not resembling the real RX3. **cabina** was rebuilt from the official hardware diagram, with control positions measured from it and platters always present. See [ADR-024, ADR-025](DECISIONS.md) and [Controls](CONTROLS.md).

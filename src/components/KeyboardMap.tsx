@@ -1,7 +1,7 @@
 import { tr, useLanguage } from '../lib/language';
 import { memo } from 'react';
 import type { KeyBinding } from '../lib/types';
-import { actionLabel, allowedInMode, keyLabel } from '../lib/keyboard';
+import { actionLabel, allowedInMode, bindingLabel, keyLabel } from '../lib/keyboard';
 import { useHud } from '../lib/feedback';
 import { actionKey } from '../lib/feedback';
 
@@ -20,8 +20,8 @@ const ROWS: string[][] = [
     'Digit9',
     'Digit0',
   ],
-  ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP'],
-  ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL'],
+  ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP', 'ArrowUp'],
+  ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL', 'Semicolon'],
   [
     'KeyZ',
     'KeyX',
@@ -30,18 +30,22 @@ const ROWS: string[][] = [
     'KeyB',
     'KeyN',
     'KeyM',
-    'Space',
+    'Comma',
+    'Period',
+    'Slash',
     'ArrowLeft',
     'ArrowDown',
     'ArrowRight',
   ],
+  ['Space'],
 ];
 
 function zone(bindings: KeyBinding[]) {
-  const plain = bindings.find((b) => !b.shift) ?? bindings[0];
+  const plain = bindings.find((b) => !b.shift && !b.ctrl && !b.alt) ?? bindings[0];
   if (!plain) return 'free';
   const { slot, kind } = plain.action;
-  if (kind === 'crossfader' || kind === 'panic' || kind === 'master') return 'mixer';
+  if (['crossfader', 'panic', 'master', 'toggleBoth', 'listMove', 'listLoad'].includes(kind))
+    return 'mixer';
   if (slot >= 2) return 'sample';
   return slot ? 'b' : 'a';
 }
@@ -66,7 +70,7 @@ export const KeyboardMap = memo(function KeyboardMap({
         <span className="eyebrow">{tr('TECLADO', 'KEYBOARD')}</span>
         <span className="z-a">{tr('A · izquierda', 'A · left')}</span>
         <span className="z-b">{tr('B · derecha', 'B · right')}</span>
-        <span className="z-sample">samples</span>
+        <span className="z-sample">samples ⌥</span>
         <span className="z-mixer">mixer</span>
       </div>
       {ROWS.map((row, r) => (
@@ -75,11 +79,11 @@ export const KeyboardMap = memo(function KeyboardMap({
             const bound = keys.filter((k) => k.code === code);
             const z = zone(bound);
             const blocked = bound.every((b) => !allowedInMode(b.action, mode));
-            const plain = bound.find((b) => !b.shift);
+            const plain = bound.find((b) => !b.shift && !b.ctrl && !b.alt);
             const title = bound
               .map(
                 (b) =>
-                  `${b.shift ? '⇧ ' : ''}${b.action.slot < 2 ? (b.action.slot ? 'B' : 'A') : `S${b.action.slot - 1}`} · ${actionLabel(b.action.kind)}`,
+                  `${bindingLabel(b)} · ${b.action.slot < 2 ? (b.action.slot ? 'B' : 'A') : `S${b.action.slot - 1}`} · ${actionLabel(b.action.kind)}`,
               )
               .join('\n');
             return (

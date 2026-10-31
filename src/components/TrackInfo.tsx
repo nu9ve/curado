@@ -1,5 +1,8 @@
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
-import { useSnapshot } from '../lib/bridge';
+import { useRef } from 'react';
+import { call, control, useSnapshot } from '../lib/bridge';
+import { PREVIEW_SLOT } from '../lib/console-pads';
+import { WaveOverview } from './Waveform';
 import { tr } from '../lib/language';
 import { harmony, keyLabel, transposeKey } from '../lib/music';
 import { EMPTY_SLOT, remaining, time } from '../lib/types';
@@ -21,6 +24,63 @@ function matchText(track: Track, master: Slot) {
   if (match === 'compatible') parts.push(tr('tonalidad compatible', 'compatible key'));
   if (match === 'clash') parts.push(tr('tonalidad distante', 'distant key'));
   return parts.join(' · ');
+}
+
+/**
+ * Hold on the waveform to hear that part without loading the track. It goes to the cue output
+ * when there is one; on a plain stereo output it can only sound through the speakers.
+ */
+function TouchPreview({ track }: { track: Track }) {
+  const { audio, output } = useSnapshot();
+  const held = useRef(false);
+  const slot = audio?.slots[PREVIEW_SLOT] ?? EMPTY_SLOT;
+  const cue = (output?.channels ?? 2) >= 4;
+  const start = async (seconds: number) => {
+    held.current = true;
+    if (slot.id !== track.id) await call('load_track', { slot: PREVIEW_SLOT, id: track.id });
+    if (!held.current) return;
+    await control(PREVIEW_SLOT, 'seek', seconds);
+    await control(PREVIEW_SLOT, 'play');
+  };
+  const stop = () => {
+    held.current = false;
+    void control(PREVIEW_SLOT, 'pause').catch(() => {});
+  };
+  return (
+    <div
+      className="touch-preview"
+      title={
+        cue
+          ? tr('Mantén para oír en audífonos', 'Hold to hear in the headphones')
+          : tr(
+              'Mantén para oír: sin salida de cue se oye en la salida',
+              'Hold to hear: with no cue output it plays through the speakers',
+            )
+      }
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const bounds = e.currentTarget.getBoundingClientRect();
+        const place = Math.max(0, Math.min(1, (e.clientX - bounds.left) / bounds.width));
+        void start(place * track.duration).catch(stop);
+      }}
+      onPointerUp={stop}
+      onPointerCancel={stop}
+    >
+      <WaveOverview
+        compact
+        trackId={track.id}
+        slot={{
+          ...EMPTY_SLOT,
+          duration: track.duration,
+          position: slot.id === track.id ? slot.position : 0,
+        }}
+        label="TOUCH PREVIEW"
+      />
+      <small>
+        TOUCH PREVIEW{cue ? '' : tr(' · se oye en la salida', ' · plays through the speakers')}
+      </small>
+    </div>
+  );
 }
 
 export function TrackInfo({
@@ -65,6 +125,7 @@ export function TrackInfo({
               </div>
             );
           })}
+          {choice && <TouchPreview track={choice} />}
           {choice && (
             <div className="track-info-row track-info-choice">
               <b>▸</b>

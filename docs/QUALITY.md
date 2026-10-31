@@ -52,6 +52,8 @@ The following is a **plan**, not a completed test record. Respect current author
 
 12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
 
+14. Keyboard in real use, every badge against its action. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
+
 13. Mixing screen in the real app: the console against the hardware, rail and window controls, every style and theme, position stream smoothness and cost. Platter feel: scratch, bend, scroll. Each color and beat effect on each channel and master, tails, EQ kills, roll, slip, reverse and brake on real music, with and without key lock, watching for dropouts. MIDI toggles and roll on a controller. A real variable-tempo track.
 
 ## Measurement

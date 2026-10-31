@@ -23,11 +23,17 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 - **Selector:** turn it to move through the listed tracks; **LOAD 1/2** loads the selection and **TAG TRACK** marks it as a favorite.
 - **Platter:** drag around the record to scratch, or with **VINYL** off to bend the tempo. The edge and a scroll gesture always bend. **JOG ADJUST** sets how far a turn goes; **VINYL SPEED** winds the record down on pause.
 - **Deck:** **IN, OUT, RELOOP/EXIT**, **1/2X** and **2X** (in a loop they resize it; otherwise they call the previous or next cue), **SLIP**, **QUANTIZE**, **REV**, **TRACK SEARCH** (previous or next track), **SEARCH** (one beat), **SYNC, MASTER**, tempo range, **MASTER TEMPO** (key lock).
-- **Pads:** **HOT CUE** (empty saves, saved calls, SHIFT deletes), **BEAT LOOP**, **SLIP LOOP** (hold to repeat; on release the track returns to where it would have been), **BEAT JUMP**. With **SHIFT**, or the small label under each: **KEYBOARD** (plays hot cue A at a pitch), **KEY SHIFT**, **PAD FX** (hold an effect), **SAMPLER** (eight shared samples; Alt-click stops one, Shift-click replaces it).
+- **Pads:** **HOT CUE** (empty saves, saved calls, SHIFT deletes), **BEAT LOOP**, **SLIP LOOP** (hold to repeat; on release the track returns to where it would have been), **BEAT JUMP**. With **SHIFT**, or the small label under each: **KEYBOARD** (plays hot cue A at a pitch), **KEY SHIFT**, **RELEASE FX**, which pressed again gives **PAD FX** (hold an effect), and **SAMPLER** (eight shared samples; Alt-click stops one, Shift-click replaces it).
+- **Release FX:** end a track with Brake or Spin, short or long, Echo Out or Mute, and the deck stops. **BUILD UP** and **DUCKING** last while held.
+- **Screen:** three effects to choose at a touch and the **X-PAD**: slide for the division, and the effect runs while a finger is down. The overview shows sections as colored marks: an energy estimate, not a real reading of the song's structure.
 - **Mixer:** **TRIM**, EQ, **COLOR**, faders and **CROSSFADER CURVE**. **SOUND COLOR FX** applies to both channels; its **1** and **2** to one, so they can differ. **PARAMETER** sets its character per channel. The knob does nothing at its center.
 - **BEAT FX:** **CH SELECT** chooses channel 1, 2 or master, which run independently. Then **BEAT**, **TAP** (Shift-click returns to the track's tempo), the effect dial, **TIME**, **LEVEL / DEPTH** and **ON/OFF**. On PITCH, divisions choose an interval. Delay, Echo, Ping Pong, Spiral, Reverb, Helix, Dub Echo and Space keep a tail. **AUTO GAIN** matches levels to −14 LUFS and is off by default.
 
-Dimmed controls (mic, AUX, input switches, booth, headphones, channel cue) have no function: they need other inputs and outputs. **herramientas** in the side panel holds curado's own LP/HP, echo, grid and key editing, linked transport, sample levels and the full mixer. The **curado** layout has the same pad modes, slip, reverse and scratch, with color and beat effects in **herramientas**.
+**Above the console** there are panels the hardware has no room for: **SAMPLES** with its level, **XY 1** and **XY 2**, and **CONEXIONES** with MIDI activity, the audio output, the cue output and drives. An XY surface moves two parameters at once, one per channel with two fingers on a touchscreen, and returns to neutral on release. Its point also follows MIDI and the knobs. Its modes are COLOR, FILTER, BEAT FX and EQ.
+
+**Headphones:** with an output of 4 or more channels, 3 and 4 are the cue: channel **CUE**, **MASTER**, **MIXING** and **LEVEL**. Holding the waveform of the selected track in **información** is **TOUCH PREVIEW**: it goes to the headphones, or at half level through the speakers on a stereo output, and says so.
+
+Dimmed controls (mic, AUX, input switches, booth, LINK) have no function: they need other inputs and outputs. **herramientas** in the side panel holds curado's own LP/HP, echo, grid and key editing, linked transport, sample levels and the full mixer. The **curado** layout has the same pad modes, slip, reverse and scratch, with color and beat effects in **herramientas**.
 
 ## Mixing screen
 
@@ -50,18 +56,27 @@ Knobs/faders: vertical drag (Shift = fine), wheel, arrows (Shift = fine; Page Up
 
 ## Default keyboard
 
-| Action                   | A             | B             |
-| ------------------------ | ------------- | ------------- |
-| Play/pause               | Q, Space      | P             |
-| First cue and play       | A             | L             |
-| Hot cues 1/2/3           | 1 / 2 / 3     | 8 / 9 / 0     |
-| Save at current position | Shift + 1/2/3 | Shift + 8/9/0 |
-| Loop on/off              | W             | O             |
-| Loop IN                  | E             | I             |
-| Loop OUT                 | R             | U             |
-| Nudge −50/+50 ms         | D / F         | J / K         |
+Each hand plays its own deck, with the same finger for the same job. In **cabina** every control shows its key on a small badge; **teclas** in the toolbar hides them.
 
-Samples 1–4: `Z / X / C / V`. Crossfader left/center/right: `← / ↓ / →`. Stop native decks and zero master: `Esc`.
+| | Left, deck 1 | Right, deck 2 | Shift | Control |
+| --- | --- | --- | --- | --- |
+| Hot cues A–D | `1 2 3 4` | `7 8 9 0` | save | delete |
+| Hot cues E–H | `Q W E R` | `U I O P` | save | delete |
+| Play / pause | `F` | `J` | | |
+| Cue | `D` | `K` | | |
+| Sync | `G` | `H` | master deck | key lock |
+| Nudge | `A` `S` | `L` `;` | one beat | four beats |
+| Loop in / out | `Z` `X` | `/` `.` | ½ / 2× | |
+| Reloop | `C` | `,` | quantize | |
+| Slip | `V` | `M` | reverse | |
+| Beat FX on/off | `T` | `Y` | | |
+
+- **Space:** stops whatever is playing, or starts both decks. In the player it is the one deck.
+- **↑ ↓:** moves through the list on the panel, on a drive too; hold it to run. **Shift + ↑ ↓** jumps eight.
+- **Shift + ← →:** loads the selection into deck 1 or 2.
+- **Control + ← ↓ →:** crossfader to A, center or B.
+- **Option + a hot cue's number:** fires samples 1–8. **Option + B:** master Beat FX. **Escape:** mutes all.
+- Command is left to the system. Keys hit hot cues whatever mode the pads are in. **Settings** reassigns any of these, with Shift, Control or Option.
 
 A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All eight start at 0:00 and display their time before saving; keys cover the first three, and pads or MIDI Learn reach the rest. A cue saved as a loop also starts looping, marked ↻; pressing one you never saved starts at the track's first sound, on the nearest beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.
 

@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Keyboard scheme, Release FX, X-Pad, Touch Preview and panels
+
+Redid the keyboard by hand and modifier with badges on the console, arrows through any list and Space for the whole mix. Added Release FX, X-Pad, Touch Preview on a cue bus, estimated sections and panels above the console. See [Status](STATUS.md) and ADR-026. Lesson: a Space key is only global if a clicked button does not keep it, which the check for visible focus now handles.
+
 ## 2026-10-30 · Console as an RX3, measured key, tempo maps and damaged files
 
 Rebuilt **cabina** from the official RX3 diagram with always-present, playable platters. Completed the 14 Beat FX, added MIDI toggles, the new controls in the classic view, cues at 0:00, a 60 Hz position stream, beat maps and decode limits with fuzzing. The key now always answers and agrees more with rekordbox. See [Status](STATUS.md), ADR-024 and ADR-025. Lessons: a maintainer's eye catches what tests cannot, because a console that fit and worked was still the wrong console; and measuring stops bad ideas, because a tempo detector that passed its tests fired on nearly half of a real library, and a phase change that looked better on tuning data did nothing on the rest.

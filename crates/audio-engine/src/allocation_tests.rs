@@ -283,6 +283,19 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     handle.control(0, C::Pause).unwrap();
     render(10);
     handle.control(0, C::Play).unwrap();
+    render(4);
+    for kind in 0..8 {
+        handle.control(0, C::Release(kind)).unwrap();
+        render(6);
+        handle.control(0, C::ReleaseEnd).unwrap();
+        handle.control(0, C::Play).unwrap();
+        render(2);
+    }
+    handle.control(0, C::Cue2(true)).unwrap();
+    handle.control(0, C::ToggleBoth).unwrap();
+    render(4);
+    handle.control(0, C::ToggleBoth).unwrap();
+    render(4);
     handle.control(5, C::Sampler(0.5)).unwrap();
     handle.control(0, C::SetMode(false)).unwrap();
     render(10);

@@ -1,5 +1,16 @@
 # Technical decisions
 
+## ADR-026 · Keys by hand, a cue bus, and panels beyond the hardware — accepted (2026-10-30)
+
+- **Each hand is a deck, and a modifier keeps one meaning.** Shift is the second function, Control the destructive or further one, Option the samples. Command stays the system's. The list moves with arrows, including a drive's, since that is where tracks come from. Toggles flip what the engine reports, because a key only knows it was pressed. A saved layout from before is left stored but not used.
+- **Keys go through the same actions as everything else,** except moving through a list, which only the interface knows about.
+- **Badges read from the bindings,** so remapping updates them, and they come from what a control already declares for feedback.
+- **Keys hit hot cues whatever the pad mode.** Making them press the shown pad needs the mode in native code. Left for later.
+- **A cue bus on outputs 3 and 4.** Touch Preview means nothing without it, and it also gives the channel CUE, MIXING and LEVEL a function, on any device with 4 or more outputs. A stereo output has nowhere to send it, so preview plays at half level through the speakers and says so, since that is useful at home and dangerous in front of people. **Not tried on a real interface.**
+- **Release FX stop the deck,** except Build Up and Ducking, which last while held. Echo Out turns on the channel's echo, cuts the track after half a beat and puts the unit's settings back six seconds later.
+- **Phrases are an energy estimate in the interface.** The maintainer's USB has no rekordbox phrase data in 400 files checked, and without it there was nothing to validate against, so they carry no claim to know a real verse or chorus. They come from the waveform already loaded and need no storage.
+- **XY surfaces use mouse and touch for now.** Their mapping takes a point from any source. Hand tracking would add a camera, a permission and native Vision code, so it is its own piece of work.
+
 ## ADR-025 · Tempo maps, decode limits and a position stream — accepted (2026-10-30)
 
 - **Beat maps next to the one-tempo grid.** A track whose tempo moves carries every beat, from a rekordbox grid with more than 0.1 BPM of spread or, when requested, from analysis that follows the pulse in overlapping windows. Everything local (quantize, loops, jumps, FX clock) reads the beat around the read head. A correction by hand wins, since it is one tempo. Sync matches local tempos and adds a small pull, at most 1 %, because matching speeds alone lets beats wander.

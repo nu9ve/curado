@@ -36,7 +36,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 
 ## P1 · rekordbox and devices
 
-- Release FX, X-Pad, Touch Preview, phrase display and a second output for headphone cue, to complete the console.
+- Try the cue bus on a real interface, keys that press the shown pad, and hand tracking for the XY surfaces.
 - USB reading and `rekordbox.xml` export exist (S11). Next: confirm the export in rekordbox, then import an XML from rekordbox, which also gives exact file locations, then writing to a USB only with validation on real players.
 - Memory cues in the transport, queueing from a device playlist, tracks across a device and the local library, and Engine DJ libraries.
 

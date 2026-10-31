@@ -172,6 +172,10 @@ struct AppSnapshot {
 struct KeyBinding {
     code: String,
     shift: bool,
+    #[serde(default)]
+    ctrl: bool,
+    #[serde(default)]
+    alt: bool,
     action: Action,
 }
 async fn work<T: Send + 'static>(
@@ -625,13 +629,22 @@ async fn save_keyboard(
     bindings: Vec<KeyBinding>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
-    if bindings.len() > 100 {
-        return Err("Máximo 100 atajos".into());
+    if bindings.len() > 120 {
+        return Err("Máximo 120 atajos".into());
     }
     let mut used = std::collections::HashSet::new();
     for binding in &bindings {
-        binding.action.validate()?;
-        if binding.code.len() > 30 || !used.insert((binding.code.clone(), binding.shift)) {
+        // These two move through a list in the interface and never reach the engine.
+        if !matches!(binding.action.kind.as_str(), "listMove" | "listLoad") {
+            binding.action.validate()?;
+        }
+        let combination = (
+            binding.code.clone(),
+            binding.shift,
+            binding.ctrl,
+            binding.alt,
+        );
+        if binding.code.len() > 30 || !used.insert(combination) {
             return Err("Atajo duplicado o inválido".into());
         }
     }

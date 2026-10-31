@@ -13,6 +13,8 @@ pub struct Params {
     pub trim: f32,
     /// Level matching between tracks, on top of the trim.
     pub auto: f32,
+    /// A momentary pump from Release FX Ducking.
+    pub pump: f32,
 }
 impl Default for Params {
     fn default() -> Self {
@@ -27,6 +29,7 @@ impl Default for Params {
             high_pass: 0.,
             trim: 1.,
             auto: 1.,
+            pump: 1.,
         }
     }
 }
@@ -206,6 +209,8 @@ pub struct Effects {
     delay_target: f32,
     smoothing: f32,
     pub channel: Option<Box<ChannelFx>>,
+    /// The last frame before the fader: what a headphone cue hears.
+    pub pre_fader: [f32; 2],
 }
 impl Effects {
     /// A sample has no echo control, so it skips the long delay line and the effects.
@@ -241,6 +246,7 @@ impl Effects {
                     beat: BeatFx::new(sr),
                 })
             }),
+            pre_fader: [0.; 2],
         }
     }
     pub fn set_highpass(&mut self, value: f32) {
@@ -260,7 +266,7 @@ impl Effects {
     }
     pub fn process(&mut self, input: [f32; 2], p: Params) -> [f32; 2] {
         self.gain = clean(self.gain + (p.gain - self.gain) * self.smoothing);
-        self.trim = clean(self.trim + (p.trim * p.auto - self.trim) * self.smoothing);
+        self.trim = clean(self.trim + (p.trim * p.auto * p.pump - self.trim) * self.smoothing);
         for (current, target) in self.eq.iter_mut().zip([p.low, p.mid, p.high]) {
             *current += (target - *current) * self.smoothing;
         }
@@ -304,6 +310,7 @@ impl Effects {
         if let Some(channel) = &mut self.channel {
             pre = channel.color.process(pre);
         }
+        self.pre_fader = pre;
         let delayed = fx::read_delay(&self.delay, self.head, self.delay_frames);
         self.delay_frames += (self.delay_target - self.delay_frames) * self.smoothing * 0.1;
         let mut out = [0.; 2];

@@ -117,6 +117,8 @@ export interface Action {
 export interface KeyBinding {
   code: string;
   shift: boolean;
+  ctrl?: boolean;
+  alt?: boolean;
   action: Action;
 }
 export interface MidiBinding {
@@ -135,6 +137,7 @@ export interface MidiState {
   dropped: number;
 }
 export interface Slot {
+  cue: boolean;
   trim: number;
   /** Bipolar: nothing at center, and a different effect on each side. */
   color: number;
@@ -186,6 +189,9 @@ export interface Audio {
   sampler: number;
   autoGain: boolean;
   crossfaderCurve: number;
+  cueMaster: boolean;
+  cueMix: number;
+  cueLevel: number;
   slots: Slot[];
   peak: number;
   rms: number;
@@ -248,6 +254,7 @@ export type LibraryEdit =
   | { kind: 'favorite'; track: number; value: boolean }
   | { kind: 'removeTrack'; track: number };
 export const EMPTY_SLOT: Slot = {
+  cue: false,
   trim: 1,
   color: 0,
   colorParam: 0.5,

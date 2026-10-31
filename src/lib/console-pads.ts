@@ -2,6 +2,8 @@ export type SamplePadIntent =
   { kind: 'trigger'; slot: number } | { kind: 'load'; slot: number; id: number } | null;
 
 export const SAMPLE_PADS = 8;
+/** Heard through the cue output, apart from the two decks and the samples. */
+export const PREVIEW_SLOT = 10;
 /** Sample pads on either deck address the same eight native one-shot slots. */
 export function samplePadIntent(
   index: number,
@@ -16,7 +18,19 @@ export function samplePadIntent(
   return { kind: 'trigger', slot };
 }
 
-export type PadMode = 'cue' | 'loop' | 'jump' | 'roll' | 'samples' | 'keyboard' | 'keys' | 'padfx';
+export type PadMode =
+  'cue' | 'loop' | 'jump' | 'roll' | 'samples' | 'keyboard' | 'keys' | 'padfx' | 'release';
+/** In the engine's order. Build Up and Ducking last while the pad is held. */
+export const RELEASE_PADS = [
+  'BRAKE S',
+  'BRAKE L',
+  'SPIN S',
+  'SPIN L',
+  'ECHO OUT',
+  'BUILD UP',
+  'MUTE',
+  'DUCKING',
+];
 export const LOOP_PADS = [0.25, 0.5, 1, 2, 4, 8, 16, 32];
 export const ROLL_PADS = [0.0625, 0.125, 0.25, 0.5, 1, 2, 4, 8];
 /** Back along the top row, forward along the bottom one. */

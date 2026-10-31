@@ -9,7 +9,10 @@ pub enum Mode {
 }
 impl Mode {
     pub fn allows(self, action: &Action) -> bool {
-        if matches!(action.kind.as_str(), "playBoth" | "pauseBoth" | "cueBoth") {
+        if matches!(
+            action.kind.as_str(),
+            "playBoth" | "pauseBoth" | "cueBoth" | "toggleBoth"
+        ) {
             return self == Self::Mix;
         }
         self == Self::Mix

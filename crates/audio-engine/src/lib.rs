@@ -27,7 +27,21 @@ use std::sync::{
 };
 use tuning::{MusicMeter, Tuning, TuningMeter};
 
-pub const SLOTS: usize = 10;
+pub const SLOTS: usize = 11;
+/// Hears a track without it being on a deck: to the cue bus, which needs a 4-channel output.
+pub const PREVIEW_SLOT: usize = 10;
+/// A preview on an output with no cue channels can only go to the speakers, so it stays quieter.
+const PREVIEW_LEVEL: f32 = 0.5;
+/// Release FX, in pad order.
+const RELEASE_KINDS: u8 = 8;
+const BRAKE_SHORT: f32 = 0.5;
+const BRAKE_LONG: f32 = 2.;
+const BACKSPIN_SHORT: f64 = 0.5;
+const BACKSPIN_LONG: f64 = 1.5;
+const BACKSPIN_SPEED: f64 = 5.;
+/// How long the echo keeps its own settings after Echo Out, so its tail is not cut short.
+const ECHO_OUT_TAIL_SECONDS: f64 = 6.;
+const BUILD_UP_BEATS: f32 = 16.;
 /// Beat FX units: one per music channel, then the master's, addressed as slot 2.
 pub const BEAT_UNITS: usize = 3;
 pub const MASTER_UNIT: usize = 2;
@@ -119,6 +133,13 @@ pub enum Control {
     Brake(f32),
     Sampler(f32),
     AutoGain(bool),
+    ToggleBoth,
+    Release(u8),
+    ReleaseEnd,
+    Cue2(bool),
+    CueMaster(bool),
+    CueMix(f32),
+    CueLevel(f32),
     Panic,
     SetMode(bool),
 }
@@ -216,6 +237,21 @@ impl Action {
             "beatFxBpm" if self.slot < BEAT_UNITS && (v == 0. || (40.0..=300.0).contains(&v)) => {
                 Control::BeatFxBpm(v)
             }
+            "toggleBoth" => Control::ToggleBoth,
+            "releaseFx"
+                if self.slot < 2
+                    && self.value.fract() == 0.
+                    && (0.0..RELEASE_KINDS as f64).contains(&self.value) =>
+            {
+                Control::Release(self.value as u8)
+            }
+            "releaseEnd" if self.slot < 2 => Control::ReleaseEnd,
+            "channelCue" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
+                Control::Cue2(self.value == 1.)
+            }
+            "masterCue" if matches!(self.value, 0.0 | 1.0) => Control::CueMaster(self.value == 1.),
+            "cueMix" if (0.0..=1.0).contains(&v) => Control::CueMix(v),
+            "cueLevel" if (0.0..=1.0).contains(&v) => Control::CueLevel(v),
             "sampler" if (0.0..=1.5).contains(&v) => Control::Sampler(v),
             "autoGain" if matches!(self.value, 0.0 | 1.0) => Control::AutoGain(self.value == 1.),
             "sync" if self.slot < 2 && matches!(self.value, 0.0 | 1.0) => {
@@ -296,6 +332,7 @@ struct Meter {
     slip: AtomicBool,
     reverse: AtomicBool,
     rolling: AtomicBool,
+    cue: AtomicBool,
 }
 #[derive(Default)]
 struct BeatMeter {
@@ -330,6 +367,9 @@ pub struct Shared {
     sampler: AtomicU32,
     auto_gain: AtomicBool,
     crossfader_curve: AtomicU32,
+    cue_master: AtomicBool,
+    cue_mix: AtomicU32,
+    cue_level: AtomicU32,
 }
 #[derive(Clone)]
 pub struct EngineHandle(Arc<Shared>);
@@ -371,6 +411,7 @@ pub struct SlotSnapshot {
     pub slip: bool,
     pub reverse: bool,
     pub rolling: bool,
+    pub cue: bool,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -404,6 +445,9 @@ pub struct Snapshot {
     pub sampler: f32,
     pub auto_gain: bool,
     pub crossfader_curve: u8,
+    pub cue_master: bool,
+    pub cue_mix: f32,
+    pub cue_level: f32,
 }
 impl EngineHandle {
     /// Called by the visual worker only. Returns one complete mono master window and
@@ -524,6 +568,9 @@ impl EngineHandle {
                         | Control::JogMove(_)
                         | Control::JogBend(_)
                         | Control::Brake(_)
+                        | Control::Release(_)
+                        | Control::ReleaseEnd
+                        | Control::Cue2(_)
                         | Control::Trim(_)
                         | Control::Color(_)
                         | Control::ColorFx(_)
@@ -639,6 +686,7 @@ impl EngineHandle {
                     slip: m.slip.load(Relaxed),
                     reverse: m.reverse.load(Relaxed),
                     rolling: m.rolling.load(Relaxed),
+                    cue: m.cue.load(Relaxed),
                 })
                 .collect(),
             peak: f(&self.0.peak),
@@ -667,6 +715,9 @@ impl EngineHandle {
             sampler: f(&self.0.sampler),
             auto_gain: self.0.auto_gain.load(Relaxed),
             crossfader_curve: self.0.crossfader_curve.load(Relaxed) as u8,
+            cue_master: self.0.cue_master.load(Relaxed),
+            cue_mix: f(&self.0.cue_mix),
+            cue_level: f(&self.0.cue_level),
         }
     }
     /// Just the music decks' positions, or nothing while neither moves. Cheap enough to read far
@@ -736,6 +787,18 @@ struct Deck {
     braking: bool,
     /// Speed relative to normal while braking or recovering from a brake.
     ramp: f64,
+    brake_seconds: f32,
+    /// Backspin: frames left of how many, and the deck stops when they end.
+    spin_left: u32,
+    spin_total: u32,
+    /// Echo Out: frames until the deck stops, then until the unit gets its settings back.
+    echo_out_left: u32,
+    echo_restore_left: u32,
+    echo_restore: Option<BeatSettings>,
+    building: bool,
+    build: f32,
+    ducking: bool,
+    cue: bool,
 }
 impl Deck {
     /// Output frames per beat at the current speed, with 120 BPM standing in for an unknown one.
@@ -952,6 +1015,7 @@ impl Deck {
     fn stop(&mut self, sr: u32) {
         if self.playing && self.brake > 0. && !self.jog_touch {
             self.braking = true;
+            self.brake_seconds = self.brake;
         } else {
             self.stop_now(sr);
         }
@@ -959,6 +1023,8 @@ impl Deck {
     fn stop_now(&mut self, sr: u32) {
         self.braking = false;
         self.ramp = 1.;
+        self.spin_left = 0;
+        self.echo_out_left = 0;
         if self.playing {
             let step = self.step(sr);
             self.release_voice(self.jump_frames, true, step);
@@ -1015,6 +1081,7 @@ impl Deck {
             && !self.reverse
             && !self.jog_touch
             && !self.braking
+            && self.spin_left == 0
             && self.ramp >= 1.
             && (self.tuning.semitones != 0
                 || (self.tuning.key_lock
@@ -1146,6 +1213,16 @@ impl Deck {
             brake: 0.,
             braking: false,
             ramp: 1.,
+            brake_seconds: 0.,
+            spin_left: 0,
+            spin_total: 1,
+            echo_out_left: 0,
+            echo_restore_left: 0,
+            echo_restore: None,
+            building: false,
+            build: 0.,
+            ducking: false,
+            cue: false,
         }
     }
     /// Follows the hand: speed is eased so that the gaps between pointer events do not buzz.
@@ -1169,7 +1246,21 @@ impl Deck {
             return [0.; 2];
         };
         let mut input = [0.; 2];
-        if self.jog_touch {
+        if self.spin_left > 0 && self.playing {
+            // A backspin throws the record backward and lets it die out.
+            let left = self.spin_left as f64 / self.spin_total as f64;
+            let speed = BACKSPIN_SPEED * left * left;
+            self.position = (self.position - speed).max(0.);
+            let level = (left * 12.).min(1.) as f32;
+            if let Some(clip) = &self.clip {
+                input =
+                    resample::read(&clip.samples, self.position, speed.max(1.)).map(|v| v * level);
+            }
+            self.spin_left -= 1;
+            if self.spin_left == 0 {
+                self.stop_now(sr);
+            }
+        } else if self.jog_touch {
             input = self.scratch(len);
             if self.excursion && self.playing {
                 self.shadow += forward;
@@ -1212,7 +1303,7 @@ impl Deck {
                 self.playing = false;
             }
             if self.braking {
-                self.ramp -= 1. / (self.brake.max(0.01) as f64 * sr as f64);
+                self.ramp -= 1. / (self.brake_seconds.max(0.01) as f64 * sr as f64);
                 if self.ramp <= 0. {
                     self.ramp = 1.;
                     self.braking = false;
@@ -1253,9 +1344,90 @@ impl Deck {
                 self.fade_main = true;
             }
         }
+        if self.echo_out_left > 0 {
+            self.echo_out_left -= 1;
+            if self.echo_out_left == 0 {
+                self.stop_now(sr);
+                if let Some(channel) = &mut self.effects.channel {
+                    let settings = channel.beat.settings();
+                    channel.beat.set(BeatSettings {
+                        on: false,
+                        ..settings
+                    });
+                }
+            }
+        } else if self.echo_restore_left > 0 {
+            self.echo_restore_left -= 1;
+            if self.echo_restore_left == 0 {
+                if let (Some(channel), Some(saved)) =
+                    (&mut self.effects.channel, self.echo_restore.take())
+                {
+                    channel.beat.set(saved);
+                }
+            }
+        }
         let out = self.effects.process(input, self.params);
         self.peak = self.peak.max(out[0].abs()).max(out[1].abs());
         out
+    }
+    /// Effects that end a track on the way out, on the pads. Each leaves the deck stopped except
+    /// Build Up and Ducking, which last as long as the pad is held.
+    fn release_fx(&mut self, kind: u8, sr: u32) {
+        if !self.playing {
+            return;
+        }
+        match kind {
+            0 | 1 => {
+                self.braking = true;
+                self.brake_seconds = if kind == 0 { BRAKE_SHORT } else { BRAKE_LONG };
+            }
+            2 | 3 => {
+                let seconds = if kind == 2 {
+                    BACKSPIN_SHORT
+                } else {
+                    BACKSPIN_LONG
+                };
+                self.spin_total = (seconds * sr as f64) as u32;
+                self.spin_left = self.spin_total;
+                let step = self.step(sr);
+                self.release_voice(self.jump_frames, true, step);
+            }
+            4 => {
+                let frames_per_beat = self.clock(sr) as f64;
+                if let Some(channel) = &mut self.effects.channel {
+                    let saved = channel.beat.settings();
+                    if self.echo_restore.is_none() {
+                        self.echo_restore = Some(saved);
+                    }
+                    channel.beat.set(BeatSettings {
+                        kind: BeatKind::Echo,
+                        on: true,
+                        beats: 0.5,
+                        depth: 1.,
+                        bpm: saved.bpm,
+                    });
+                    // Half a beat of feed, then the track goes and the repeats carry on.
+                    self.echo_out_left = (frames_per_beat * 0.5) as u32;
+                    self.echo_restore_left = (ECHO_OUT_TAIL_SECONDS * sr as f64) as u32;
+                }
+            }
+            5 => self.building = true,
+            6 => self.stop_now(sr),
+            _ => self.ducking = true,
+        }
+    }
+    /// Per block: what the held Release FX do to the channel.
+    fn hold_release(&mut self, frames: f32, sr: u32) {
+        if self.building {
+            let beat = self.clock(sr).max(1.);
+            self.build = (self.build + frames / (beat * BUILD_UP_BEATS)).min(1.);
+            self.effects
+                .set_highpass(self.params.high_pass.max(self.build * 0.6));
+        }
+        if self.ducking {
+            let phase = self.beats_position().unwrap_or(0.).rem_euclid(1.) as f32;
+            self.params.pump = 0.12 + 0.88 * (phase * 1.6).min(1.);
+        }
     }
     fn control(&mut self, c: Control, sr: u32) {
         let len = self.clip.as_ref().map_or(0., |c| c.samples.len() as f64);
@@ -1287,6 +1459,17 @@ impl Deck {
             Control::Nudge(t) => {
                 self.shadow += t * rate;
                 self.jump((self.position + t * rate).clamp(0., len), sr);
+            }
+            Control::Cue2(on) => self.cue = on,
+            Control::Release(kind) => self.release_fx(kind, sr),
+            Control::ReleaseEnd => {
+                if self.building {
+                    self.building = false;
+                    self.build = 0.;
+                    self.effects.set_highpass(self.params.high_pass);
+                }
+                self.ducking = false;
+                self.params.pump = 1.;
             }
             Control::Slip(on) => {
                 self.slip = on;
@@ -1477,6 +1660,9 @@ pub struct Renderer {
     auto_gain: bool,
     bend_relax: f32,
     crossfader_curve: u8,
+    cue_master: bool,
+    cue_mix: f32,
+    cue_level: f32,
 }
 pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
     resample::prepare();
@@ -1505,6 +1691,9 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
         sampler: AtomicU32::new(1_f32.to_bits()),
         auto_gain: AtomicBool::new(false),
         crossfader_curve: AtomicU32::new(1),
+        cue_master: AtomicBool::new(false),
+        cue_mix: AtomicU32::new(0_f32.to_bits()),
+        cue_level: AtomicU32::new(0.7_f32.to_bits()),
     });
     (
         EngineHandle(shared.clone()),
@@ -1515,6 +1704,9 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
             crossfader: 0.5,
             mix: dsp::crossfade(0.5, 1),
             crossfader_curve: 1,
+            cue_master: false,
+            cue_mix: 0.,
+            cue_level: 0.7,
             master: 0.,
             master_target: 0.75,
             level_smoothing: 1. - (-1. / (sample_rate as f32 * 0.005)).exp(),
@@ -1649,6 +1841,13 @@ impl Renderer {
                     d.braking = false;
                     d.ramp = 1.;
                     d.bend = 0.;
+                    d.spin_left = 0;
+                    d.echo_out_left = 0;
+                    d.building = false;
+                    d.build = 0.;
+                    d.ducking = false;
+                    d.params.pump = 1.;
+                    d.effects.set_highpass(d.params.high_pass);
                 }
                 Command::Music(id, music) => {
                     align = true;
@@ -1747,6 +1946,21 @@ impl Renderer {
                 Command::Control(_, Control::Master(v)) => self.master_target = v,
                 Command::Control(_, Control::Sampler(v)) => self.sampler_level = v,
                 Command::Control(_, Control::AutoGain(on)) => self.auto_gain = on,
+                Command::Control(_, Control::CueMaster(on)) => self.cue_master = on,
+                Command::Control(_, Control::CueMix(v)) => self.cue_mix = v,
+                Command::Control(_, Control::CueLevel(v)) => self.cue_level = v,
+                Command::Control(_, Control::ToggleBoth) => {
+                    let control = if self.decks[..2].iter().any(|deck| deck.playing) {
+                        Control::Pause
+                    } else {
+                        Control::Play
+                    };
+                    for deck in &mut self.decks[..2] {
+                        deck.scheduled = None;
+                        deck.control(control, self.sample_rate);
+                    }
+                    align = true;
+                }
                 Command::Control(_, Control::CrossfaderCurve(curve)) => {
                     self.crossfader_curve = curve;
                 }
@@ -1926,6 +2140,7 @@ impl Renderer {
                 60. / (d.local_bpm().unwrap_or(120.) as f32 * d.params.rate) * d.echo_beats,
             );
             d.refresh_pitch(self.sample_rate);
+            d.hold_release(block as f32, self.sample_rate);
             d.params.auto = match (
                 self.auto_gain && i < 2,
                 d.clip.as_ref().and_then(|c| c.loudness),
@@ -1990,8 +2205,20 @@ impl Renderer {
                 self.mix[i] += (target - self.mix[i]) * self.level_smoothing;
             }
             let mut stereo = [0.; 2];
+            let mut cue = [0.; 2];
+            let cue_channels = channels >= 4;
             for (i, deck) in self.decks.iter_mut().enumerate() {
                 let signal = deck.frame(self.sample_rate);
+                if i == PREVIEW_SLOT {
+                    if cue_channels {
+                        cue[0] += signal[0];
+                        cue[1] += signal[1];
+                    } else {
+                        stereo[0] += signal[0] * PREVIEW_LEVEL;
+                        stereo[1] += signal[1] * PREVIEW_LEVEL;
+                    }
+                    continue;
+                }
                 let weight = if i < 2 {
                     self.mix[i]
                 } else {
@@ -1999,6 +2226,10 @@ impl Renderer {
                 };
                 for c in 0..2 {
                     stereo[c] += signal[c] * weight;
+                }
+                if i < 2 && deck.cue {
+                    cue[0] += deck.effects.pre_fader[0];
+                    cue[1] += deck.effects.pre_fader[1];
                 }
             }
             let stereo = self.master_fx.process(stereo);
@@ -2024,11 +2255,19 @@ impl Renderer {
                 self.visual_capture[self.visual_head] = mono;
                 self.visual_head += 1;
             }
+            // With no cue selected the headphones still hear the mix, as on a mixer.
+            let solo = if self.cue_master { 1. } else { self.cue_mix };
+            let phones = [
+                ((cue[0] * (1. - solo) + stereo[0] * solo) * self.cue_level).clamp(-1., 1.),
+                ((cue[1] * (1. - solo) + stereo[1] * solo) * self.cue_level).clamp(-1., 1.),
+            ];
             for (c, sample) in frame.iter_mut().enumerate() {
                 *sample = T::from_sample(if channels == 1 {
                     mono
                 } else if c < 2 {
                     stereo[c]
+                } else if c < 4 {
+                    phones[c - 2]
                 } else {
                     0.
                 });
@@ -2091,6 +2330,7 @@ impl Renderer {
             m.slip.store(d.slip, Relaxed);
             m.reverse.store(d.reverse, Relaxed);
             m.rolling.store(d.rolling, Relaxed);
+            m.cue.store(d.cue, Relaxed);
             if let Some(channel) = &d.effects.channel {
                 m.color.store(channel.color.knob().to_bits(), Relaxed);
                 m.color_param
@@ -2103,6 +2343,11 @@ impl Renderer {
             .sampler
             .store(self.sampler_level.to_bits(), Relaxed);
         self.shared.auto_gain.store(self.auto_gain, Relaxed);
+        self.shared.cue_master.store(self.cue_master, Relaxed);
+        self.shared.cue_mix.store(self.cue_mix.to_bits(), Relaxed);
+        self.shared
+            .cue_level
+            .store(self.cue_level.to_bits(), Relaxed);
         self.shared
             .crossfader_curve
             .store(self.crossfader_curve as u32, Relaxed);

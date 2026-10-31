@@ -5,6 +5,7 @@ import type { CSSProperties } from 'react';
 import { useTheme, currentPalette } from '../lib/theme-store';
 import { isDownbeat, isMapDownbeat } from '../lib/music';
 import { useBeatMap } from '../lib/beats';
+import { findPhrases, PHRASE_LABELS } from '../lib/phrases';
 import { useLivePosition } from '../lib/position';
 import { drawOverview, drawWindow, renderTiles, useWaveform } from '../lib/waveform';
 import type { WaveColors } from '../lib/waveform';
@@ -51,7 +52,8 @@ function useSize<T extends HTMLElement>() {
 
 interface OverviewProps {
   trackId?: number;
-  slot: Pick<Slot, 'position' | 'duration' | 'cues' | 'looping' | 'loopIn' | 'loopOut'>;
+  slot: Pick<Slot, 'position' | 'duration' | 'cues' | 'looping' | 'loopIn' | 'loopOut'> &
+    Partial<Pick<Slot, 'music'>>;
   tone?: 'a' | 'b';
   onSeek?: (seconds: number) => void;
   compact?: boolean;
@@ -80,6 +82,10 @@ export function WaveOverview({
   }, [wave, key, size]);
   const d = slot.duration;
   const progress = d ? Math.min(1, slot.position / d) : 0;
+  const phrases = useMemo(
+    () => (wave && slot.music ? findPhrases(wave, slot.music.bpm, slot.music.downbeat, d) : []),
+    [wave, slot.music?.bpm, slot.music?.downbeat, d],
+  );
   const seekAt = (clientX: number, el: HTMLElement) => {
     const r = el.getBoundingClientRect();
     onSeek?.(Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * d);
@@ -115,6 +121,23 @@ export function WaveOverview({
       }}
     >
       <canvas ref={canvas} aria-hidden="true" />
+      {phrases.length > 0 && (
+        <div className="wave-phrases" aria-hidden="true">
+          {phrases.map((phrase) => (
+            <i
+              key={phrase.start}
+              className={`phrase-${phrase.kind}`}
+              style={{
+                left: `${(phrase.start / d) * 100}%`,
+                width: `${((phrase.end - phrase.start) / d) * 100}%`,
+              }}
+              title={PHRASE_LABELS[phrase.kind]}
+            >
+              <span>{PHRASE_LABELS[phrase.kind]}</span>
+            </i>
+          ))}
+        </div>
+      )}
       <i className="wave-played" />
       {d > 0 && slot.loopOut > slot.loopIn && (
         <i

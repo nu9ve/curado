@@ -1,63 +1,133 @@
-import type { KeyBinding } from './types';
+import type { Audio, KeyBinding } from './types';
 import { currentLanguage } from './language';
-const key = (code: string, slot: number, kind: string, value = 0, shift = false): KeyBinding => ({
+type Modifier = '' | 'shift' | 'ctrl' | 'alt';
+const key = (
+  code: string,
+  slot: number,
+  kind: string,
+  value = 0,
+  mod: Modifier = '',
+): KeyBinding => ({
   code,
-  shift,
+  shift: mod === 'shift',
+  ...(mod === 'ctrl' ? { ctrl: true } : {}),
+  ...(mod === 'alt' ? { alt: true } : {}),
   action: { slot, kind, value },
 });
-export const DEFAULT_KEYS: KeyBinding[] = [
-  key('Space', 0, 'toggle'),
-  key('KeyQ', 0, 'toggle'),
-  key('KeyA', 0, 'cue', 0),
-  key('KeyW', 0, 'loop'),
-  key('KeyE', 0, 'loopIn'),
-  key('KeyR', 0, 'loopOut'),
-  key('Digit1', 0, 'cue', 0),
-  key('Digit2', 0, 'cue', 1),
-  key('Digit3', 0, 'cue', 2),
-  key('Digit1', 0, 'setCue', 0, true),
-  key('Digit2', 0, 'setCue', 1, true),
-  key('Digit3', 0, 'setCue', 2, true),
-  key('KeyP', 1, 'toggle'),
-  key('KeyL', 1, 'cue', 0),
-  key('KeyO', 1, 'loop'),
-  key('KeyI', 1, 'loopIn'),
-  key('KeyU', 1, 'loopOut'),
-  key('Digit8', 1, 'cue', 0),
-  key('Digit9', 1, 'cue', 1),
-  key('Digit0', 1, 'cue', 2),
-  key('Digit8', 1, 'setCue', 0, true),
-  key('Digit9', 1, 'setCue', 1, true),
-  key('Digit0', 1, 'setCue', 2, true),
-  key('KeyD', 0, 'nudge', -0.05),
-  key('KeyF', 0, 'nudge', 0.05),
-  key('KeyJ', 1, 'nudge', -0.05),
-  key('KeyK', 1, 'nudge', 0.05),
-  key('KeyZ', 2, 'trigger'),
-  key('KeyX', 3, 'trigger'),
-  key('KeyC', 4, 'trigger'),
-  key('KeyV', 5, 'trigger'),
-  key('ArrowLeft', 0, 'crossfader', 0),
-  key('ArrowDown', 0, 'crossfader', 0.5),
-  key('ArrowRight', 0, 'crossfader', 1),
-  key('Escape', 0, 'panic'),
+/** What each hand reaches, mirrored: the same finger does the same job on either deck. */
+const HANDS = [
+  {
+    slot: 0,
+    pads: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'KeyQ', 'KeyW', 'KeyE', 'KeyR'],
+    play: 'KeyF',
+    cue: 'KeyD',
+    sync: 'KeyG',
+    back: 'KeyA',
+    forward: 'KeyS',
+    loopIn: 'KeyZ',
+    loopOut: 'KeyX',
+    reloop: 'KeyC',
+    slip: 'KeyV',
+    fx: 'KeyT',
+  },
+  {
+    slot: 1,
+    pads: ['Digit7', 'Digit8', 'Digit9', 'Digit0', 'KeyU', 'KeyI', 'KeyO', 'KeyP'],
+    play: 'KeyJ',
+    cue: 'KeyK',
+    sync: 'KeyH',
+    back: 'KeyL',
+    forward: 'Semicolon',
+    loopIn: 'Slash',
+    loopOut: 'Period',
+    reloop: 'Comma',
+    slip: 'KeyM',
+    fx: 'KeyY',
+  },
 ];
+export const DEFAULT_KEYS: KeyBinding[] = [
+  // Everyone's first reach: the bar stops or starts the whole mix.
+  key('Space', 0, 'toggleBoth'),
+  key('Escape', 0, 'panic'),
+  // The list: up and down to choose, Shift and a side to load into that deck.
+  key('ArrowUp', 0, 'listMove', -1),
+  key('ArrowDown', 0, 'listMove', 1),
+  key('ArrowUp', 0, 'listMove', -8, 'shift'),
+  key('ArrowDown', 0, 'listMove', 8, 'shift'),
+  key('ArrowLeft', 0, 'listLoad', 0, 'shift'),
+  key('ArrowRight', 1, 'listLoad', 0, 'shift'),
+  key('ArrowLeft', 0, 'crossfader', 0, 'ctrl'),
+  key('ArrowDown', 0, 'crossfader', 0.5, 'ctrl'),
+  key('ArrowRight', 0, 'crossfader', 1, 'ctrl'),
+  key('KeyB', 2, 'beatFxOn', 1, 'alt'),
+  ...HANDS.flatMap((hand) => [
+    // Plain plays a cue, Shift saves it, Control deletes it.
+    ...hand.pads.flatMap((code, cue) => [
+      key(code, hand.slot, 'cue', cue),
+      key(code, hand.slot, 'setCue', cue, 'shift'),
+      key(code, hand.slot, 'clearCue', cue, 'ctrl'),
+    ]),
+    key(hand.play, hand.slot, 'toggle'),
+    key(hand.cue, hand.slot, 'cue', 0),
+    key(hand.sync, hand.slot, 'sync', 1),
+    key(hand.sync, hand.slot, 'masterDeck', 0, 'shift'),
+    key(hand.sync, hand.slot, 'keyLock', 1, 'ctrl'),
+    key(hand.back, hand.slot, 'nudge', -0.05),
+    key(hand.forward, hand.slot, 'nudge', 0.05),
+    key(hand.back, hand.slot, 'beatJump', -1, 'shift'),
+    key(hand.forward, hand.slot, 'beatJump', 1, 'shift'),
+    key(hand.back, hand.slot, 'beatJump', -4, 'ctrl'),
+    key(hand.forward, hand.slot, 'beatJump', 4, 'ctrl'),
+    key(hand.loopIn, hand.slot, 'loopIn'),
+    key(hand.loopOut, hand.slot, 'loopOut'),
+    key(hand.reloop, hand.slot, 'loop'),
+    key(hand.loopIn, hand.slot, 'loopScale', 0.5, 'shift'),
+    key(hand.loopOut, hand.slot, 'loopScale', 2, 'shift'),
+    key(hand.reloop, hand.slot, 'quantize', 1, 'shift'),
+    key(hand.slip, hand.slot, 'slip', 1),
+    key(hand.slip, hand.slot, 'reverse', 1, 'shift'),
+    key(hand.fx, hand.slot, 'beatFxOn', 1),
+  ]),
+  // Option with a pad's key fires the sample at that place.
+  ...['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit7', 'Digit8', 'Digit9', 'Digit0'].map(
+    (code, i) => key(code, i + 2, 'trigger', 0, 'alt'),
+  ),
+];
+/** A key can only say "pressed": these flip whatever the engine reports now. */
+export const TOGGLE_KINDS = new Set(['slip', 'reverse', 'beatFxOn', 'keyLock', 'sync', 'quantize']);
+/** Handled by the interface: they move through a list, which the engine knows nothing about. */
+export const LOCAL_KINDS = new Set(['listMove', 'listLoad']);
 export function keyLabel(code: string) {
   return (
     (
-      { Space: '␣', ArrowLeft: '←', ArrowRight: '→', ArrowDown: '↓', Escape: 'ESC' } as Record<
-        string,
-        string
-      >
+      {
+        Space: '␣',
+        ArrowLeft: '←',
+        ArrowRight: '→',
+        ArrowDown: '↓',
+        ArrowUp: '↑',
+        Escape: 'ESC',
+        Semicolon: ';',
+        Comma: ',',
+        Period: '.',
+        Slash: '/',
+      } as Record<string, string>
     )[code] ?? code.replace('Key', '').replace('Digit', '')
   );
 }
 export function bindingLabel(binding: KeyBinding) {
-  return `${binding.shift ? '⇧ ' : ''}${keyLabel(binding.code)}`;
+  const modifier = `${binding.ctrl ? '⌃' : ''}${binding.alt ? '⌥' : ''}${binding.shift ? '⇧' : ''}`;
+  return `${modifier ? `${modifier} ` : ''}${keyLabel(binding.code)}`;
 }
 export function actionLabel(kind: string) {
   if (currentLanguage() === 'en') {
     const english: Record<string, string> = {
+      toggleBoth: 'Play / pause all',
+      listMove: 'Move in the list',
+      listLoad: 'Load the selection',
+      releaseFx: 'Release FX',
+      channelCue: 'Headphone cue',
+      masterCue: 'Master in headphones',
       clearCue: 'Delete cue',
       crossfaderCurve: 'Crossfader curve',
       trim: 'Trim',
@@ -119,6 +189,12 @@ export function actionLabel(kind: string) {
   return (
     (
       {
+        toggleBoth: 'Play / pausa general',
+        listMove: 'Moverse en la lista',
+        listLoad: 'Cargar la selección',
+        releaseFx: 'Release FX',
+        channelCue: 'Cue de audífonos',
+        masterCue: 'Master en audífonos',
         clearCue: 'Borrar cue',
         crossfaderCurve: 'Curva del crossfader',
         trim: 'Trim',
@@ -181,14 +257,45 @@ export function actionLabel(kind: string) {
 /** Player mode keeps only deck A transport (mirrors `session.rs`, slightly stricter). */
 export function allowedInMode(action: KeyBinding['action'], mode: 'player' | 'mix') {
   if (['playBoth', 'pauseBoth', 'cueBoth'].includes(action.kind)) return mode === 'mix';
+  // The bar means play and pause in both modes: in the player that is its one deck.
+  if (action.kind === 'toggleBoth') return true;
   return mode === 'mix' || (action.slot === 0 && action.kind !== 'crossfader');
+}
+/** What a key really sends, from what the engine reports at this moment. */
+export function resolveAction(
+  action: KeyBinding['action'],
+  audio: Audio | null | undefined,
+  mode: 'player' | 'mix',
+): KeyBinding['action'] {
+  if (action.kind === 'toggleBoth' && mode === 'player')
+    return { slot: 0, kind: 'toggle', value: 0 };
+  if (!TOGGLE_KINDS.has(action.kind)) return action;
+  const slot = audio?.slots[action.slot];
+  const on = {
+    slip: slot?.slip,
+    reverse: slot?.reverse,
+    beatFxOn: audio?.beatFx?.[action.slot]?.on,
+    keyLock: slot?.tuning.keyLock,
+    sync: slot?.sync,
+    quantize: slot?.quantize,
+  }[action.kind];
+  return { ...action, value: on ? 0 : 1 };
 }
 export function matchKey(
   event: Pick<KeyboardEvent, 'code' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey' | 'repeat'>,
   bindings: KeyBinding[],
   mode: 'player' | 'mix',
 ) {
-  if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return undefined;
-  const binding = bindings.find((b) => b.code === event.code && b.shift === event.shiftKey);
+  // Command stays the system's and the app's: quit, copy, close.
+  if (event.metaKey) return undefined;
+  const binding = bindings.find(
+    (b) =>
+      b.code === event.code &&
+      b.shift === event.shiftKey &&
+      !!b.ctrl === event.ctrlKey &&
+      !!b.alt === event.altKey,
+  );
+  // Holding an arrow runs down a list; holding anything else must not stutter the music.
+  if (event.repeat && binding?.action.kind !== 'listMove') return undefined;
   return binding && allowedInMode(binding.action, mode) ? binding : undefined;
 }
