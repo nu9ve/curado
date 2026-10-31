@@ -6,6 +6,7 @@ import { actionKey } from '../lib/feedback';
 import { tr } from '../lib/language';
 import { consoleScale } from '../lib/console-fit';
 import { samplePadIntent } from '../lib/console-pads';
+import { cueColor, useCueInfo } from '../lib/cues';
 import { EMPTY_SLOT, remaining } from '../lib/types';
 import type { KeyBinding, Library, Slot, Track } from '../lib/types';
 import { Knob, LimiterLamp, Meter, Slider } from './Controls';
@@ -61,6 +62,7 @@ function RxDeck({
   const tone = index ? 'b' : 'a';
   const empty = !track || loading;
   const [padMode, setPadMode] = useState<'cue' | 'samples'>('cue');
+  const cueInfo = useCueInfo(slot.id || undefined);
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
   return (
     <section className={`rx-deck rx-deck-${index} tone-${tone}`} aria-label={`Deck ${name}`}>
@@ -281,24 +283,26 @@ function RxDeck({
                 ) : (
                   <Soon key={cue}>{`SAMPLE ${cue + 1}`}</Soon>
                 )
-              ) : cue < 3 ? (
+              ) : (
                 <button
                   key={cue}
-                  className={`rx-pad ${slot.cues[cue] > 0 ? 'is-set' : ''}`}
+                  className={`rx-pad ${slot.cues[cue] > 0 ? 'is-set' : ''} ${slot.cueEnds[cue] > 0 ? 'is-loop' : ''}`}
+                  style={{ '--cue-color': cueColor(cueInfo.hot[cue]) } as CSSProperties}
                   disabled={empty}
-                  title={tr(
-                    'Clic: saltar y reproducir · Shift + clic: guardar',
-                    'Click: jump and play · Shift-click: save',
-                  )}
-                  aria-label={`Deck ${name} · Hot cue ${cue + 1}`}
+                  title={
+                    cueInfo.hot[cue]?.label ??
+                    tr(
+                      'Clic: saltar y reproducir · Shift + clic: guardar',
+                      'Click: jump and play · Shift-click: save',
+                    )
+                  }
+                  aria-label={`Deck ${name} · Hot cue ${String.fromCharCode(65 + cue)}${cueInfo.hot[cue]?.label ? ` · ${cueInfo.hot[cue]?.label}` : ''}`}
                   data-action={`${act(index, 'cue', cue)} ${act(index, 'setCue', cue)}`}
                   onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', cue)}
                 >
                   <span>{String.fromCharCode(65 + cue)}</span>
                   {keyFor(keys, index, 'cue', cue, true)}
                 </button>
-              ) : (
-                <Soon key={cue}>{`HOT CUE ${String.fromCharCode(65 + cue)}`}</Soon>
               ),
             )}
           </div>
@@ -306,7 +310,7 @@ function RxDeck({
             PERFORMANCE PADS{' '}
             <small>
               {padMode === 'cue'
-                ? tr('3 CUES DISPONIBLES', '3 CUES AVAILABLE')
+                ? tr('8 HOT CUES', '8 HOT CUES')
                 : tr('4 SAMPLES COMPARTIDOS', '4 SHARED SAMPLES')}
             </small>
           </div>

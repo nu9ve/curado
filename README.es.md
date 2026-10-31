@@ -40,7 +40,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 ## Qué puedes hacer
 
 - **Escuchar:** biblioteca, búsqueda, favoritos, playlists, cola con repetición y vista mini siempre encima.
-- **Mezclar:** dos decks, tres hot cues por pista, loops por beats, sync de tempo/fase, EQ, filtros LP/HP y echo por beats.
+- **Mezclar:** dos decks, ocho hot cues por pista, loops por beats, sync de tempo/fase, EQ, filtros LP/HP y echo por beats.
 - **Explorar la música:** BPM/key estimados, notación americana y Camelot, beatgrid editable, key lock y transposición ±12 semitonos.
 - **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
@@ -102,6 +102,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (n
 ## Límites actuales
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
+- Los USB de rekordbox son de solo lectura: los cues que pongas aquí quedan en curado, y los USB que solo tengan la base OneLibrary se ven como archivos normales.
 - El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Tempo y tono cambian al instante; al transponer, las notas muy graves pueden quedar algo altas.
 - Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.
 - Una salida estéreo, sin preescucha independiente por auriculares; recuperación de dispositivos manual.

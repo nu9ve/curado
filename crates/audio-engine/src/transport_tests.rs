@@ -328,6 +328,68 @@ fn an_unsaved_cue_starts_at_the_first_sound() {
     assert!((h.snapshot().slots[0].position - 3.2).abs() < 1e-6);
 }
 
+#[test]
+fn all_eight_hot_cues_work_and_a_saved_loop_plays_as_a_loop() {
+    let clip = clip_of(1, vec![[0.1; 2]; SR as usize * 20], false);
+    for cue in 0..annotations::HOT_CUES {
+        clip.cues.set(cue, 1. + cue as f64);
+    }
+    let mut values = [0.; annotations::HOT_CUES];
+    let mut ends = [0.; annotations::HOT_CUES];
+    values[7] = 8.;
+    ends[7] = 8.5;
+    clip.cues.replace(values, ends);
+    let (h, mut r) = engine(SR);
+    h.load(0, clip.clone()).unwrap();
+    render(&mut r, 1);
+    h.control(0, Control::Cue(7)).unwrap();
+    render(&mut r, SR as usize * 2);
+    let s = h.snapshot().slots[0].clone();
+    assert!(s.playing && s.looping);
+    assert_eq!((s.cues[7], s.cue_ends[7]), (8., 8.5));
+    assert_eq!((s.loop_in, s.loop_out), (8., 8.5));
+    // A loop's crossfade starts a few milliseconds before IN, then stays inside it.
+    assert!((7.99..8.5).contains(&s.position), "{}", s.position);
+    assert!(h.control(0, Control::Cue(annotations::HOT_CUES)).is_err());
+    // Saving there makes it a plain cue, and jumping to it leaves the loop.
+    h.control(0, Control::Quantize(false)).unwrap();
+    h.control(0, Control::Seek(3.)).unwrap();
+    h.control(0, Control::SetCue(7)).unwrap();
+    h.control(0, Control::Cue(7)).unwrap();
+    render(&mut r, 256);
+    let s = h.snapshot().slots[0].clone();
+    assert_eq!(s.cue_ends[7], 0.);
+    assert!(!s.looping);
+}
+
+#[test]
+fn an_imported_grid_gets_its_first_sound_from_the_audio() {
+    let path = std::env::temp_dir().join(format!("curado-first-{}.wav", std::process::id()));
+    let spec = hound::WavSpec {
+        channels: 2,
+        sample_rate: 8000,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+    for frame in 0..8000 * 2 {
+        let value = if frame < 4000 { 0_i16 } else { 8000 };
+        writer.write_sample(value).unwrap();
+        writer.write_sample(value).unwrap();
+    }
+    writer.finalize().unwrap();
+    let music = MusicAnalysis {
+        version: 1,
+        bpm: Some(120.),
+        imported: true,
+        ..Default::default()
+    };
+    let clip = decode::decode_with_music(&path, 1, Some(music)).unwrap();
+    assert_eq!(clip.music.first_sound, 0.5);
+    assert_eq!(clip.music.bpm, Some(120.), "the export's grid is kept");
+    std::fs::remove_file(path).unwrap();
+}
+
 fn two_decks(follower_seconds: f64, master_seconds: f64) -> (EngineHandle, Renderer) {
     let (h, mut r) = engine(SR);
     let make = |id| clip_of(id, vec![[0.1; 2]; SR as usize * 40], true);

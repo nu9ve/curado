@@ -20,7 +20,7 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 The **cabina** layout instead uses the same performance pads for **HOT CUE** or **SAMPLER**, chosen independently on each deck. The sampler references the same four global samples on both decks; the other pad positions are unavailable. Switching pad modes does not change playback or keyboard bindings. The keyboard map in deck B shows the action for a pointed key and the latest keyboard action.
 
 - Two detailed waveforms show 8 s with a centered playhead; click to seek relative to center. Bass is blue, mids amber, highs white; RGB/mono alternatives are in Appearance.
-- Each deck has title/remaining time, full waveform with numbered cues/loop, a platter rotating with engine position (click toggles play), three hot cues, transport, nudge, loop/IN/OUT and an outer vertical pitch control (±50%, double-click resets).
+- Each deck has title/remaining time, full waveform with numbered cues/loop, a platter rotating with engine position (click toggles play), eight hot cues, transport, nudge, loop/IN/OUT and an outer vertical pitch control (±50%, double-click resets).
 - Per-channel HI/MID/LOW (unity at center), FILTER (LP; rightmost is off), ECHO, dB LED meter and vertical volume fader. Vertical master/meter, panic and horizontal crossfader with ← ↓ → controls. Additional HP and beat-echo controls are described below.
 - Clickable keyboard map: A coral, B complementary, samples amber, mixer neutral; keys illuminate on input.
 
@@ -45,7 +45,7 @@ Knobs/faders: vertical drag (Shift = fine), wheel, arrows (Shift = fine; Page Up
 
 Samples 1–4: `Z / X / C / V`. Crossfader left/center/right: `← / ↓ / →`. Stop native decks and zero master: `Esc`.
 
-A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All three start at 0:00 and display their time before saving; pressing one you never saved starts at the track's first sound, on the nearest beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.
+A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All eight start at 0:00 and display their time before saving; keys cover the first three, and pads or MIDI Learn reach the rest. A cue saved as a loop also starts looping, marked ↻; pressing one you never saved starts at the track's first sound, on the nearest beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.
 
 Hotkeys use physical codes while the local window is focused. Typing in inputs or moving sliders does not trigger them. Space/Enter on buttons retain accessible activation. **Configuración → Teclado** remaps and detects conflicts. Player disables B/sample hotkeys. After panic, restore master and resume playback yourself. Web content has separate focus and audio.
 
@@ -60,6 +60,16 @@ Import estimates BPM, beat offset, bars and key over the whole track. Library sh
 - **HP** is independent of LP. **ECHO · BEATS** offers 0.25/0.5/0.75/1/2 beats using output BPM, or 120 BPM without analysis. Smoothed delay-time changes may sweep the repeats' pitch.
 
 Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music. Tempos near 70–90 and 140–180 BPM can read at half or double, which ×2/÷2 fixes, and detected bars are a first guess. Extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
+
+## USB drives and rekordbox
+
+Connected drives appear in the sidebar under **dispositivos** within a couple of seconds. curado never writes to them: what you change here stays in curado and is not exported to rekordbox or the USB.
+
+- **rekordbox USB:** select it to see **todas las pistas**, its playlists and **archivos**. Double-click or use A/B to load. The track arrives with rekordbox's BPM, grid, bars, key and hot cues with their colors, and memory cues appear as small marks on the overview. The analysis label then reads **rekordbox**.
+- **Any drive:** **archivos** browses folders with audio and hides everything else. Tracks without rekordbox data get curado's own analysis.
+- **Unplugging:** whatever is loaded keeps playing, since it is in memory. A new rekordbox export updates cues and grids, except those you edited in curado.
+
+Loading a track here does not add it to your library. Import it on purpose if you want that.
 
 ## Context footer
 

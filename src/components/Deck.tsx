@@ -1,3 +1,4 @@
+import { cueColor, useCueInfo } from '../lib/cues';
 import { tr } from '../lib/language';
 import type { CSSProperties } from 'react';
 import { Play, Pause, Repeat2, ChevronsLeft, ChevronsRight } from 'lucide-react';
@@ -68,6 +69,7 @@ export function Deck({
 }) {
   const snap = useSnapshot();
   const slot = snap.audio?.slots[index] ?? EMPTY_SLOT;
+  const cueInfo = useCueInfo(slot.id || undefined);
   const track = tracks.find((t) => t.id === slot.id);
   const tone = index ? 'b' : 'a';
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
@@ -121,21 +123,25 @@ export function Deck({
         <Platter slot={slot} index={index} disabled={!!empty} onToggle={() => send('toggle')} />
         <div className="deck-pads">
           <div className="cue-pads">
-            {[0, 1, 2].map((i) => (
+            {slot.cues.map((position, i) => (
               <button
                 key={i}
-                className={`cue-pad ${slot.cues[i] > 0 ? 'set' : ''}`}
-                title={tr(
-                  'Clic para saltar y reproducir · Shift + clic para guardar',
-                  'Click to jump and play · Shift-click to save',
-                )}
-                aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}`}
+                className={`cue-pad ${position > 0 ? 'set' : ''} ${slot.cueEnds[i] > 0 ? 'loop' : ''}`}
+                style={{ '--cue-color': cueColor(cueInfo.hot[i]) } as CSSProperties}
+                title={
+                  cueInfo.hot[i]?.label ??
+                  tr(
+                    'Clic para saltar y reproducir · Shift + clic para guardar',
+                    'Click to jump and play · Shift-click to save',
+                  )
+                }
+                aria-label={`Deck ${index ? 'B' : 'A'} · Hot cue ${i + 1}${cueInfo.hot[i]?.label ? ` · ${cueInfo.hot[i]?.label}` : ''}`}
                 disabled={!!empty}
                 data-action={`${act('cue', i)} ${act('setCue', i)}`}
                 onClick={(e) => send(e.shiftKey ? 'setCue' : 'cue', i)}
               >
                 <span>CUE {i + 1}</span>
-                <b>{time(slot.cues[i] ?? 0)}</b>
+                <b>{time(position)}</b>
                 {tag('cue', i, true)}
               </button>
             ))}

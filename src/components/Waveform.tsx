@@ -1,3 +1,4 @@
+import { cueColor, useCueInfo } from '../lib/cues';
 import { tr } from '../lib/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
@@ -67,6 +68,7 @@ export function WaveOverview({
   label = tr('Posición de reproducción', 'Playback position'),
 }: OverviewProps) {
   const wave = useWaveform(trackId);
+  const cueInfo = useCueInfo(trackId);
   const { colors, style, key } = useColors(tone);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [box, size] = useSize<HTMLDivElement>();
@@ -124,11 +126,29 @@ export function WaveOverview({
       {d > 0 &&
         slot.cues.map((c, i) =>
           c > 0 ? (
-            <i key={i} className="wave-cue" style={{ left: `${(c / d) * 100}%` }}>
+            <i
+              key={i}
+              className="wave-cue"
+              style={
+                {
+                  left: `${(c / d) * 100}%`,
+                  '--cue-color': cueColor(cueInfo.hot[i]),
+                } as CSSProperties
+              }
+            >
               <b>{i + 1}</b>
             </i>
           ) : null,
         )}
+      {d > 0 &&
+        cueInfo.memory.map((cue) => (
+          <i
+            key={cue.start}
+            className="wave-memory"
+            title={cue.label ?? undefined}
+            style={{ left: `${(cue.start / d) * 100}%` }}
+          />
+        ))}
       <i className="wave-head" />
     </div>
   );
@@ -150,6 +170,7 @@ export function ZoomWave({
   name: string;
 }) {
   const wave = useWaveform(trackId);
+  const cueInfo = useCueInfo(trackId);
   const { colors, style, crisp, key } = useColors(tone);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [box, size] = useSize<HTMLDivElement>();
@@ -212,7 +233,7 @@ export function ZoomWave({
       if (c <= 0) return;
       const x = Math.round(toX(c));
       if (x < -10 || x > w + 10) return;
-      ctx.fillStyle = tone === 'b' ? p.secondary : p.accent;
+      ctx.fillStyle = cueColor(cueInfo.hot[i]) ?? (tone === 'b' ? p.secondary : p.accent);
       ctx.fillRect(x, 0, 2, h);
       ctx.fillRect(x, 0, 12, 12);
       ctx.fillStyle = tone === 'b' ? p.tokens['--deck-b-ink'] : p.tokens['--accent-ink'];
@@ -228,6 +249,7 @@ export function ZoomWave({
     size,
     slot.position,
     slot.cues,
+    cueInfo,
     slot.loopIn,
     slot.loopOut,
     slot.looping,

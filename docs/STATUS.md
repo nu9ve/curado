@@ -1,5 +1,28 @@
 # curado status
 
+## Connected drives and rekordbox USB · 2026-10-30
+
+Connected drives now appear in the sidebar. A rekordbox USB lists its playlists, tracks load with rekordbox's grid, key and hot cues, and any drive can be browsed for audio. See [ADR-020](DECISIONS.md) and [Architecture](ARCHITECTURE.md). **Read only:** nothing is written to a device, and cues set here stay in curado.
+
+Tested against the maintainer's real USB, a FAT32 stick also holding PDFs, games and an Engine DJ library:
+
+| Measured on the real USB              | Result                                                 |
+| ------------------------------------- | ------------------------------------------------------ |
+| Library read                          | 2,800 tracks, 51 playlists, 3,782 entries in 14–17 ms  |
+| Broken references                     | 0 playlist entries, 0 audio files, 0 analysis files    |
+| Imported into a test database         | 2,780 grids, 2,771 keys, 157 hot cues, 7 of them loops |
+| Key notations understood              | All, including Open Key (`8d`, `10m`)                  |
+| Top-level folders shown when browsing | 4 with audio; PDFs, games and `PIONEER` hidden         |
+| Imported tracks per load              | About 13 ms each from this USB, plus the decode        |
+
+**Corrections to the previous sessions.** rekordbox's bar numbers are reliable: 120 of 135 of the maintainer's hot cues on its grid fall on its beat 1, or 89 %. Calling that numbering a weak reference was wrong. curado's bars also do better than the 58.5 % agreement figure suggested: 87 of 102 cues on our grid fall on our beat 1, or 85 %. On the 99 tracks with hot cues our tempo was within ±0.1 BPM on 88 %, against 69.5 % overall, and our grid was a median 3.7 ms from rekordbox's. These are 99 tracks the maintainer prepared, so they may be easier than the rest. Local analysis files do hold no cues, as stated: a bug in that earlier check was found and rechecked over 6,000 files.
+
+Also new: eight hot cues in the engine, which can be loops, with older saved cues preserved; colors, comments and memory-cue marks from rekordbox; a scan of drives every 2 s on its own worker; a load to a slot replacing any older one.
+
+Limits: no visual, listening or hardware test; the sidebar, browser and pad colors have not been seen on screen, and the 8-pad layout in the classic deck may need adjusting. Memory cues are only marks. Variable-tempo grids keep one tempo. Playlists cannot be queued or used for sample pads yet. A USB with only OneLibrary shows as plain files. The USB files were only read: `export.pdb` kept its modification date through all of this. Mount detection on Windows and Linux is written but unverified. rekordbox has not been shown a USB touched by curado, because curado does not write to one.
+
+Verification: `bun run check` passed (42 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (104 tests, 3 more ignored that need a real USB and pass on this one) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.90 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `741cae941dc7ae4a8d4657ec7c45d1b083fd4e86f785de2e6eacdc8367031619`. Next: the maintainer should open the USB in curado, load tracks from a playlist, check cues against rekordbox and try unplugging during playback. Then decide between `rekordbox.xml` export, which is what lets cues set here reach rekordbox, and DSP quality.
+
 ## Long tracks and real-time key lock · 2026-10-30
 
 Long tracks now load and key lock works in real time; see [ADR-019](DECISIONS.md) and [Architecture](ARCHITECTURE.md).
@@ -58,7 +81,7 @@ Phase rows compare different populations (182 and 508 tracks), because far more 
 Limits, as measured:
 
 - **Phase:** about 23 % of right-tempo tracks still differ from rekordbox by over 50 ms, many by a half or quarter beat, even at high confidence (80 % within 50 ms from 35 % up). Nothing here shows which grid is right. Measuring bass rise cannot settle it, because this method picks the strongest rise by design.
-- **Bars:** barely changed. Backbeat energy disagrees with rekordbox's numbering, so raising its weight lowered agreement. rekordbox's local files hold no cues to use as an independent check. Treat bars as a first guess; they are display-only and sync still works per beat.
+- **Bars:** agreement barely changed, and raising the weight of backbeat energy lowered it. Bars are display-only and sync still works per beat. A later check against real hot cues found them better than this figure suggests; see the section above.
 - **Half and double:** still 6.1 %. Rules follow this library's rekordbox convention, so drum and bass can read at half tempo. ×2 fixes it.
 - **Scope:** one constant grid per track. Most tracks in the benchmark are MP3; WAV and FLAC samples are small and no M4A or AIFF track was compared. Key now uses the whole track, but its accuracy remains unmeasured on real music.
 

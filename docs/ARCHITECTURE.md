@@ -85,7 +85,7 @@ Loading retains each slot's FX. A/B reset tempo to 1×, transpose to 0, key lock
 
 Versioned analysis with a manual flag lives in `settings["music:<id>"]`, without a schema-v3 migration. Library data includes it optionally; a track's estimate is recalculated on load or reanalysis when older than `ANALYSIS_VERSION`, so listings show the older BPM until then. Loading preserves saved corrections. Editing accepts registered IDs and validated values, saves to SQLite and updates metadata for every renderer slot holding the track. Original tags are never written.
 
-`bun run music:eval` compares the analysis with the grids rekordbox stored on this machine, reading `ANLZ0000.DAT` and never `master.db`, and prints aggregates without titles or paths. A hash splits tracks into `dev` for tuning and `holdout` for reporting. rekordbox is a reference, not ground truth; its local files carry no cues and only a file name, so audio is found by unique name.
+`bun run music:eval` compares the analysis with the grids rekordbox stored on this machine, reading `ANLZ0000.DAT` and never `master.db`, and prints aggregates without titles or paths. A hash splits tracks into `dev` for tuning and `holdout` for reporting. rekordbox is a reference, not ground truth; its local analysis files carry no cues and only a file name, so audio is found by unique name. A USB export does carry cues, and `real_bars_against_hot_cues` compares bars with them.
 
 Each deck starts with Q enabled and has beat-loop length and sync state. Master guides tempo/phase; follower derives rate from both BPMs. Tempo changes apply in the block they arrive, with or without key lock. Sync never starts transport.
 
@@ -135,6 +135,19 @@ Metal is a separate process. The visual worker requests one preallocated 2,048-s
 
 The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular scope and a depth-tested low-poly spectral city. Controls for scene, glow, sensitivity, speed and color are temporary; H hides/restores controls, F toggles native fullscreen and R resets the spring camera. Dragging the visual moves its camera, then it springs back. Not every setting affects every scene: glow is procedural and applies to the screen shaders, not terrain or city, and is not a post-processing bloom. Drawing is bounded to 30 FPS and hidden/minimized skips drawing, though capture continues while the helper exists. The helper exits on window close/stdin close. Distribution requires replacing extraction with a signed in-bundle helper.
 
+## Connected devices and rekordbox
+
+`devices.rs` lists mounted drives every 2 s on its own worker, without holding locks while it asks, because a dead network drive can take long to answer. `rekordbox.rs` reads `PIONEER/rekordbox/export.pdb` and `ANLZ` files with no new dependency, based on the formats documented by Deep Symmetry's Crate Digger. `exportLibrary.db` (OneLibrary) is ignored: it is encrypted, and the unencrypted export has the same library.
+
+- **Read only:** nothing opens a device file for writing, and a contract test enforces it. Edits stay in curado's database. Writing back to rekordbox or a USB does not exist yet.
+- **Untrusted input:** every read is bounds-checked, page chains are bounded, files are size-limited and tests feed truncated and corrupted data. A malformed file gives an error or less data, never a panic.
+- **No paths through IPC:** the interface sends a device name, a rekordbox track id or an opaque folder entry. Native code resolves them and rejects anything outside the drive after following links, or that is not supported audio. Browsing shows only audio files and folders with audio inside, never follows links, and skips hidden and system folders.
+- **Registration:** loading a device track registers it by path in `tracks` with no schema change, plus `settings["device-only:<id>"]`, which keeps it out of the library's lists. A track already in the library stays there, and importing a file on purpose clears the mark. `device-track:<id>` records what the last import brought.
+- **What is imported, once per analysis file version:** BPM, grid start, first bar, key, eight hot cues with loop ends, colors and comments, and memory cues. Positions need no conversion because curado's timeline matches rekordbox's. A variable grid keeps its median tempo, since curado has one grid per track. A new export updates a track unless it was edited here: `manual` protects its grid, and cues differing from the last import are kept.
+- **Pulled drives:** PCM is in RAM, so a loaded track keeps playing. Its view closes, and loading it again gives an ordinary error.
+
+Hot cue positions and ends live in `cues:<id>` and `cue-ends:<id>`. Older three-position arrays still read. `cue-info:<id>` holds colors, comments and memory cues for the interface only, so it never reaches the callback. Keyboard defaults still cover cues 1–3; pads and MIDI Learn reach all eight.
+
 ## Isolated web services
 
 `web.rs` creates a child WebView in main via Tauri's unstable `Window::add_child`, using fixed fractos/SoundCloud URLs. React reserves its area and syncs logical bounds through ResizeObserver/resize/scroll; Rust rejects negative/nonfinite/empty/oversized rectangles. Serialized React operations and an independent native gate do not touch audio. Switching service or unmounting (library/mini) closes it. Settings/playlist dialogs only hide it temporarily while playback continues. Web audio bypasses engine/panic.
@@ -143,7 +156,7 @@ HTTPS exact-host policy includes widgets; incognito, popups/downloads denied. No
 
 ## Persistent cues, modes and themes
 
-Clips share track `CueState`: three values plus atomic revision. Saving a cue allocates nothing and performs no IO; callback updates seconds. Both decks share cues for the same track. Independent `curado-autosave` worker (50 ms) saves changed `settings["cues:<id>"]`, marks saved revision only after success, retries failures and publishes `persistenceError`. Normal shutdown flushes. Loops/session positions remain temporary.
+Clips share track `CueState`: eight positions and loop ends plus atomic revision. Saving a cue allocates nothing and performs no IO; callback updates seconds. Both decks share cues for the same track. Independent `curado-autosave` worker (50 ms) saves changed `settings["cues:<id>"]`, marks saved revision only after success, retries failures and publishes `persistenceError`. Normal shutdown flushes. Loops/session positions remain temporary.
 
 Within 15 s of EOF, prefetch worker decodes next track under `decode_gate` without holding queue/output, storing `Queue::prefetched`. `advance` uses it if ID matches. Repeat-one seeks to 0. Stopping queue releases the clip on the worker. Gap becomes roughly one tick (≤50 ms) plus callback acknowledgement, still not gapless; at most one extra clip, inside the same limit.
 

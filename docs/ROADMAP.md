@@ -34,6 +34,11 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 - Media keys/macOS Now Playing, Windows SMTC, Linux MPRIS; opt-in autostart/file associations.
 - Accessibility: modal focus trap/restoration, Escape, audited contrast beyond palette math, dynamic scaling/screen reader.
 
+## P1 · rekordbox and devices
+
+- USB reading exists, read only (S11). Next: `rekordbox.xml` export and import so that cues set in curado reach rekordbox, then writing to a USB only with validation on real players.
+- Memory cues in the transport, queueing from a device playlist, tracks across a device and the local library, and Engine DJ libraries.
+
 ## P1 · Deeper mixing
 
 - S4 foundation exists: whole-track BPM/key, editable grid and bars, beat loops, native sync/deferred cues and a benchmark against stored rekordbox grids. Need listening, ground truth for phase and bars, a variable-tempo strategy and uncertain-grid handling.

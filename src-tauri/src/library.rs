@@ -1,4 +1,4 @@
-use curado_audio::{analysis, decode::Clip};
+use curado_audio::{analysis, annotations::HOT_CUES, decode::Clip};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -14,6 +14,8 @@ pub struct Track {
     pub sample_rate: u32,
     pub favorite: bool,
     pub music: Option<curado_audio::music::MusicAnalysis>,
+    /// Played from a connected drive: kept for cues and analysis, not listed in the library.
+    pub device: bool,
 }
 #[derive(Serialize)]
 pub struct Playlist {
@@ -104,7 +106,7 @@ impl Database {
     }
     pub fn library(&self) -> Result<Library, String> {
         // Waveforms are fetched per track on demand; the listing stays small for large libraries.
-        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,favorite,(SELECT value FROM settings WHERE key='music:'||tracks.id) FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
+        let mut stmt = self.connection.prepare("SELECT id,path,title,artist,duration,sample_rate,favorite,(SELECT value FROM settings WHERE key='music:'||tracks.id),EXISTS(SELECT 1 FROM settings WHERE key='device-only:'||tracks.id) FROM tracks ORDER BY title COLLATE NOCASE").map_err(|e| e.to_string())?;
         let tracks = stmt
             .query_map([], |r| {
                 Ok(Track {
@@ -121,6 +123,7 @@ impl Database {
                             serde_json::from_str::<curado_audio::music::MusicAnalysis>(&s).ok()
                         })
                         .filter(|m| m.valid()),
+                    device: r.get(8)?,
                 })
             })
             .map_err(|e| e.to_string())?
@@ -172,7 +175,61 @@ impl Database {
         if self.music(id).is_none_or(|music| !music.is_current()) {
             self.save(&format!("music:{id}"), &clip.music)?;
         }
+        // Importing it on purpose makes a file from a drive part of the library.
+        self.connection
+            .execute(
+                "DELETE FROM settings WHERE key=?",
+                [format!("device-only:{id}")],
+            )
+            .map_err(|e| e.to_string())?;
         Ok(inserted)
+    }
+    /// A track from a drive, with details filled in by its first decode if needed. One already
+    /// in the library stays there; a new one is kept out of the library's lists.
+    pub fn register_reference(
+        &self,
+        path: &Path,
+        title: &str,
+        artist: &str,
+        duration: f64,
+    ) -> Result<u64, String> {
+        let added = self
+            .connection
+            .execute(
+                "INSERT OR IGNORE INTO tracks(path,title,artist,duration,sample_rate,peaks) VALUES(?,?,?,?,0,'[]')",
+                params![path.to_string_lossy(), title, artist, duration],
+            )
+            .map_err(|e| e.to_string())?;
+        let id: u64 = self
+            .connection
+            .query_row(
+                "SELECT id FROM tracks WHERE path=?",
+                [path.to_string_lossy()],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if added > 0 {
+            self.save(&format!("device-only:{id}"), &true)?;
+        }
+        Ok(id)
+    }
+    /// Details only a decode knows. Runs once: a track with a sample rate is complete.
+    pub fn complete_reference(&self, id: u64, clip: &Clip) -> Result<(), String> {
+        self.connection
+            .execute(
+                "UPDATE tracks SET sample_rate=?,duration=?,title=COALESCE(?,title),artist=COALESCE(?,artist) WHERE id=? AND sample_rate=0",
+                params![clip.sample_rate, clip.duration(), clip.title, clip.artist, id],
+            )
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    /// Saved hot cues and loop ends. Older versions saved three cues and no ends.
+    pub fn saved_cues(&self, id: u64) -> ([f64; HOT_CUES], [f64; HOT_CUES]) {
+        let read = |key: String| -> [f64; HOT_CUES] {
+            let saved = self.setting::<Vec<f64>>(&key).unwrap_or_default();
+            std::array::from_fn(|i| saved.get(i).copied().unwrap_or(0.))
+        };
+        (read(format!("cues:{id}")), read(format!("cue-ends:{id}")))
     }
     pub fn music(&self, id: u64) -> Option<curado_audio::music::MusicAnalysis> {
         self.setting::<curado_audio::music::MusicAnalysis>(&format!("music:{id}"))

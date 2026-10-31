@@ -9,6 +9,15 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 - **Remaining:** import progress and cancellation, a corrupt-file corpus and decode time limits; waveform UI with hour-long tracks, unseen so far.
 - **Reconsider streaming when:** tracks over about 90 minutes matter, or target machines cannot spare the memory. Its risks are distant seeks in unindexed codecs, cue latency and dropouts from slow drives.
 
+## S11 · rekordbox interchange (P1)
+
+**USB reading implemented 2026-10-30:** see Status and ADR-020.
+
+- **Context:** curado reads a rekordbox USB but cannot give anything back.
+- **Scope:** export and import `rekordbox.xml`, the documented route that needs no reverse engineering. Writing `export.pdb` and `ANLZ` files comes after, and only to exports curado itself created.
+- **Done when:** cues set in curado appear in rekordbox and on a real player, confirmed by the maintainer.
+- **Risks:** undocumented details of the formats decide whether hardware accepts a USB; never touching an existing library without a backup.
+
 ## S2 · Position clock and smooth playhead (P0/UX)
 
 - **Context:** 20 Hz telemetry moves waveform/platters/playhead in 50 ms steps; UI must not invent progress.

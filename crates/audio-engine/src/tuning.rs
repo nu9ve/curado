@@ -64,6 +64,7 @@ pub(crate) struct MusicMeter {
     manual: AtomicBool,
     downbeat: AtomicU64,
     first_sound: AtomicU64,
+    imported: AtomicBool,
 }
 impl MusicMeter {
     pub fn store(&self, a: MusicAnalysis) {
@@ -80,6 +81,7 @@ impl MusicMeter {
         self.manual.store(a.manual, Relaxed);
         self.downbeat.store(a.downbeat.to_bits(), Relaxed);
         self.first_sound.store(a.first_sound.to_bits(), Relaxed);
+        self.imported.store(a.imported, Relaxed);
     }
     pub fn read(&self) -> MusicAnalysis {
         let bpm = f64::from_bits(self.bpm.load(Relaxed));
@@ -97,6 +99,7 @@ impl MusicMeter {
             manual: self.manual.load(Relaxed),
             downbeat: f64::from_bits(self.downbeat.load(Relaxed)),
             first_sound: f64::from_bits(self.first_sound.load(Relaxed)),
+            imported: self.imported.load(Relaxed),
         }
     }
 }

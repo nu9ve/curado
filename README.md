@@ -28,7 +28,7 @@ _Appearance and language settings in the browser preview. English is still in pr
 
 | Place                      | What you can do                                                                                                               |
 | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Sidebar**                | Browse the collection, favorites and playlists, open radio, start the local demo or configure the app.                        |
+| **Sidebar**                | Browse the collection, playlists and connected drives, open radio, start the local demo or configure the app.                 |
 | **Player**                 | Listen to deck A, use a queue with repeat, and watch the integrated audio-reactive visual.                                    |
 | **Mix**                    | Load A and B, inspect their waveforms and beatgrids, use cues and loops, and mix with EQ, filters, echo and four sample pads. |
 | **Library**                | Search local tracks, check estimated BPM and key, load a selection into a deck, and organize playlists.                       |
@@ -42,12 +42,13 @@ The interface defaults to Spanish; an English option is in progress, with some n
 ## Make yourself at home
 
 - **Listen:** search your library, save favorites and playlists, play a queue with repeat, or switch to the mini player.
-- **Mix:** two decks, three hot cues per track, beat loops, tempo/phase sync, EQ, LP/HP filters and beat echo.
+- **Mix:** two decks, eight hot cues per track, beat loops, tempo/phase sync, EQ, LP/HP filters and beat echo.
 - **Find the key:** estimated BPM and musical key in standard letter notation and Camelot, an editable beatgrid, key lock and ±12-semitone transposition.
 - **Play by feel:** remappable keyboard controls, MIDI Learn, animated feedback and footer hints that explain the control you point to.
 - **Make it yours:** five visual styles, your own accent color, light/dark/system themes and waveform options.
 - **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
 - **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
+- **Bring your USB:** connected drives appear in the sidebar. A rekordbox USB shows its playlists, and tracks load with their grids, keys and hot cues. Any drive can be browsed for audio. curado only reads them.
 - **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
 
 Local listening and mixing work offline. Web services need internet. There is no WebAudio replacement for the native engine.
@@ -102,7 +103,7 @@ bun run desktop
 | -------------------------- | ------------- | ------------- |
 | Play/pause                 | Q, Space      | P             |
 | Jump to first cue and play | A             | L             |
-| Hot cues 1/2/3             | 1 / 2 / 3     | 8 / 9 / 0     |
+| Hot cues 1/2/3 (pads: 8)   | 1 / 2 / 3     | 8 / 9 / 0     |
 | Save cue                   | Shift + 1/2/3 | Shift + 8/9/0 |
 | Loop / IN / OUT            | W / E / R     | O / I / U     |
 | Nudge −/+                  | D / F         | J / K         |
@@ -112,6 +113,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does n
 ## Before you start
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
+- rekordbox USBs are read only: cues you set here stay in curado, and USBs with only the newer OneLibrary database show as plain files.
 - BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Tempo and key change at once; when transposing, very low notes can sit slightly sharp.
 - Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.
 - One stereo output; no independent headphone cue. Device recovery is manual.

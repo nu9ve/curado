@@ -164,9 +164,13 @@ pub fn decode_bounded(
         return Err(CANCELLED.into());
     }
     let waveform = analysis.map(WaveformBuilder::finish).unwrap_or_default();
-    let music = cached
+    let mut music = cached
         .filter(|m| m.valid())
         .unwrap_or_else(|| crate::music::analyze(&samples, sample_rate));
+    // Exports have a grid but no first sound, which comes from the audio.
+    if music.imported && music.first_sound == 0. {
+        music.first_sound = crate::beat::first_sound(&samples, sample_rate);
+    }
     Ok(Clip {
         id,
         cues: Arc::new(CueState::default()),

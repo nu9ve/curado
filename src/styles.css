@@ -851,6 +851,31 @@ input[type='range']::-moz-range-thumb {
   overflow-y: auto;
   align-content: start;
 }
+/* A drive's playlists can be many: the group scrolls and leaves the rest of the sidebar in view. */
+.side-nav.devices {
+  min-height: 0;
+  max-height: 45%;
+  overflow-y: auto;
+  align-content: start;
+  flex-shrink: 1;
+}
+.device-group {
+  display: grid;
+  gap: 1px;
+}
+.nav-item.nested {
+  padding-left: calc(20px + var(--depth, 0) * 10px);
+  min-height: 24px;
+  font-size: 11px;
+}
+.nav-folder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px 2px calc(20px + var(--depth, 0) * 10px);
+  font-size: 11px;
+  color: var(--text-muted);
+}
 .nav-item {
   position: relative;
   justify-content: flex-start;
@@ -1244,7 +1269,17 @@ input[type='range']::-moz-range-thumb {
   top: 0;
   bottom: 0;
   width: 1px;
-  background: var(--tone);
+  background: var(--cue-color, var(--tone));
+  pointer-events: none;
+}
+.wave-memory {
+  position: absolute;
+  bottom: 0;
+  width: 0;
+  height: 0;
+  margin-left: -3px;
+  border: 3px solid transparent;
+  border-bottom-color: var(--text-muted);
   pointer-events: none;
 }
 .wave-cue b {
@@ -1256,7 +1291,7 @@ input[type='range']::-moz-range-thumb {
   font-size: 9px;
   font-weight: 400;
   line-height: 11px;
-  background: var(--tone);
+  background: var(--cue-color, var(--tone));
   color: var(--tone-ink);
 }
 .wave-loop {
@@ -1570,7 +1605,7 @@ input[type='range']::-moz-range-thumb {
 }
 .cue-pads {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 .cue-pad {
@@ -1581,6 +1616,12 @@ input[type='range']::-moz-range-thumb {
   min-height: 48px;
   padding: 7px 8px;
   overflow: hidden;
+}
+.cue-pad.set {
+  box-shadow: inset 0 -3px 0 var(--cue-color, var(--tone));
+}
+.cue-pad.loop > b::after {
+  content: ' ↻';
 }
 .cue-pad > span {
   font-family: var(--font-pixel);
@@ -3152,4 +3193,57 @@ input[type='color'] {
 }
 .mix-view > .zoom-stack {
   margin-top: 0;
+}
+
+/* Connected devices. */
+.device-browser .eyebrow svg {
+  vertical-align: -1px;
+}
+.device-note {
+  padding: 12px 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.device-path {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 10px;
+  font-size: 13px;
+}
+.device-files ul {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.device-files li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+.device-files li:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.device-entry {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 4px;
+  background: transparent;
+  font-size: 12px;
+  text-align: left;
+}
+.device-entry span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

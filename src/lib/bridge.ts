@@ -1,10 +1,11 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSyncExternalStore } from 'react';
-import type { Action, AppSnapshot } from './types';
+import type { Action, AppSnapshot, DeviceInfo } from './types';
 import { tr } from './language';
 export const native = isTauri();
 let snapshot: AppSnapshot = {
+  devices: [],
   mode: 'player',
   persistenceError: null,
   queue: { count: 0, index: 0, active: false, repeat: 'off', error: null },
@@ -30,6 +31,11 @@ const subscribe = (cb: () => void) => {
 export function useSnapshot() {
   return useSyncExternalStore(subscribe, () => snapshot);
 }
+let devices: DeviceInfo[] = [];
+/** Stable between changes, so subscribers do not render with every 20 Hz snapshot. */
+export function useDevices() {
+  return useSyncExternalStore(subscribe, () => devices);
+}
 export function useMode() {
   return useSyncExternalStore(subscribe, () => snapshot.mode);
 }
@@ -40,6 +46,7 @@ export async function setSessionMode(mode: 'player' | 'mix') {
 export const getSnapshot = () => snapshot;
 function update(s: AppSnapshot) {
   snapshot = s;
+  if (JSON.stringify(s.devices) !== JSON.stringify(devices)) devices = s.devices;
   listeners.forEach((f) => f());
 }
 export async function connect() {

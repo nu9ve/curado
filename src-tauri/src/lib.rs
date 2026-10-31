@@ -1,10 +1,12 @@
 mod annotations;
 mod demo;
+mod devices;
 mod library;
 mod memory;
 mod midi;
 mod playback;
 mod preferences;
+mod rekordbox;
 mod session;
 mod visuals;
 mod web;
@@ -43,6 +45,7 @@ pub struct AppState {
     generation: AtomicU64,
     running: AtomicBool,
     pcm: memory::PcmBudget,
+    devices: devices::Devices,
     /// Latest load per slot: an older one still decoding stops and lets the newer one run.
     load_requests: [AtomicU64; curado_audio::SLOTS],
 }
@@ -55,12 +58,11 @@ impl AppState {
         id: u64,
         replaced: &dyn Fn() -> bool,
     ) -> Result<Arc<curado_audio::decode::Clip>, String> {
-        let (path, initial, music) = {
+        let (path, (cues, ends), music) = {
             let db = self.db.lock().unwrap();
             (
                 db.path(id)?,
-                db.setting::<[f64; 3]>(&format!("cues:{id}"))
-                    .unwrap_or([0.; 3]),
+                db.saved_cues(id),
                 // Estimates from an older analysis are recalculated; manual ones are kept.
                 db.music(id).filter(|music| music.is_current()),
             )
@@ -80,9 +82,13 @@ impl AppState {
                 .unwrap()
                 .save(&format!("music:{id}"), &clip.music)?;
         }
-        clip.cues = self.annotations.lock().unwrap().state(id, initial);
-        // Tracks imported before schema v3 gain their band waveform on first load.
-        let _ = self.db.lock().unwrap().fill_waveform(id, &clip);
+        clip.cues = self.annotations.lock().unwrap().state(id, cues, ends);
+        {
+            let db = self.db.lock().unwrap();
+            // Tracks imported before schema v3 gain their band waveform on first load.
+            let _ = db.fill_waveform(id, &clip);
+            db.complete_reference(id, &clip)?;
+        }
         let clip = Arc::new(clip);
         self.pcm.track(&clip);
         Ok(clip)
@@ -129,6 +135,7 @@ impl AppState {
         let queue = self.queue.lock().unwrap().status();
         let persistence_error = self.persistence_error.lock().unwrap().clone();
         let mode = *self.mode.lock().unwrap();
+        let devices = self.devices.list();
         AppSnapshot {
             audio,
             output,
@@ -137,6 +144,7 @@ impl AppState {
             queue,
             persistence_error,
             mode,
+            devices,
         }
     }
 }
@@ -150,6 +158,7 @@ struct AppSnapshot {
     #[serde(rename = "persistenceError")]
     persistence_error: Option<String>,
     mode: session::Mode,
+    devices: Vec<devices::DeviceInfo>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -382,6 +391,49 @@ async fn create_demo(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, 
     })
     .await
 }
+/// Decodes and installs a track. `Ok(None)` means a newer load for this slot replaced it.
+fn load_into_slot(
+    s: &AppState,
+    slot: usize,
+    request: u64,
+    resolve: impl FnOnce() -> Result<u64, String>,
+) -> Result<Option<u64>, String> {
+    let replaced = || s.load_requests[slot].load(Ordering::SeqCst) != request;
+    let _guard = s.decode_gate.lock().unwrap();
+    if replaced() {
+        return Ok(None);
+    }
+    let generation = s.generation.load(Ordering::Acquire);
+    let id = resolve()?;
+    let clip = match s.decode_track_unless(id, &replaced) {
+        Err(error) if error == curado_audio::decode::CANCELLED => return Ok(None),
+        other => other?,
+    };
+    let output = s.output.lock().unwrap();
+    if s.generation.load(Ordering::Acquire) != generation {
+        return Err("El dispositivo cambió durante la carga; vuelve a cargar la pista".into());
+    }
+    let handle = output.as_ref().ok_or("Motor no disponible")?.handle.clone();
+    let ticket = handle.load(slot, clip)?;
+    drop(output);
+    let started = std::time::Instant::now();
+    while !handle.is_loaded(slot, ticket) {
+        if started.elapsed() > Duration::from_secs(2) {
+            return Err("El dispositivo no confirmó la carga. Recupera la salida de audio y vuelve a intentar.".into());
+        }
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    Ok(Some(id))
+}
+fn start_load(s: &AppState, slot: usize) -> Result<u64, String> {
+    if slot >= curado_audio::SLOTS {
+        return Err("Slot inválido".into());
+    }
+    if slot == 0 {
+        s.queue.lock().unwrap().enabled = false;
+    }
+    Ok(s.load_requests[slot].fetch_add(1, Ordering::SeqCst) + 1)
+}
 /// Returns false when a newer load for this slot replaced this one.
 #[tauri::command]
 async fn load_track(
@@ -389,38 +441,81 @@ async fn load_track(
     id: u64,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<bool, String> {
-    if slot >= curado_audio::SLOTS {
-        return Err("Slot inválido".into());
-    }
     let s = state.inner().clone();
-    if slot == 0 {
-        s.queue.lock().unwrap().enabled = false;
-    }
-    let request = s.load_requests[slot].fetch_add(1, Ordering::SeqCst) + 1;
+    let request = start_load(&s, slot)?;
+    work(move || Ok(load_into_slot(&s, slot, request, || Ok(id))?.is_some())).await
+}
+#[tauri::command]
+async fn device_library(
+    device: String,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<rekordbox::Export, String> {
+    let s = state.inner().clone();
+    work(move || Ok((*s.devices.export(&device)?).clone())).await
+}
+#[tauri::command]
+async fn device_browse(
+    device: String,
+    folder: Option<u64>,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<devices::DeviceFolder, String> {
+    let s = state.inner().clone();
+    work(move || s.devices.browse(&device, folder)).await
+}
+/// Loads a track from a drive's rekordbox library, with its grid, key and cues.
+#[tauri::command]
+async fn device_load_track(
+    slot: usize,
+    device: String,
+    track: u32,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<u64>, String> {
+    let s = state.inner().clone();
+    let request = start_load(&s, slot)?;
     work(move || {
-        let replaced = || s.load_requests[slot].load(Ordering::SeqCst) != request;
-        let _guard = s.decode_gate.lock().unwrap();
-        if replaced() {
-            return Ok(false);
-        }
-        let generation = s.generation.load(Ordering::Acquire);
-        let clip = match s.decode_track_unless(id, &replaced) {
-            Err(error) if error == curado_audio::decode::CANCELLED => return Ok(false),
-            other => other?,
-        };
-        let output = s.output.lock().unwrap();
-        if s.generation.load(Ordering::Acquire) != generation {
-            return Err("El dispositivo cambió durante la carga; vuelve a cargar la pista".into());
-        }
-        let handle = output.as_ref().ok_or("Motor no disponible")?.handle.clone();
-        let ticket = handle.load(slot, clip)?;
-        drop(output);
-        let started = std::time::Instant::now();
-        while !handle.is_loaded(slot, ticket) {
-            if started.elapsed() > Duration::from_secs(2) { return Err("El dispositivo no confirmó la carga. Recupera la salida de audio y vuelve a intentar.".into()); }
-            std::thread::sleep(Duration::from_millis(2));
-        }
-        Ok(true)
+        load_into_slot(&s, slot, request, || {
+            let export = s.devices.export(&device)?;
+            let track = export
+                .tracks
+                .iter()
+                .find(|candidate| candidate.id == track)
+                .ok_or("La pista ya no está en el dispositivo")?;
+            let root = s.devices.root(&device)?;
+            let mut annotations = s.annotations.lock().unwrap();
+            let db = s.db.lock().unwrap();
+            devices::import_track(&db, &mut annotations, &root, track)
+        })
+    })
+    .await
+}
+/// Loads a file found browsing a drive. Takes the listing's entry, never a path.
+#[tauri::command]
+async fn device_load_file(
+    slot: usize,
+    entry: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Option<u64>, String> {
+    let s = state.inner().clone();
+    let request = start_load(&s, slot)?;
+    work(move || {
+        load_into_slot(&s, slot, request, || {
+            let path = s.devices.file(entry)?;
+            devices::register_file(&s.db.lock().unwrap(), &path)
+        })
+    })
+    .await
+}
+#[tauri::command]
+async fn track_cue_info(
+    id: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<devices::CueInfo, String> {
+    let s = state.inner().clone();
+    work(move || {
+        let db = s.db.lock().unwrap();
+        Ok(db
+            .setting::<devices::CueInfo>(&format!("cue-info:{id}"))
+            .unwrap_or_default())
     })
     .await
 }
@@ -660,9 +755,19 @@ pub fn run() {
                 generation: AtomicU64::new(0),
                 running: AtomicBool::new(true),
                 pcm: Default::default(),
+                devices: Default::default(),
                 load_requests: Default::default(),
             });
             app.manage(state.clone());
+            let drives = state.clone();
+            std::thread::Builder::new()
+                .name("curado-devices".into())
+                .spawn(move || {
+                    while drives.running.load(Ordering::Relaxed) {
+                        drives.devices.refresh();
+                        std::thread::sleep(Duration::from_secs(2));
+                    }
+                })?;
             if let Err(error) = tray(app) {
                 eprintln!("curado tray unavailable: {error}");
             }
@@ -747,6 +852,11 @@ pub fn run() {
                 import_media,
                 create_demo,
                 load_track,
+                device_library,
+                device_browse,
+                device_load_track,
+                device_load_file,
+                track_cue_info,
                 audio_devices,
                 configure_audio,
                 get_keyboard,

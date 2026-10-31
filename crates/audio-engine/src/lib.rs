@@ -8,6 +8,7 @@ pub mod music;
 pub mod output;
 mod pitch;
 pub mod tuning;
+use annotations::HOT_CUES;
 use crossbeam_queue::ArrayQueue;
 use decode::Clip;
 use dsp::{Effects, Params};
@@ -91,10 +92,12 @@ impl Action {
             "toggle" => Control::Toggle,
             "seek" if self.value >= 0. => Control::Seek(self.value),
             "nudge" if self.value.abs() <= 1. => Control::Nudge(self.value),
-            "cue" if (0.0..3.0).contains(&self.value) && self.value.fract() == 0. => {
+            "cue" if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. => {
                 Control::Cue(self.value as usize)
             }
-            "setCue" if (0.0..3.0).contains(&self.value) && self.value.fract() == 0. => {
+            "setCue"
+                if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
+            {
                 Control::SetCue(self.value as usize)
             }
             "loop" => Control::Loop,
@@ -103,7 +106,9 @@ impl Action {
             "trigger" => Control::Trigger,
             "playBoth" => Control::PlayBoth,
             "pauseBoth" => Control::PauseBoth,
-            "cueBoth" if (0.0..3.0).contains(&self.value) && self.value.fract() == 0. => {
+            "cueBoth"
+                if (0.0..HOT_CUES as f64).contains(&self.value) && self.value.fract() == 0. =>
+            {
                 Control::CueBoth(self.value as usize)
             }
             "quantize" if matches!(self.value, 0.0 | 1.0) => Control::Quantize(self.value == 1.),
@@ -170,7 +175,8 @@ struct Meter {
     echo: AtomicU32,
     high_pass: AtomicU32,
     echo_beats: AtomicU32,
-    cues: [AtomicU64; 3],
+    cues: [AtomicU64; HOT_CUES],
+    cue_ends: [AtomicU64; HOT_CUES],
     loop_in: AtomicU64,
     loop_out: AtomicU64,
     music: MusicMeter,
@@ -222,7 +228,9 @@ pub struct SlotSnapshot {
     pub echo: f32,
     pub high_pass: f32,
     pub echo_beats: f32,
-    pub cues: [f64; 3],
+    pub cues: [f64; HOT_CUES],
+    /// Where a hot cue's loop ends, or 0 for a plain cue.
+    pub cue_ends: [f64; HOT_CUES],
     pub loop_in: f64,
     pub loop_out: f64,
     pub load_ticket: u64,
@@ -350,7 +358,7 @@ impl EngineHandle {
     }
     pub fn control(&self, slot: usize, control: Control) -> Result<(), String> {
         if slot >= SLOTS
-            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::CueBoth(i) if i>=3)
+            || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::CueBoth(i) if i>=HOT_CUES)
             || (slot >= 2
                 && matches!(
                     control,
@@ -445,6 +453,7 @@ impl EngineHandle {
                     high_pass: f(&m.high_pass),
                     echo_beats: f(&m.echo_beats),
                     cues: std::array::from_fn(|i| f64::from_bits(m.cues[i].load(Relaxed))),
+                    cue_ends: std::array::from_fn(|i| f64::from_bits(m.cue_ends[i].load(Relaxed))),
                     loop_in: f64::from_bits(m.loop_in.load(Relaxed)),
                     loop_out: f64::from_bits(m.loop_out.load(Relaxed)),
                     load_ticket: m.load_ticket.load(std::sync::atomic::Ordering::Acquire),
@@ -685,6 +694,7 @@ impl Deck {
         };
         let len = clip.samples.len() as f64;
         let stored = (clip.cues.get(index) * clip.sample_rate as f64).clamp(0., len);
+        let loop_end = (clip.cues.end(index) * clip.sample_rate as f64).clamp(0., len);
         let target = if stored == 0. {
             let first = self.music.first_sound * clip.sample_rate as f64;
             self.snap(first.min(len), f64::round).min(len)
@@ -697,7 +707,14 @@ impl Deck {
         // It never toggles or changes another deck's state.
         if target < len {
             self.preroll_to(target, sr);
-            self.leave_loop_if_outside(target);
+            if loop_end > stored {
+                // A saved loop plays as saved; a synced deck shifts it with the start.
+                self.loop_in = target;
+                self.loop_out = (loop_end + target - stored).min(len);
+                self.looping = true;
+            } else {
+                self.leave_loop_if_outside(target);
+            }
             self.playing = true;
         } else {
             self.jump(target, sr);
@@ -1384,11 +1401,10 @@ impl Renderer {
             ] {
                 atomic.store(value.to_bits(), Relaxed);
             }
-            for j in 0..3 {
-                m.cues[j].store(
-                    d.clip.as_ref().map_or(0., |c| c.cues.get(j)).to_bits(),
-                    Relaxed,
-                );
+            for j in 0..HOT_CUES {
+                let cues = d.clip.as_ref().map(|c| &c.cues);
+                m.cues[j].store(cues.map_or(0., |c| c.get(j)).to_bits(), Relaxed);
+                m.cue_ends[j].store(cues.map_or(0., |c| c.end(j)).to_bits(), Relaxed);
             }
             m.load_ticket
                 .store(d.load_ticket, std::sync::atomic::Ordering::Release);
@@ -1678,7 +1694,7 @@ mod tests {
         h.control(0, Control::PlayBoth).unwrap();
         render(&mut r, 256);
         assert!(h.snapshot().slots[..2].iter().all(|slot| slot.playing));
-        assert!(h.control(0, Control::CueBoth(3)).is_err());
+        assert!(h.control(0, Control::CueBoth(HOT_CUES)).is_err());
         h.control(0, Control::Panic).unwrap();
         h.control(0, Control::CueBoth(0)).unwrap();
         let out = render(&mut r, 4096);

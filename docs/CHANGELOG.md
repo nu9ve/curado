@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Connected drives and rekordbox USB
+
+Connected drives appear in the sidebar. A rekordbox USB shows its playlists, and its tracks load with their grids, keys and hot cues; any drive can be browsed for audio. Read only: edits stay in curado. The engine now has eight hot cues that can be loops. See [Status](STATUS.md) and ADR-020. Lesson: real data corrects assumptions, because the maintainer's own cues showed rekordbox's bar numbers were reliable and curado's bars better than earlier agreement figures suggested.
+
 ## 2026-10-30 · Long tracks and real-time key lock
 
 Raised the per-track limit from 96 MiB to about 90 minutes under a shared 3 GiB limit, kept in RAM rather than streamed after measuring track lengths and decode speed. Moved key lock into the callback, so tempo and key apply at once and the offline preparation worker is gone. Fixed a crash in the echo that predates this work. See [Status](STATUS.md) and ADR-019. Lessons: a plan is a hypothesis, because streaming looked necessary until decoding an hour took five seconds; and a test double can hide what it tests, because the first allocator hook crashed from its own thread-local access and could have passed without measuring anything.

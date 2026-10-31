@@ -1,6 +1,6 @@
 import { tr, useLanguage } from './lib/language';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import {
   Library as LibraryIcon,
   Star,
@@ -14,6 +14,9 @@ import {
   Sparkles,
   PictureInPicture2,
   Radio,
+  Folder,
+  HardDrive,
+  Usb,
 } from 'lucide-react';
 import { connectTheme } from './lib/theme-store';
 import {
@@ -21,15 +24,24 @@ import {
   connect,
   getSnapshot,
   native,
+  useDevices,
   useSnapshot,
   useMode,
   setSessionMode,
 } from './lib/bridge';
-import type { ImportReport, KeyBinding, Library as LibraryData, LibraryEdit } from './lib/types';
+import type {
+  DeviceExport,
+  ImportReport,
+  KeyBinding,
+  Library as LibraryData,
+  LibraryEdit,
+} from './lib/types';
 import { EMPTY_SLOT } from './lib/types';
 import { DEFAULT_KEYS, allowedInMode, matchKey } from './lib/keyboard';
 import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
+import { invalidateCueInfo } from './lib/cues';
+import { deviceViewId, parseDeviceView, playlistTree } from './lib/devices';
 import { setMiniWindow } from './lib/window';
 import { readMixLayout, saveMixLayout } from './lib/mix-layout';
 import type { MixLayout } from './lib/mix-layout';
@@ -37,6 +49,7 @@ import { Deck } from './components/Deck';
 import { Mixer, SampleBank } from './components/Mixer';
 import { HardwareConsole } from './components/HardwareConsole';
 import { Library } from './components/Library';
+import { DeviceBrowser } from './components/DeviceBrowser';
 import { Visual } from './components/Visual';
 import { Settings } from './components/Settings';
 import { ZoomWave } from './components/Waveform';
@@ -127,11 +140,13 @@ export default function App() {
     window.addEventListener('keydown', handle);
     return () => window.removeEventListener('keydown', handle);
   }, [keys, settings, newPlaylist, trigger]);
-  const load = useCallback(
-    async (slot: number, id: number) => {
+  const loadWith = useCallback(
+    async (slot: number, start: () => Promise<number | null>) => {
       setLoading((prev) => [...prev, slot]);
       try {
-        if (!(await call<boolean>('load_track', { slot, id }))) return;
+        const id = await start();
+        if (id === null) return;
+        invalidateCueInfo(id);
         setLibrary(await call<LibraryData>('get_library'));
         void refreshWaveform(id);
         const destination = slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`;
@@ -144,6 +159,52 @@ export default function App() {
       }
     },
     [notify, onError],
+  );
+  const load = useCallback(
+    (slot: number, id: number) =>
+      loadWith(slot, async () => ((await call<boolean>('load_track', { slot, id })) ? id : null)),
+    [loadWith],
+  );
+  const devices = useDevices();
+  const deviceView = parseDeviceView(view);
+  const activeDevice = deviceView
+    ? (devices.find((device) => device.id === deviceView.device) ?? null)
+    : null;
+  const [deviceLibraries, setDeviceLibraries] = useState<Record<string, DeviceExport>>({});
+  const [deviceError, setDeviceError] = useState<string | null>(null);
+  // Listed on opening each device, so a drive exported again while plugged in is picked up.
+  const openDevice = activeDevice?.rekordbox ? activeDevice.id : null;
+  useEffect(() => {
+    setDeviceError(null);
+    if (!openDevice) return;
+    let current = true;
+    call<DeviceExport>('device_library', { device: openDevice })
+      .then((library) => {
+        if (current) setDeviceLibraries((known) => ({ ...known, [openDevice]: library }));
+      })
+      .catch((error) => {
+        if (current) setDeviceError(String(error));
+      });
+    return () => {
+      current = false;
+    };
+  }, [openDevice]);
+  useEffect(() => {
+    // A drive that was pulled out takes its view with it. What is already loaded keeps playing.
+    if (deviceView && !activeDevice) setView('all');
+    setDeviceLibraries((known) => {
+      const kept = Object.entries(known).filter(([id]) => devices.some((d) => d.id === id));
+      return kept.length === Object.keys(known).length ? known : Object.fromEntries(kept);
+    });
+  }, [devices, deviceView, activeDevice]);
+  const openedLibrary = activeDevice ? (deviceLibraries[activeDevice.id] ?? null) : null;
+  const deviceRows = useMemo(
+    () => (openedLibrary ? playlistTree(openedLibrary.playlists) : []),
+    [openedLibrary],
+  );
+  const localLibrary = useMemo(
+    () => ({ ...library, tracks: library.tracks.filter((track) => !track.device) }),
+    [library],
   );
   const edit = useCallback(
     async (edit: LibraryEdit) => {
@@ -256,7 +317,7 @@ export default function App() {
             onClick={() => setView('all')}
             icon={<LibraryIcon size={16} />}
             label={tr('toda la música', 'all music')}
-            count={library.tracks.length}
+            count={localLibrary.tracks.length}
           />
           <NavItem
             active={view === 'favorites'}
@@ -299,6 +360,77 @@ export default function App() {
             </button>
           )}
         </nav>
+        {devices.length > 0 && (
+          <nav
+            className="side-nav devices"
+            aria-label={tr('Dispositivos', 'Devices')}
+            data-help="devices"
+          >
+            <span className="eyebrow">{tr('dispositivos', 'devices')}</span>
+            {devices.map((device) => {
+              const open = activeDevice?.id === device.id;
+              const first = device.rekordbox ? 'tracks' : 'files';
+              return (
+                <div className="device-group" key={device.id}>
+                  <NavItem
+                    active={open}
+                    onClick={() => setView(deviceViewId(device.id, { kind: first }))}
+                    icon={device.rekordbox ? <Usb size={15} /> : <HardDrive size={15} />}
+                    label={device.name}
+                  />
+                  {open && device.rekordbox && (
+                    <NavItem
+                      nested
+                      active={deviceView?.section.kind === 'tracks'}
+                      onClick={() => setView(deviceViewId(device.id, { kind: 'tracks' }))}
+                      icon={<LibraryIcon size={13} />}
+                      label={tr('todas las pistas', 'all tracks')}
+                      count={openedLibrary?.tracks.length}
+                    />
+                  )}
+                  {open &&
+                    deviceRows.map(({ node, depth }) =>
+                      node.folder ? (
+                        <span
+                          key={node.id}
+                          className="nav-folder"
+                          style={{ '--depth': depth } as CSSProperties}
+                        >
+                          <Folder size={12} />
+                          {node.name}
+                        </span>
+                      ) : (
+                        <NavItem
+                          key={node.id}
+                          nested
+                          depth={depth}
+                          active={
+                            deviceView?.section.kind === 'playlist' &&
+                            deviceView.section.id === node.id
+                          }
+                          onClick={() =>
+                            setView(deviceViewId(device.id, { kind: 'playlist', id: node.id }))
+                          }
+                          icon={<ListMusic size={13} />}
+                          label={node.name}
+                          count={node.tracks.length}
+                        />
+                      ),
+                    )}
+                  {open && (
+                    <NavItem
+                      nested
+                      active={deviceView?.section.kind === 'files'}
+                      onClick={() => setView(deviceViewId(device.id, { kind: 'files' }))}
+                      icon={<Folder size={13} />}
+                      label={tr('archivos', 'files')}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        )}
         <div className="sidebar-bottom">
           <button
             className="settings-button"
@@ -412,9 +544,32 @@ export default function App() {
               <Visual onError={onError} />
             </div>
           )}
-          {view !== 'web' && (
+          {activeDevice && deviceView && (
+            <DeviceBrowser
+              device={activeDevice}
+              section={deviceView.section}
+              library={openedLibrary}
+              error={deviceError}
+              mix={mode === 'mix'}
+              loading={loading.length > 0}
+              onError={onError}
+              onLoadTrack={(slot, track) =>
+                void loadWith(slot, () =>
+                  call<number | null>('device_load_track', {
+                    slot,
+                    device: activeDevice.id,
+                    track,
+                  }),
+                )
+              }
+              onLoadFile={(slot, entry) =>
+                void loadWith(slot, () => call<number | null>('device_load_file', { slot, entry }))
+              }
+            />
+          )}
+          {view !== 'web' && !deviceView && (
             <Library
-              data={library}
+              data={localLibrary}
               view={view}
               selected={selected}
               onSelect={setSelected}
@@ -541,25 +696,30 @@ function NavItem({
   icon,
   label,
   count,
+  nested = false,
+  depth = 0,
   ...rest
 }: {
   active: boolean;
   icon: ReactNode;
   label: string;
-  count: number;
+  count?: number;
+  nested?: boolean;
+  depth?: number;
   onClick: () => void;
   onDoubleClick?: () => void;
   title?: string;
 }) {
   return (
     <button
-      className={`nav-item ${active ? 'active' : ''}`}
+      className={`nav-item ${active ? 'active' : ''} ${nested ? 'nested' : ''}`}
       aria-current={active ? 'page' : undefined}
+      style={nested ? ({ '--depth': depth } as CSSProperties) : undefined}
       {...rest}
     >
       {icon}
       <span className="nav-label">{label}</span>
-      <span className="nav-count">{count}</span>
+      {count !== undefined && <span className="nav-count">{count}</span>}
     </button>
   );
 }

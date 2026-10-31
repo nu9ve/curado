@@ -30,10 +30,13 @@ pub struct MusicAnalysis {
     /// Seconds of the first audible sound: where an unsaved cue starts.
     #[serde(default)]
     pub first_sound: f64,
+    /// Read from a rekordbox export rather than estimated here.
+    #[serde(default)]
+    pub imported: bool,
 }
 impl MusicAnalysis {
     pub fn is_current(&self) -> bool {
-        self.manual || self.version >= ANALYSIS_VERSION
+        self.manual || self.imported || self.version >= ANALYSIS_VERSION
     }
     pub fn valid(&self) -> bool {
         self.bpm
@@ -86,6 +89,7 @@ pub fn analyze(samples: &[[f32; 2]], sample_rate: u32) -> MusicAnalysis {
         manual: false,
         downbeat: grid.map_or(0., |g| g.downbeat),
         first_sound,
+        imported: false,
     }
 }
 

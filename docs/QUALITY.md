@@ -48,6 +48,8 @@ The following is a **plan**, not a completed test record. Respect current author
 9. Real MIDI learn/restart/disconnect/reconnect; inspect dropped/error state.
 10. Integrated browser: native panel bounds/focus, resize/footer expansion, dialog hide/restore, switch/leave/mini stopping audio, blocked navigation/popups and player/login compatibility.
 
+11. Connect a rekordbox USB: sidebar entry, playlists in order, load with grid and cues, pads and colors; unplug during playback; plug in another with the same name.
+
 ## Measurement
 
 Synthetic clicks/triads do not certify musical accuracy, and `bun run music:eval` measures agreement with stored rekordbox grids, not truth. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Music probes measure no DAC/perceived quality.

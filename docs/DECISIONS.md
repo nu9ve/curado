@@ -1,5 +1,16 @@
 # Technical decisions
 
+## ADR-020 · Read-only device access with its own reader — accepted (2026-10-30)
+
+The maintainer asked to see USB drives in the sidebar, browse their playlists and files, and integrate rekordbox's formats.
+
+- **Read only, for now.** The original request included setting cues from here, but writing a device file has the highest cost of failure in this project: undocumented details decide whether hardware accepts a USB, and a mistake could damage a set's only copy. Edits stay in curado. `rekordbox.xml` is the next step because it is documented and rekordbox itself does the writing.
+- **Own reader instead of `rekordcrate`.** The formats needed are small, `rekordcrate` describes itself as under heavy development and would add `binrw` and its tree to code handling untrusted files, against keeping dependencies minimal. It stays the reference to check against. The format knowledge comes from Deep Symmetry's public Crate Digger analysis; review this for interoperability before commercial distribution.
+- **`export.pdb`, not `exportLibrary.db`.** OneLibrary needs a SQLCipher key that belongs to rekordbox. rekordbox still wrote both on this USB. A USB with only OneLibrary shows as plain files, which is honest and still playable.
+- **Opaque ids instead of paths.** Invariant 4 forbids loading arbitrary paths from IPC. A drive's data is also hostile: `export.pdb` can contain `../` or a link, so everything is resolved natively and checked after following links.
+- **Device tracks are not library tracks.** They need a stable id for cues and analysis, but 2,800 tracks should not flood a local library because someone plugged in a USB. A settings mark avoids a schema migration.
+- **Eight hot cues in the engine,** so an imported cue is never lost. Keyboard defaults stay at three, to avoid changing a layout people have learned.
+
 ## ADR-019 · Long tracks in RAM and key lock in the callback — accepted (2026-10-30)
 
 The maintainer asked for long tracks and real-time key lock. Both decisions came from measuring first, and the first replaces the streaming plan in S1 and ADR-003.

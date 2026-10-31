@@ -233,8 +233,8 @@ function AnalysisEditor({
     >
       <summary>
         {tr('beatgrid / análisis ·', 'beatgrid / analysis ·')}{' '}
-        {music.manual ? 'manual' : tr('estimado', 'estimated')}
-        {!music.manual && music.bpm
+        {music.manual ? 'manual' : music.imported ? 'rekordbox' : tr('estimado', 'estimated')}
+        {!music.manual && !music.imported && music.bpm
           ? ` · ${tr('periodicidad', 'periodicity')} ${Math.round(music.bpmConfidence * 100)}%`
           : ''}
       </summary>

@@ -35,7 +35,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Salta al hot cue y reproduce este deck.',
-    'Suena exactamente donde lo guardaste. Con SYNC y Q activos en el seguidor espera al siguiente beat del master y usa el beat más cercano para no perder la fase. Sin posición guardada empieza en el primer sonido de la pista, ajustado al grid con Q. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
+    'Suena exactamente donde lo guardaste; si es un loop de rekordbox, también lo activa. Con SYNC y Q activos en el seguidor espera al siguiente beat del master y usa el beat más cercano para no perder la fase. Sin posición guardada empieza en el primer sonido de la pista, ajustado al grid con Q. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
   ],
   setCue: [
     'Guarda la posición actual en este hot cue.',
@@ -178,7 +178,7 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Jump to the hot cue and play.',
-    'It plays exactly where you saved it. With SYNC and Q on the follower, it waits for the next master beat and uses the nearest beat to keep phase. An unsaved cue starts at the track’s first sound, on the grid with Q. Shift-click saves. A jump outside the loop disables it.',
+    'It plays exactly where you saved it; a rekordbox loop also starts looping. With SYNC and Q on the follower, it waits for the next master beat and uses the nearest beat to keep phase. An unsaved cue starts at the track’s first sound, on the grid with Q. Shift-click saves. A jump outside the loop disables it.',
   ],
   setCue: [
     'Save the current position to this hot cue.',
@@ -354,6 +354,10 @@ const sections: Record<string, [string, string]> = {
     'Abre la vista mini siempre encima.',
     'Conserva el transporte y permite volver a la vista completa.',
   ],
+  devices: [
+    'Discos y USB conectados.',
+    'Un USB de rekordbox muestra sus playlists, grids y cues; en cualquier disco puedes explorar sus carpetas con audio. curado no escribe nada en el dispositivo: lo que cambies aquí queda en curado. Lo cargado sigue sonando aunque lo desconectes.',
+  ],
   limiter: [
     'Indica cuánto está bajando el limitador la mezcla.',
     'Evita el recorte a −1 dBTP. Una reducción pequeña en los golpes es normal; en rojo aplana la mezcla: baja canales, EQ o master.',
@@ -392,6 +396,10 @@ const englishSections: Record<string, [string, string]> = {
   mini: [
     'Open the always-on-top mini view.',
     'Transport is preserved and you can return to the full view.',
+  ],
+  devices: [
+    'Connected drives and USB sticks.',
+    'A rekordbox USB shows its playlists, grids and cues; on any drive you can browse folders with audio. curado writes nothing to the device: what you change here stays in curado. What is loaded keeps playing if you unplug it.',
   ],
   limiter: [
     'Shows how much the limiter is turning the mix down.',

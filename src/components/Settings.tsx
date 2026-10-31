@@ -341,7 +341,7 @@ export function Settings({
                   value={cue}
                   onChange={(e) => setCue(e.target.value)}
                 >
-                  {[0, 1, 2].map((i) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <option key={i} value={i}>
                       Cue {i + 1}
                     </option>

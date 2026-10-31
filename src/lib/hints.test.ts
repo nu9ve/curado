@@ -22,6 +22,7 @@ const audio = (): Audio => ({
   limiterDb: 0,
 });
 const snapshot = (): AppSnapshot => ({
+  devices: [],
   mode: 'mix',
   audio: audio(),
   output: null,

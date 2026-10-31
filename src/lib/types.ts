@@ -7,6 +7,61 @@ export interface Track {
   sampleRate: number;
   favorite: boolean;
   music: MusicAnalysis | null;
+  /** Played from a connected drive: known for its cues, not listed in the library. */
+  device: boolean;
+}
+export interface DeviceInfo {
+  id: string;
+  name: string;
+  rekordbox: boolean;
+}
+export interface DeviceTrack {
+  id: number;
+  title: string;
+  artist: string;
+  album: string;
+  genre: string;
+  key: string | null;
+  bpm: number;
+  duration: number;
+  rating: number;
+}
+export interface DevicePlaylist {
+  id: number;
+  parent: number;
+  name: string;
+  folder: boolean;
+  sort: number;
+  tracks: number[];
+}
+export interface DeviceExport {
+  tracks: DeviceTrack[];
+  playlists: DevicePlaylist[];
+}
+export interface FolderEntry {
+  entry: number;
+  name: string;
+}
+export interface DeviceFolder {
+  name: string;
+  parent: number | null;
+  folders: FolderEntry[];
+  files: FolderEntry[];
+  truncated: boolean;
+}
+export interface CueStyle {
+  color: [number, number, number] | null;
+  label: string | null;
+}
+export interface MemoryCue {
+  start: number;
+  end: number | null;
+  color: [number, number, number] | null;
+  label: string | null;
+}
+export interface CueInfo {
+  hot: (CueStyle | null)[];
+  memory: MemoryCue[];
 }
 export interface MusicalKey {
   tonic: number;
@@ -24,6 +79,8 @@ export interface MusicAnalysis {
   downbeat: number;
   /** Seconds of the first audible sound: where an unsaved cue starts. */
   firstSound: number;
+  /** Read from a rekordbox export rather than estimated. */
+  imported: boolean;
 }
 export interface Tuning {
   rate: number;
@@ -40,6 +97,7 @@ export const EMPTY_MUSIC: MusicAnalysis = {
   manual: false,
   downbeat: 0,
   firstSound: 0,
+  imported: false,
 };
 export const DEFAULT_TUNING: Tuning = { rate: 1, semitones: 0, keyLock: true };
 export interface Playlist {
@@ -93,6 +151,8 @@ export interface Slot {
   highPass: number;
   echoBeats: number;
   cues: number[];
+  /** Where a hot cue's loop ends, or 0 for a plain cue. */
+  cueEnds: number[];
   loopIn: number;
   loopOut: number;
   loadTicket: number;
@@ -132,6 +192,7 @@ export interface QueueStatus {
   error: string | null;
 }
 export interface AppSnapshot {
+  devices: DeviceInfo[];
   mode: 'player' | 'mix';
   persistenceError: string | null;
   queue: QueueStatus;
@@ -175,7 +236,8 @@ export const EMPTY_SLOT: Slot = {
   echo: 0,
   highPass: 0,
   echoBeats: 0.5,
-  cues: [0, 0, 0],
+  cues: [0, 0, 0, 0, 0, 0, 0, 0],
+  cueEnds: [0, 0, 0, 0, 0, 0, 0, 0],
   loopIn: 0,
   loopOut: 0,
 };
