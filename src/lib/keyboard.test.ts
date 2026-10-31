@@ -74,19 +74,25 @@ describe('keyboard performance contract', () => {
     expect(pressed('KeyF', { repeat: true })).toBeUndefined();
   });
   test('touching a control does not take the keyboard away', () => {
-    const element = (typing: boolean, tabbed: boolean) => ({
-      closest: () => (typing ? ({} as Element) : null),
-      matches: () => tabbed,
+    const element = (kind: 'field' | 'control' | 'row') => ({
+      closest: (selector: string) =>
+        (kind === 'field' && selector.includes('textarea')) ||
+        (kind === 'control' && selector.includes('slider'))
+          ? ({} as Element)
+          : null,
     });
     // Left with focus by a click, as after turning a knob: every key is the mix's.
     for (const code of ['KeyF', 'Space', 'ArrowDown', 'Enter'])
-      expect(keyIsForTheMix(element(false, false), code)).toBe(true);
+      expect(keyIsForTheMix(element('control'), code, false)).toBe(true);
     // Reached with Tab: it keeps what it uses, and letters still play the mix.
-    expect(keyIsForTheMix(element(false, true), 'ArrowDown')).toBe(false);
-    expect(keyIsForTheMix(element(false, true), 'Space')).toBe(false);
-    expect(keyIsForTheMix(element(false, true), 'KeyF')).toBe(true);
+    expect(keyIsForTheMix(element('control'), 'ArrowDown', true)).toBe(false);
+    expect(keyIsForTheMix(element('control'), 'Space', true)).toBe(false);
+    expect(keyIsForTheMix(element('control'), 'KeyF', true)).toBe(true);
+    // A list row does nothing with arrows, so they always walk the list.
+    expect(keyIsForTheMix(element('row'), 'ArrowDown', true)).toBe(true);
+    expect(keyIsForTheMix(element('row'), 'ArrowDown', false)).toBe(true);
     // Typing is typing, however it got there.
-    expect(keyIsForTheMix(element(true, false), 'KeyF')).toBe(false);
+    expect(keyIsForTheMix(element('field'), 'KeyF', false)).toBe(false);
   });
   test('a modifier held for a drag does not swallow the key', () => {
     const shifted = { ...event('KeyF'), shiftKey: true };

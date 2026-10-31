@@ -1,4 +1,7 @@
 import { tr, useLanguage } from '../lib/language';
+import { libraryValue, sortTracks } from '../lib/sorting';
+import type { SortColumn, TrackSort } from '../lib/sorting';
+import { ariaSort, SortButton, SortReset } from './SortButton';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
@@ -19,6 +22,9 @@ export const Library = memo(function Library({
   data,
   view,
   selected,
+  sort,
+  onSort,
+  listOrder,
   onSelect,
   onLoad,
   onEdit,
@@ -31,6 +37,10 @@ export const Library = memo(function Library({
   data: LibraryData;
   view: string;
   selected: number | null;
+  sort: TrackSort | null;
+  onSort: (column: SortColumn | null) => void;
+  /** What the list shows, in its order, for the keys that walk it. */
+  listOrder: { current: number[] | null };
   onSelect: (id: number) => void;
   onLoad: (slot: number, id: number) => void;
   onEdit: (edit: LibraryEdit) => void;
@@ -53,8 +63,19 @@ export const Library = memo(function Library({
     }
     if (view === 'favorites') tracks = tracks.filter((t) => t.favorite);
     const q = query.toLocaleLowerCase();
-    return tracks.filter((t) => `${t.title} ${t.artist}`.toLocaleLowerCase().includes(q));
-  }, [data, active, view, query]);
+    return sortTracks(
+      tracks.filter((t) => `${t.title} ${t.artist}`.toLocaleLowerCase().includes(q)),
+      sort,
+      libraryValue,
+    );
+  }, [data, active, view, query, sort]);
+  listOrder.current = filtered.slice(0, 500).map((t) => t.id);
+  useEffect(
+    () => () => {
+      listOrder.current = null;
+    },
+    [listOrder],
+  );
   const selection = data.tracks.find((t) => t.id === selected);
   const subtitle = active
     ? tr('Tu selección, en el orden que elegiste.', 'Your selection, in the order you chose.')
@@ -233,12 +254,46 @@ export const Library = memo(function Library({
         <table className="track-table">
           <thead>
             <tr>
-              <th className="number">#</th>
-              <th>{tr('pista / artista', 'track / artist')}</th>
-              <th>{tr('formato', 'format')}</th>
-              <th>{tr('duración', 'duration')}</th>
-              <th>BPM</th>
-              <th>key / Camelot</th>
+              <th className="number">
+                <SortReset onSort={onSort} />
+              </th>
+              <th aria-sort={ariaSort(sort, 'title', 'artist')}>
+                <SortButton
+                  column="title"
+                  label={tr('pista', 'track')}
+                  sort={sort}
+                  onSort={onSort}
+                />
+                {' / '}
+                <SortButton
+                  column="artist"
+                  label={tr('artista', 'artist')}
+                  sort={sort}
+                  onSort={onSort}
+                />
+              </th>
+              <th aria-sort={ariaSort(sort, 'format')}>
+                <SortButton
+                  column="format"
+                  label={tr('formato', 'format')}
+                  sort={sort}
+                  onSort={onSort}
+                />
+              </th>
+              <th aria-sort={ariaSort(sort, 'duration')}>
+                <SortButton
+                  column="duration"
+                  label={tr('duración', 'duration')}
+                  sort={sort}
+                  onSort={onSort}
+                />
+              </th>
+              <th aria-sort={ariaSort(sort, 'bpm')}>
+                <SortButton column="bpm" label="BPM" sort={sort} onSort={onSort} />
+              </th>
+              <th aria-sort={ariaSort(sort, 'key')}>
+                <SortButton column="key" label="key / Camelot" sort={sort} onSort={onSort} />
+              </th>
               <th aria-label={tr('Favoritos', 'Favorites')} />
               <th aria-label={tr('Cargar pista', 'Load track')} />
             </tr>

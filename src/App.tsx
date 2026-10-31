@@ -80,6 +80,8 @@ import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
 import { setHapticsEnabled } from './lib/haptics';
+import { deviceValue, libraryValue, nextSort, sortTracks } from './lib/sorting';
+import type { SortColumn } from './lib/sorting';
 import { TrackInfo } from './components/TrackInfo';
 import { BeatFxPanel, ColorFxPanel } from './components/Performance';
 import { clampSplit, DEFAULT_WORKSPACE, useWorkspace } from './lib/workspace';
@@ -396,30 +398,33 @@ export default function App() {
       requestAnimationFrame(() => document.querySelector<HTMLElement>(target)?.focus());
     }
   };
+  const listOrder = useRef<number[] | null>(null);
+  const onSort = (column: SortColumn | null) =>
+    updateWorkspace({ sort: column && nextSort(workspace.sort, column) });
   /** The selector and the arrows move through what the panel lists, in its order. */
   const browseBy = (delta: number) => {
-    if (deviceView && openedLibrary) {
-      const listed = tracksInSection(
-        openedLibrary.tracks,
-        openedLibrary.playlists,
-        deviceView.section,
-      );
-      if (!listed.length) return;
-      const at = listed.findIndex((t) => t.id === deviceSelected);
-      const next = at < 0 ? 0 : Math.max(0, Math.min(listed.length - 1, at + delta));
-      setDeviceSelected(listed[next].id);
-      return;
-    }
-    const active = library.playlists.find((p) => `playlist:${p.id}` === view);
-    const listed = active
-      ? active.tracks.flatMap((id) => localLibrary.tracks.filter((t) => t.id === id))
-      : view === 'favorites'
-        ? localLibrary.tracks.filter((t) => t.favorite)
-        : localLibrary.tracks;
+    const onDevice = !!deviceView && !!openedLibrary;
+    if (deviceView && !openedLibrary) return;
+    // With the list closed there is nothing on screen to follow, so work out what it would show.
+    const closedList = () => {
+      if (onDevice) {
+        const { tracks, playlists } = openedLibrary;
+        const inSection = tracksInSection(tracks, playlists, deviceView.section);
+        return sortTracks(inSection, workspace.sort, deviceValue).map((t) => t.id);
+      }
+      const active = library.playlists.find((p) => `playlist:${p.id}` === view);
+      const listed = active
+        ? active.tracks.flatMap((id) => localLibrary.tracks.filter((t) => t.id === id))
+        : view === 'favorites'
+          ? localLibrary.tracks.filter((t) => t.favorite)
+          : localLibrary.tracks;
+      return sortTracks(listed, workspace.sort, libraryValue).map((t) => t.id);
+    };
+    const listed = listOrder.current ?? closedList();
     if (!listed.length) return;
-    const at = listed.findIndex((t) => t.id === selected);
+    const at = listed.indexOf((onDevice ? deviceSelected : selected) ?? -1);
     const next = at < 0 ? 0 : Math.max(0, Math.min(listed.length - 1, at + delta));
-    setSelected(listed[next].id);
+    (onDevice ? setDeviceSelected : setSelected)(listed[next]);
   };
   const loadDeviceTrack = (slot: number, track: number) => {
     if (!activeDevice) return;
@@ -457,6 +462,9 @@ export default function App() {
           loading={loading.length > 0}
           onError={onError}
           selected={deviceSelected}
+          sort={workspace.sort}
+          onSort={onSort}
+          listOrder={listOrder}
           onSelect={setDeviceSelected}
           onLoadTrack={loadDeviceTrack}
           onLoadFile={(slot, entry) =>
@@ -469,6 +477,9 @@ export default function App() {
           data={localLibrary}
           view={view}
           selected={selected}
+          sort={workspace.sort}
+          onSort={onSort}
+          listOrder={listOrder}
           onSelect={setSelected}
           onLoad={load}
           onEdit={edit}

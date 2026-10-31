@@ -39,7 +39,7 @@ _Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el os
 
 ## Todo lo que hace
 
-- **Escuchar:** busca en tu biblioteca, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
+- **Escuchar:** busca en tu biblioteca, ordénala por cualquier columna, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
 - **Mezclar:** dos decks con vista de consola o la clásica de curado, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
 - **Preparar:** BPM, grid, compases y tonalidad estimados sobre toda la pista, en notación americana y Camelot. Corrígelos a mano. Key lock y transposición de ±12 semitonos. Las pistas cuyo tempo se mueve pueden seguir sus propios beats.
 - **Audífonos:** con una salida de cuatro canales o más, el 3 y el 4 se vuelven un bus de cue con mezcla y nivel, más Touch Preview de la pista seleccionada.
@@ -109,7 +109,7 @@ Cada mano toca su deck, con el mismo dedo para la misma función:
 | Slip           | `V`       | `M`       | reversa     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga en un deck. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
+`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga la pista seleccionada en el deck 1 o 2. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
 
 ## Antes de empezar
 

@@ -2,6 +2,7 @@ import { tr } from '../lib/language';
 import { limiterLevel } from '../lib/limiter';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
+import { reachedWithTab } from '../lib/keyboard';
 import { currentPressure, detent, fineFactor, haptic } from '../lib/haptics';
 
 export function Key({ children, code }: { children: ReactNode; code?: string }) {
@@ -136,7 +137,7 @@ interface RangeProps {
 }
 const clampTo = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 /** Whether a control got its focus from the keyboard, rather than from a click. */
-export const tabbed = (e: { currentTarget: Element }) => e.currentTarget.matches(':focus-visible');
+export const tabbed = reachedWithTab;
 function keyStep(
   e: ReactKeyboardEvent,
   value: number,
@@ -145,7 +146,7 @@ function keyStep(
   reset: number,
 ): number | null {
   // Only when reached with Tab: otherwise these keys are the mix's, even right after a drag.
-  if (!tabbed(e)) return null;
+  if (!tabbed()) return null;
   const step = (max - min) / (e.shiftKey ? 100 : 25);
   const next =
     e.key === 'ArrowUp' || e.key === 'ArrowRight'

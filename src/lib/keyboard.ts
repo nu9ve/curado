@@ -108,14 +108,42 @@ export const TEXT_ENTRY =
   'input:not([type="range"],[type="checkbox"],[type="radio"],[type="button"],[type="color"]),textarea,[contenteditable="true"]';
 /** The keys controls work with themselves. */
 const CONTROL_KEYS = new Set(['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+const CONTROLS = 'button,select,summary,a[href],[role="slider"]';
+/**
+ * Whether focus came from walking the page with Tab. `:focus-visible` cannot tell: browsers turn
+ * it on for whatever has focus at the first key pressed, so a clicked row or knob would then
+ * take the arrows.
+ */
+let tabbing = false;
+export const reachedWithTab = () => tabbing;
+if (typeof window !== 'undefined') {
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.code === 'Tab') tabbing = true;
+    },
+    true,
+  );
+  window.addEventListener(
+    'pointerdown',
+    () => {
+      tabbing = false;
+    },
+    true,
+  );
+}
 /**
  * A control reached with Tab keeps the keys it works with, so the app can be used without a
- * pointer. The focus a click leaves behind claims nothing: having touched a knob or a menu must
- * not take the keyboard away from the mix.
+ * pointer. The focus a click leaves behind claims nothing: having touched a knob, a menu or a
+ * row must not take the keyboard away from the mix.
  */
-export function keyIsForTheMix(target: Pick<Element, 'closest' | 'matches'>, code: string) {
+export function keyIsForTheMix(
+  target: Pick<Element, 'closest'>,
+  code: string,
+  tabbed = reachedWithTab(),
+) {
   if (target.closest(TEXT_ENTRY)) return false;
-  return !(CONTROL_KEYS.has(code) && target.matches(':focus-visible'));
+  return !(tabbed && CONTROL_KEYS.has(code) && target.closest(CONTROLS));
 }
 /** A layout saved before auto loop existed gets its keys, where they are still free. */
 export function withAutoLoopKeys(saved: KeyBinding[]) {

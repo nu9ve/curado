@@ -4,6 +4,9 @@ import { call } from '../lib/bridge';
 import { matchesQuery, tracksInSection } from '../lib/devices';
 import type { DeviceSection } from '../lib/devices';
 import { tr, useLanguage } from '../lib/language';
+import { deviceValue, sortTracks } from '../lib/sorting';
+import type { SortColumn, TrackSort } from '../lib/sorting';
+import { ariaSort, SortButton, SortReset } from './SortButton';
 import { TrackArt } from './Player';
 import { time } from '../lib/types';
 import type { DeviceExport, DeviceFolder, DeviceInfo, DeviceTrack } from '../lib/types';
@@ -102,6 +105,8 @@ function DeviceRow({
 
 function TrackTable({
   device,
+  sort,
+  onSort,
   tracks,
   mix,
   loading,
@@ -110,6 +115,8 @@ function TrackTable({
   onLoad,
 }: {
   device: string;
+  sort: TrackSort | null;
+  onSort: (column: SortColumn | null) => void;
   tracks: DeviceTrack[];
   mix: boolean;
   loading: boolean;
@@ -122,12 +129,41 @@ function TrackTable({
       <table className="track-table">
         <thead>
           <tr>
-            <th className="number">#</th>
-            <th>{tr('pista / artista', 'track / artist')}</th>
-            <th>{tr('género', 'genre')}</th>
-            <th>{tr('duración', 'duration')}</th>
-            <th>BPM</th>
-            <th>key</th>
+            <th className="number">
+              <SortReset onSort={onSort} />
+            </th>
+            <th aria-sort={ariaSort(sort, 'title', 'artist')}>
+              <SortButton column="title" label={tr('pista', 'track')} sort={sort} onSort={onSort} />
+              {' / '}
+              <SortButton
+                column="artist"
+                label={tr('artista', 'artist')}
+                sort={sort}
+                onSort={onSort}
+              />
+            </th>
+            <th aria-sort={ariaSort(sort, 'genre')}>
+              <SortButton
+                column="genre"
+                label={tr('género', 'genre')}
+                sort={sort}
+                onSort={onSort}
+              />
+            </th>
+            <th aria-sort={ariaSort(sort, 'duration')}>
+              <SortButton
+                column="duration"
+                label={tr('duración', 'duration')}
+                sort={sort}
+                onSort={onSort}
+              />
+            </th>
+            <th aria-sort={ariaSort(sort, 'bpm')}>
+              <SortButton column="bpm" label="BPM" sort={sort} onSort={onSort} />
+            </th>
+            <th aria-sort={ariaSort(sort, 'key')}>
+              <SortButton column="key" label="key" sort={sort} onSort={onSort} />
+            </th>
             <th aria-label={tr('Cargar pista', 'Load track')} />
           </tr>
         </thead>
@@ -238,6 +274,9 @@ function FileBrowser({
 }
 
 export function DeviceBrowser({
+  sort,
+  onSort,
+  listOrder,
   device,
   section,
   library,
@@ -250,6 +289,10 @@ export function DeviceBrowser({
   onLoadTrack,
   onLoadFile,
 }: {
+  sort: TrackSort | null;
+  onSort: (column: SortColumn | null) => void;
+  /** What the list shows, in its order, for the keys that walk it. */
+  listOrder: { current: number[] | null };
   device: DeviceInfo;
   section: DeviceSection;
   library: DeviceExport | null;
@@ -269,8 +312,20 @@ export function DeviceBrowser({
     [library, section],
   );
   const shown = useMemo(
-    () => inSection.filter((track) => matchesQuery(track, query)),
-    [inSection, query],
+    () =>
+      sortTracks(
+        inSection.filter((track) => matchesQuery(track, query)),
+        sort,
+        deviceValue,
+      ),
+    [inSection, query, sort],
+  );
+  listOrder.current = shown.slice(0, VISIBLE_ROWS).map((track) => track.id);
+  useEffect(
+    () => () => {
+      listOrder.current = null;
+    },
+    [listOrder],
   );
   const playlist =
     section.kind === 'playlist' ? library?.playlists.find((node) => node.id === section.id) : null;
@@ -345,6 +400,8 @@ export function DeviceBrowser({
           ) : (
             <TrackTable
               device={device.id}
+              sort={sort}
+              onSort={onSort}
               tracks={shown}
               mix={mix}
               loading={loading}

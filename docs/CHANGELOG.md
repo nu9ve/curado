@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · List keys fixed and sorting by column
+
+Fixed a regression from the keyboard work below: after clicking a row, arrows only scrolled the list and Shift with an arrow loaded nothing. Lists now sort by any column, upward, downward or back to their own order, with the keys following what is shown. See [Status](STATUS.md).
+
 ## 2026-10-31 · Keyboard during drags, auto loop and a new README
 
 Keys now work while dragging a control and right after touching one, in combination too. Added **AUTO LOOP** for each deck with lengths from 1/4 to 32 beats, on `B` and `N`. Moved the load section off deck 2's IN and OUT. Rewrote both READMEs with new pictures made from invented tracks. See [Status](STATUS.md) and [ADR-029](DECISIONS.md).

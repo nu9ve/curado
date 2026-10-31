@@ -2125,6 +2125,31 @@ input[type='range']::-moz-range-thumb {
   color: var(--text-muted);
   border-bottom: 1px solid var(--line);
 }
+.track-table .sort-head {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 0;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  box-shadow: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.track-table .sort-head:hover {
+  color: var(--text);
+  background: none;
+}
+.track-table .sort-head[data-active='true'] {
+  color: var(--accent);
+}
+.track-table .sort-head span {
+  font-size: 7px;
+}
 .track-table th:nth-child(1) {
   width: 44px;
 }

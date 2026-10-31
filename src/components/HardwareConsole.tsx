@@ -282,7 +282,7 @@ function StepDial({
           drag.current = null;
         }}
         onKeyDown={(e) => {
-          if (!tabbed(e)) return;
+          if (!tabbed()) return;
           const delta = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 }[e.key];
           if (!delta) return;
           e.preventDefault();

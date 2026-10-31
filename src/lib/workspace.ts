@@ -1,4 +1,6 @@
 import { useCallback, useState } from 'react';
+import { parseSort } from './sorting';
+import type { TrackSort } from './sorting';
 
 export type SidePanel = 'library' | 'tools' | 'keyboard';
 export interface Workspace {
@@ -11,6 +13,8 @@ export interface Workspace {
   autoGain: boolean;
   badges: boolean;
   haptics: boolean;
+  /** How track lists are ordered; none means the list's own order. */
+  sort: TrackSort | null;
   /** Part of the width that goes to the console when the side panel is open. */
   split: number;
 }
@@ -23,6 +27,7 @@ export const DEFAULT_WORKSPACE: Workspace = {
   autoGain: false,
   badges: true,
   haptics: true,
+  sort: null,
   split: 0.72,
 };
 export const MIN_SPLIT = 0.35;
@@ -58,6 +63,7 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
     autoGain: flag('autoGain'),
     badges: flag('badges'),
     haptics: flag('haptics'),
+    sort: parseSort(saved.sort),
     split: typeof saved.split === 'number' ? clampSplit(saved.split) : DEFAULT_WORKSPACE.split,
   };
 }

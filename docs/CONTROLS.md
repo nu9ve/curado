@@ -78,7 +78,7 @@ Each hand plays its own deck, with the same finger for the same job. In **cabina
 | Auto loop | `B` | `N` | shorter | longer |
 
 - **Space:** stops whatever is playing, or starts both decks. In the player it is the one deck.
-- **↑ ↓:** moves through the list on the panel, on a drive too; hold it to run. **Shift + ↑ ↓** jumps eight.
+- **↑ ↓:** moves through the list on the panel as shown, with its search and sort, on a drive too; hold it to run. **Shift + ↑ ↓** jumps eight.
 - **Shift + ← →:** loads the selection into deck 1 or 2.
 - **Control + ← ↓ →:** crossfader to A, center or B.
 - **Option + a hot cue's number:** fires samples 1–8. **Option + B:** master Beat FX. **Escape:** mutes all.
@@ -86,7 +86,7 @@ Each hand plays its own deck, with the same finger for the same job. In **cabina
 
 A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All eight start at 0:00 and display their time before saving; keys cover the first three, and pads or MIDI Learn reach the rest. A cue saved as a loop also starts looping, marked ↻; pressing one you never saved starts at the track's first sound, on the nearest beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.
 
-Hotkeys use physical codes while the local window is focused. They work during a drag and right after touching any control, several at a time: with a pointer down, a modifier that means nothing for that key is ignored, so Shift held for a fine drag does not swallow `F`. Typing in a field does not trigger them, and pressing anywhere else gives the keyboard back. A control reached with Tab keeps Space, Enter and arrows, while letters still play the mix. **Configuración → Teclado** remaps and detects conflicts. Player disables B/sample hotkeys. After panic, restore master and resume playback yourself. Web content has separate focus and audio.
+Hotkeys use physical codes while the local window is focused. They work during a drag and right after touching any control, several at a time: with a pointer down, a modifier that means nothing for that key is ignored, so Shift held for a fine drag does not swallow `F`. Typing in a field does not trigger them, and pressing anywhere else gives the keyboard back. A control reached with Tab keeps Space, Enter and arrows, while letters still play the mix. List rows never take arrows. **Configuración → Teclado** remaps and detects conflicts. Player disables B/sample hotkeys. After panic, restore master and resume playback yourself. Web content has separate focus and audio.
 
 ## BPM, key and harmonic mixing
 
@@ -99,6 +99,10 @@ Import estimates BPM, beat offset, bars and key over the whole track. Library sh
 - **HP** is independent of LP. **ECHO · BEATS** offers 0.25/0.5/0.75/1/2 beats using output BPM, or 120 BPM without analysis. Smoothed delay-time changes may sweep the repeats' pitch.
 
 Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music. Tempos near 70–90 and 140–180 BPM can read at half or double, which ×2/÷2 fixes, and detected bars are a first guess. Extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
+
+## Sorting lists
+
+Click a column in any track list to sort by it: once upward, again downward, a third time back to the list's own order. In the player **#** also goes back. **pista** and **artista** sort separately, and key follows the Camelot wheel. The choice applies to every list and stays between launches, and tracks with no value stay last. A playlist's saved order does not change. **Play selection** and the arrow keys go in the order shown.
 
 ## USB drives and rekordbox
 

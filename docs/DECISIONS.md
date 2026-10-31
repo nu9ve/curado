@@ -1,16 +1,18 @@
 # Technical decisions
 
-## ADR-029 · The keyboard belongs to the mix, and a loop takes one press — accepted (2026-10-31)
+## ADR-029 · The keyboard belongs to the mix, a loop takes one press, lists sort by column — accepted (2026-10-31)
 
-The maintainer found that dragging or touching a control stopped the keyboard, and asked for auto loops without marking IN and OUT, in the empty stretch above the decks.
+The maintainer found that dragging or touching a control stopped the keyboard, and asked for auto loops without marking IN and OUT, in the empty stretch above the decks, and for sorting lists by column.
 
 - **Why it stopped.** Knobs and sliders took focus when pressed, and the global handler ignored keys whenever a slider had focus, so one touch ended the keyboard until focus moved. A focused menu did the same.
-- **Who owns a key.** Text fields keep every key. A control reached with Tab keeps the keys it works with, Space, Enter and arrows, so the app stays usable without a pointer. Focus left by a click claims nothing. This uses `:focus-visible`, and pressing anything but a field releases what held focus, even where a press takes none.
+- **Who owns a key.** Text fields keep every key. A control reached with Tab keeps the keys it works with, Space, Enter and arrows, so the app stays usable without a pointer. Focus left by a click claims nothing, and list rows never claim arrows. Pressing anything but a field releases what held focus, even where a press takes none.
+- **Not `:focus-visible`.** The first version used it, and broke the list: browsers turn it on for whatever has focus at the first key pressed, so a clicked row took the arrows, which then only scrolled, and Shift with an arrow did nothing. curado now tracks walking with Tab itself: Tab sets it, a pointer press clears it.
 - **A modifier during a drag.** Shift can be there for fine movement, so while a pointer is down, a key with a modifier that means nothing acts as the plain key. A combination that means something, such as Shift + 1, keeps its meaning. Outside a drag, unknown combinations still do nothing.
 - **`autoLoop` is an engine action,** not interface logic, so MIDI Learn gets it through the same contract. It starts a loop of the last length from the current position, or leaves the one playing. Unlike reloop, pressing again later starts from where the music is.
 - **A new length keeps the start.** `loopBeats` on a playing loop now resizes it from its in point, for pads as well, since restarting it where the read head happens to be would move the loop off what was being looped. It only makes a new one if the new length does not fit. `loopScale` with no loop sets the next loop's length, within the pads' range.
 - **Keys:** `B` and `N`, with Shift shorter and Control longer. A layout saved earlier gets them where they are free.
 - **The load section moved up.** It hid deck 2's IN and half of OUT, and nothing had checked for that. `check:input` now asks the page whether each console control is on top at its center.
+- **Sorting belongs to the view, not the list.** A click on a column sorts, the next reverses, the next returns to the list's own order, and in the player **#** does too. Text ignores case, numbers inside text count as numbers so 10A follows 9A, and unknown values stay last both ways. A playlist's saved order is never changed. The choice is shared by all lists and kept between launches. Arrows, the selector and **Play selection** follow what is shown, including a search, which the arrows ignored before.
 - **Pictures with invented tracks,** at the maintainer's request for screenshots: they show the real interface with a stand-in engine, labeled as such, instead of anyone's library. The harness stays in `scripts/preview/` so they can be remade. Native dragging with the OS, a real keyboard's key limits and WebKit's own `:focus-visible` are not exercised by Chrome.
 
 ## ADR-028 · Covers from rekordbox first, taps per input, a picture under the XY — accepted (2026-10-31)

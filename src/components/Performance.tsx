@@ -216,7 +216,7 @@ export function PerformancePads({
           onPointerUp={release}
           onPointerCancel={release}
           onKeyDown={(e) => {
-            if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+            if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
               e.preventDefault();
               hold();
             }
@@ -251,7 +251,7 @@ export function PerformancePads({
           onPointerUp={release}
           onPointerCancel={release}
           onKeyDown={(e) => {
-            if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+            if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
               e.preventDefault();
               hold();
             }
@@ -299,7 +299,7 @@ export function PerformancePads({
         onPointerUp={release}
         onPointerCancel={release}
         onKeyDown={(e) => {
-          if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+          if (tabbed() && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
             e.preventDefault();
             hold();
           }

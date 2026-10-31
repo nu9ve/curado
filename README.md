@@ -41,7 +41,7 @@ _A separate window on macOS with seven scenes, including a spectral city and a c
 
 ## Everything it does
 
-- **Listen:** search your library, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
+- **Listen:** search your library, sort it by any column, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
 - **Mix:** two decks and a choice of console or curado's classic layout, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
 - **Prepare:** BPM, grid, bars and key estimated over the whole track, in letter notation and Camelot. Correct any of them by hand. Key lock and ±12-semitone transposition. Tracks whose tempo moves can follow their own beats.
 - **Headphones:** with an output of four or more channels, 3 and 4 become a cue bus with mix and level, plus Touch Preview for the selected track.
@@ -119,7 +119,7 @@ Each hand plays its own deck, with the same finger for the same job:
 | Slip           | `V`       | `M`       | reverse     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads into a deck. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
+`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads the selected track into deck 1 or 2. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
 
 ## Before you start
 

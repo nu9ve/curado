@@ -1,5 +1,23 @@
 # curado status
 
+## List keys fixed and sorting by column · 2026-10-31
+
+The maintainer reported that the arrows only scrolled the list and tracks could not be loaded from the keyboard, and asked to sort by column. See [ADR-029](DECISIONS.md).
+
+- **The bug came from the previous session's keyboard change.** Browsers turn on `:focus-visible` for whatever has focus at the first key pressed. A clicked row then counted as a control reached with the keyboard, so it kept the arrows, which only scrolled natively. Reproduced in headless Chrome before the fix: selection stayed put and nothing loaded. The same flaw would have given arrows to a clicked knob in the real app, which the earlier check missed because Chrome left no focus on it.
+- **Sorting:** every column in the library and drive tables, shared and kept between launches.
+- **Also fixed:** the arrows walked tracks hidden by a search.
+
+**Automatically tested:** sort directions, returning, unknown values last, natural order of keys, stored values checked, and key ownership.
+
+**With real input events in headless Chrome (`check:input`):** arrows and Shift + arrows after clicking a row, a knob holding focus taking no arrows, sorting up, down and back, **#** in the player, arrows and loading following the sorted order, and headers keeping their look by computed style.
+
+**Not tried:** the installed app, its WebKit, a real USB table in this order, and how the headers look in each style. Sorting on a 2,800-track USB is not measured.
+
+Verification: `bun run check` passed (92 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (195 tests, 8 more ignored that need real data), `cargo clippy --workspace --all-targets -- -D warnings` and `bun run check:input` passed.
+
+**Installation:** curado was closed, so `bun run desktop:install` built, verified, installed and registered the app without launching it, SHA-256 `18671534…`.
+
 ## Keyboard during drags, auto loop and a new README · 2026-10-31
 
 The maintainer reported that keys stopped responding during a drag or while something was selected, and asked for auto loops and better documentation. See [ADR-029](DECISIONS.md).
