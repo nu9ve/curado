@@ -1,5 +1,41 @@
 # curado status
 
+## Whole-track beat analysis · 2026-10-30
+
+A new analysis in `beat.rs` replaces the 90-second estimate; see [Architecture](ARCHITECTURE.md) and [ADR-018](DECISIONS.md). It measures onsets in three bands, finds tempo over the whole track by epoch folding, places the grid 1 ms before the real attack, and adds bars and first-sound detection. Waveforms show bars, the grid editor has **compás aquí**, and an unsaved cue now starts at the first sound. Estimates from the old analysis update when a track loads; manual corrections stay.
+
+`bun run music:eval` is a new benchmark against the grids rekordbox stored locally. Thresholds were tuned on one hash-split set of 740 tracks; these results come from the other 731, run once at the end ([results](grid-benchmark-2026-10-30.json)):
+
+| Agreement with rekordbox                 | Before       | After          |
+| ---------------------------------------- | ------------ | -------------- |
+| BPM within ±0.02                         | 14.1 %       | 61.0 %         |
+| BPM within ±0.1                          | 24.9 %       | 69.5 %         |
+| BPM within ±0.5                          | 44.0 %       | 76.7 %         |
+| Half or double tempo                     | 6.8 %        | 6.1 %          |
+| Other ratio (3:2, 4:3)                   | 10.1 %       | 2.3 %          |
+| Other wrong tempo                        | 35.2 %       | 10.7 %         |
+| No BPM                                   | 3.8 %        | 4.1 %          |
+| Phase within 5 ms, tempo within ±0.1     | 4.4 %        | 40.4 %         |
+| Phase within 20 ms, tempo within ±0.1    | 30.8 %       | 63.6 %         |
+| Phase within 50 ms, tempo within ±0.1    | 66.5 %       | 77.2 %         |
+| Median phase difference                  | +19.6 ms     | −1.8 ms        |
+| Grid drift over a track, 90th percentile | 179.6 ms     | 32.2 ms        |
+| Same bar start                           | 57.3 %       | 58.5 %         |
+| Analysis time, median / maximum          | 112 / 261 ms | 261 / 3,439 ms |
+
+Phase rows compare different populations (182 and 508 tracks), because far more tracks now have the right tempo. Confidence is now useful: tracks under 10 % had the right tempo 41 % of the time, and 87–95 % from 35 % up.
+
+Limits, as measured:
+
+- **Phase:** about 23 % of right-tempo tracks still differ from rekordbox by over 50 ms, many by a half or quarter beat, even at high confidence (80 % within 50 ms from 35 % up). Nothing here shows which grid is right. Measuring bass rise cannot settle it, because this method picks the strongest rise by design.
+- **Bars:** barely changed. Backbeat energy disagrees with rekordbox's numbering, so raising its weight lowered agreement. rekordbox's local files hold no cues to use as an independent check. Treat bars as a first guess; they are display-only and sync still works per beat.
+- **Half and double:** still 6.1 %. Rules follow this library's rekordbox convention, so drum and bass can read at half tempo. ×2 fixes it.
+- **Scope:** one constant grid per track. Most tracks in the benchmark are MP3; WAV and FLAC samples are small and no M4A or AIFF track was compared. Key now uses the whole track, but its accuracy remains unmeasured on real music.
+
+**Correction to the earlier audit:** it treated the 25 ms of MP3 encoder delay as an error to trim. Measured against stored grids, trimming moves ours about 25 ms away from rekordbox's, whose lines sit at the attack on the untrimmed timeline, so decoding keeps it. That also avoided migrating saved cues, and rekordbox positions should import without a time shift. That conclusion rests on MP3; other formats need checking when import is built.
+
+Verification: `bun run check` passed (36 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (77 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.57 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `f97e7b549104b44f0812b343d84b0197b2cf124d37a1576b7e5fd946984a6998`. **No listening, visual or hardware test was performed**; the bar lines and editor have not been seen on screen. Next: the maintainer should load tracks and check that grids land on kicks, especially where confidence is high; a rekordbox XML export would give real cues to test bars and import against.
+
 ## Clean transport and limiter · 2026-10-30
 
 An audit requested by the maintainer measured the engine with synthetic audio of known timing and with 200 tracks of their local library against the beat grids rekordbox had stored, read-only and without opening `master.db`. This session fixes what it found in transport and output; analysis and DSP findings remain open below. See [ADR-017](DECISIONS.md) and [Architecture](ARCHITECTURE.md).
@@ -22,14 +58,13 @@ The first two rows use perfect grids. Periodic synthetic loops hide the click ev
 
 Open findings from the audit:
 
-- **Analysis:** grids sit 13–25 ms after clean synthetic kicks. Against stored rekordbox grids, 47.9 % of the 200 tracks were within ±0.5 BPM, 9.5 % within ±0.02, 17.9 % had ratio errors and 34.2 % another wrong BPM; confidence barely separates right from wrong (median 0.53 and 0.41). Only 5 % of 44 tracks with the right tempo had a phase within 5 ms. rekordbox is a reference, not ground truth, and tracks were matched by file name. Key was not compared.
-- **Decoding:** MP3 decodes 25.06 ms late and AAC 47.89 ms, because encoder delay is not trimmed.
+- **Analysis and decoding offsets:** resolved or corrected in the section above.
 - **Capacity:** the 96 MiB cap rejects 25–32 % of that library.
 - **DSP:** a 44.1 kHz file on a 48 kHz output loses 3.4 dB at 15 kHz with an image at −11.6 dBc. LOW kill reaches only −11.7 dB at 60 Hz. LP/HP are 6 dB/octave.
 - **Sync:** key lock keeps the follower at its old rate for about 3 s on a four-minute track, and phase has no continuous correction.
 - **Cues:** an unsaved cue is still indistinguishable from one saved at 0:00, which needs the cue data model planned with rekordbox import.
 
-Verification: `bun run check` passed (35 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (66 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit over loop fades, pause fades, PCM replacement and panic. The macOS `.app` built (13.58 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `a26f7675237906a7006fabc759ebc0b1e2c6cff729a9c6256361918ba323ce09`. **No listening, visual, playback-device or hardware test was performed.** Next: the maintainer should listen to loops on real tracks, hot cues, pause and a hot mix for pumping, and check the LIM lamp in both layouts. Then improve analysis and decoding offsets.
+Verification: `bun run check` passed (35 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (66 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit over loop fades, pause fades, PCM replacement and panic. The macOS `.app` built (13.58 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `a26f7675237906a7006fabc759ebc0b1e2c6cff729a9c6256361918ba323ce09`. **No listening, visual, playback-device or hardware test was performed.** Next: the maintainer should listen to loops on real tracks, hot cues, pause and a hot mix for pumping, and check the LIM lamp in both layouts.
 
 ## Integrated console controls · 2026-10-29
 

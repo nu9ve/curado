@@ -20,6 +20,10 @@ export interface MusicAnalysis {
   key: MusicalKey | null;
   keyConfidence: number;
   manual: boolean;
+  /** Seconds of a bar's first beat; 0 when unknown, which reads as the first grid line. */
+  downbeat: number;
+  /** Seconds of the first audible sound: where an unsaved cue starts. */
+  firstSound: number;
 }
 export interface Tuning {
   rate: number;
@@ -27,13 +31,15 @@ export interface Tuning {
   keyLock: boolean;
 }
 export const EMPTY_MUSIC: MusicAnalysis = {
-  version: 1,
+  version: 2,
   bpm: null,
   beatOffset: 0,
   bpmConfidence: 0,
   key: null,
   keyConfidence: 0,
   manual: false,
+  downbeat: 0,
+  firstSound: 0,
 };
 export const DEFAULT_TUNING: Tuning = { rate: 1, semitones: 0, keyLock: true };
 export interface Playlist {

@@ -52,7 +52,8 @@ impl AppState {
                 db.path(id)?,
                 db.setting::<[f64; 3]>(&format!("cues:{id}"))
                     .unwrap_or([0.; 3]),
-                db.music(id),
+                // Estimates from an older analysis are recalculated; manual ones are kept.
+                db.music(id).filter(|music| music.is_current()),
             )
         };
         let mut clip = curado_audio::decode::decode_with_music(&path, id, music)?;
@@ -230,7 +231,7 @@ async fn save_track_music(
     if !music.valid() {
         return Err("BPM, primer beat o tonalidad inválidos".into());
     }
-    music.version = 1;
+    music.version = curado_audio::music::ANALYSIS_VERSION;
     music.manual = true;
     if let Some(bpm) = music.bpm {
         music.beat_offset = music.beat_offset.rem_euclid(60. / bpm);

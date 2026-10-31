@@ -32,6 +32,16 @@ pub fn decode_with_music(
     id: u64,
     cached: Option<crate::music::MusicAnalysis>,
 ) -> Result<Clip, String> {
+    decode_with_limit(path, id, cached, MAX_CLIP_BYTES)
+}
+/// Encoder delay is deliberately kept: measured against stored grids, rekordbox's timeline for
+/// MP3 includes it, so trimming would move every grid and cue about 25 ms away from theirs.
+pub fn decode_with_limit(
+    path: &Path,
+    id: u64,
+    cached: Option<crate::music::MusicAnalysis>,
+    max_bytes: usize,
+) -> Result<Clip, String> {
     let file = File::open(path).map_err(|e| format!("No se pudo abrir el archivo: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
@@ -97,7 +107,7 @@ pub fn decode_with_music(
         let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
         buffer.copy_interleaved_ref(decoded);
         let frames = buffer.samples().len() / channels;
-        if (samples.len() + frames) * std::mem::size_of::<[f32; 2]>() > MAX_CLIP_BYTES {
+        if (samples.len() + frames) * std::mem::size_of::<[f32; 2]>() > max_bytes {
             return Err("El audio decodificado supera 96 MiB por pista (aprox. 4 min a 48 kHz). Recorta el archivo; streaming está planificado.".into());
         }
         for frame in buffer.samples().chunks_exact(channels) {

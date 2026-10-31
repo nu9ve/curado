@@ -221,10 +221,12 @@ function AnalysisEditor({
   const [busy, setBusy] = useState(false);
   const [bpm, setBpm] = useState('');
   const [offset, setOffset] = useState('');
+  const [downbeat, setDownbeat] = useState('');
   const [key, setKey] = useState('');
   const reset = () => {
     setBpm(music.bpm?.toFixed(3) ?? '');
     setOffset(music.beatOffset.toFixed(4));
+    setDownbeat(music.downbeat.toFixed(4));
     setKey(music.key ? `${music.key.tonic}:${music.key.minor ? 1 : 0}` : '');
   };
   const run = async (command: string, args: Record<string, unknown>) => {
@@ -261,6 +263,7 @@ function AnalysisEditor({
               ...music,
               bpm: bpm ? +bpm : null,
               beatOffset: +offset,
+              downbeat: +downbeat,
               key: key ? { tonic, minor: !!minor } : null,
               manual: true,
             },
@@ -297,6 +300,20 @@ function AnalysisEditor({
         </label>
         <button type="button" onClick={() => setOffset(position.toFixed(4))}>
           {tr('beat aquí', 'beat here')}{' '}
+        </button>
+        <label>
+          {tr('Primer beat de compás (s)', 'Bar start (s)')}{' '}
+          <input
+            type="number"
+            min="0"
+            step="0.0001"
+            required
+            value={downbeat}
+            onChange={(e) => setDownbeat(e.target.value)}
+          />
+        </label>
+        <button type="button" onClick={() => setDownbeat(position.toFixed(4))}>
+          {tr('compás aquí', 'bar here')}{' '}
         </button>
         <label>
           {tr('Tonalidad', 'Key')}{' '}

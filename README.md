@@ -112,7 +112,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does n
 ## Before you start
 
 - Tracks are currently preloaded, capped at **96 MiB of decoded PCM per file**: roughly 4:22 at 48 kHz stereo. An hour-long track is not supported yet.
-- BPM/key estimates need checking on real music. Pitch changes prepare a full clip in the background and can take time and extra memory.
+- BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Pitch changes prepare a full clip in the background and can take time and extra memory.
 - Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.
 - One stereo output; no independent headphone cue. Device recovery is manual.
 - Web playback/login and the integrated browser layout still need real WebView validation. Web audio bypasses local master, FX, sync and panic.

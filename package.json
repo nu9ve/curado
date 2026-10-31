@@ -18,6 +18,7 @@
     "format:check": "prettier --check src scripts docs README.md README.es.md AGENTS.md package.json && cargo fmt --all -- --check",
     "probe": "cargo run --release -p curado-audio --example render_probe",
     "music:probe": "cargo run --release -p curado-audio --example music_probe",
+    "music:eval": "cargo run --release -p curado-audio --example grid_eval --",
     "theme:sync": "bun scripts/sync-theme.ts"
   },
   "dependencies": {

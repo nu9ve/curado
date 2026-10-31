@@ -130,6 +130,8 @@ pub(crate) struct MusicMeter {
     key: AtomicU32,
     key_confidence: AtomicU32,
     manual: AtomicBool,
+    downbeat: AtomicU64,
+    first_sound: AtomicU64,
 }
 impl MusicMeter {
     pub fn store(&self, a: MusicAnalysis) {
@@ -144,12 +146,14 @@ impl MusicMeter {
         self.key_confidence
             .store(a.key_confidence.to_bits(), Relaxed);
         self.manual.store(a.manual, Relaxed);
+        self.downbeat.store(a.downbeat.to_bits(), Relaxed);
+        self.first_sound.store(a.first_sound.to_bits(), Relaxed);
     }
     pub fn read(&self) -> MusicAnalysis {
         let bpm = f64::from_bits(self.bpm.load(Relaxed));
         let key = self.key.load(Relaxed);
         MusicAnalysis {
-            version: 1,
+            version: crate::music::ANALYSIS_VERSION,
             bpm: (bpm > 0.).then_some(bpm),
             beat_offset: f64::from_bits(self.offset.load(Relaxed)),
             bpm_confidence: f32::from_bits(self.confidence.load(Relaxed)),
@@ -159,6 +163,8 @@ impl MusicMeter {
             }),
             key_confidence: f32::from_bits(self.key_confidence.load(Relaxed)),
             manual: self.manual.load(Relaxed),
+            downbeat: f64::from_bits(self.downbeat.load(Relaxed)),
+            first_sound: f64::from_bits(self.first_sound.load(Relaxed)),
         }
     }
 }

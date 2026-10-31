@@ -2,7 +2,7 @@ import { expect, test } from 'bun:test';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { keyLabel, transposeKey } from './music';
+import { isDownbeat, keyLabel, transposeKey } from './music';
 import { promoteBundle } from '../../scripts/install-local';
 test('Camelot covers all 24 keys and transposition preserves mode', () => {
   const codes = new Set<string>();
@@ -36,4 +36,16 @@ test('installation rolls back the old app if promotion fails', async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+test('bars follow the stored downbeat position, whichever grid line it falls on', () => {
+  const lines = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((n) => 0.125 + n * 0.5);
+  expect(lines.filter((time) => isDownbeat(time, 0.5, 1.125)).length).toBe(2);
+  expect(isDownbeat(1.125, 0.5, 1.125)).toBe(true);
+  expect(isDownbeat(3.125, 0.5, 1.125)).toBe(true);
+  expect(isDownbeat(1.625, 0.5, 1.125)).toBe(false);
+  // Before the stored downbeat, and with an estimate a few milliseconds off the line.
+  expect(isDownbeat(0.125, 0.5, 2.125)).toBe(true);
+  expect(isDownbeat(1.125, 0.5, 1.13)).toBe(true);
+  // An analysis without bars reads the first grid line as the start of a bar.
+  expect(isDownbeat(0.125, 0.5, 0)).toBe(true);
 });

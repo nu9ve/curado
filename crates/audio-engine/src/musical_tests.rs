@@ -78,6 +78,7 @@ fn clip(id: u64, bpm: f64) -> Arc<Clip> {
             }),
             key_confidence: 1.,
             manual: true,
+            ..Default::default()
         },
     })
 }

@@ -102,7 +102,7 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (n
 ## Límites actuales
 
 - Máximo **96 MiB de PCM decodificado por archivo**, unos 4:22 a 48 kHz estéreo. Las pistas de una hora todavía no están soportadas.
-- El BPM/key es una estimación. Cambiar tempo/tono con preparación puede tardar y consumir memoria adicional.
+- El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Cambiar tempo/tono con preparación puede tardar y consumir memoria adicional.
 - Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.
 - Una salida estéreo, sin preescucha independiente por auriculares; recuperación de dispositivos manual.
 - El navegador integrado necesita validación real de reproducción/login y layout. Su audio no responde a master, FX, sync ni pánico locales.

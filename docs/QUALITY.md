@@ -50,7 +50,7 @@ The following is a **plan**, not a completed test record. Respect current author
 
 ## Measurement
 
-Synthetic clicks/triads do not certify musical accuracy. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Offline clip pitch preparation is neither streaming DSP nor instant tempo transition; music probes measure no DAC/perceived quality.
+Synthetic clicks/triads do not certify musical accuracy, and `bun run music:eval` measures agreement with stored rekordbox grids, not truth. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Offline clip pitch preparation is neither streaming DSP nor instant tempo transition; music probes measure no DAC/perceived quality.
 
 Process RSS alone is not Tauri's total memory: WebKit/GPU have separate processes. CPU percentage does not prove glitch freedom. Callback budget = frames/sample_rate, 256/48000 ≈5.33 ms. Compare P50/P95/P99/max under load. Measure end-to-end latency by loopback/timestamps: buffer + OS + hardware + scheduling.
 
@@ -58,7 +58,7 @@ Offline tests do not validate DAC/hardware jitter/perception. Do not claim exclu
 
 ## Known risks
 
-Linear interpolation can alias with rate changes, and measurably dulls and adds images to any file played at another sample rate; EQ kills and filter slopes are shallow. Estimated grids sit late and BPM needs real-music work. Transport changes crossfade and main parameters smooth, but listening tests remain necessary. A 64-sample scope/RMS is not spectral analysis. Corrupt files can consume decode time before PCM limits: cancellation/timeouts/fuzzing missing. MIDI/native mode share policy, but real controller ergonomics remain unvalidated.
+Linear interpolation can alias with rate changes, and measurably dulls and adds images to any file played at another sample rate; EQ kills and filter slopes are shallow. Grids have only been compared with rekordbox's, not with listening; about one track in five disagrees on phase by over 50 ms, with no arbiter of who is right. Transport changes crossfade and main parameters smooth, but listening tests remain necessary. A 64-sample scope/RMS is not spectral analysis. Corrupt files can consume decode time before PCM limits: cancellation/timeouts/fuzzing missing. MIDI/native mode share policy, but real controller ergonomics remain unvalidated.
 
 Appearance tests cover math/configuration, not screenshots. The authorized web-preview review covered curado at 1100/1440 px without audio; loaded native decks, alternate styles and later changes remain unreviewed. Further Computer Use/visual tests require explicit authorization. Existing screenshots may be reused in docs without becoming evidence of current validation.
 

@@ -1,5 +1,17 @@
 # Technical decisions
 
+## ADR-018 · Whole-track grid, folding and an untrimmed timeline — accepted (2026-10-30)
+
+The maintainer asked for accurate tempo, kick and bar detection compatible with rekordbox libraries. Choices were made against stored rekordbox grids, on a tuning set separate from the reported one.
+
+- **Keep encoder delay:** the audit assumed trimming MP3 delay was right. Measuring both showed rekordbox's lines at the attack on the untrimmed timeline, and trimmed grids 25 ms off. Keeping it needs no cue migration and lets rekordbox positions match. Reconsider for real gapless playback, which could trim at playback without moving the timeline.
+- **Epoch folding over autocorrelation alone:** a whole track resolves tempo far beyond one window, and survives breakdowns because it adds evidence instead of tracking. It costs about twice the analysis time, and more on long files, which is acceptable in a worker and bounded by limits on attacks, candidates and search steps.
+- **Folded band rise over circular mean:** a mean is pulled between kick and off-beat. Requiring bass and broadband to rise together keeps a louder bass note or hi-hat from taking the grid.
+- **1 ms before the attack:** the maintainer's concern was cutting kicks. rekordbox's lines sit about 2 ms later, which is close enough to mix, and starting slightly early cannot cut a transient.
+- **Follow rekordbox's half/double convention:** it is the only reference available and it is what this maintainer's library uses. Accepted cost: drum and bass can read at half tempo, fixed with ×2.
+- **`downbeat` as a position:** a beat index would break whenever BPM or offset are edited. No schema change: it lives in the versioned JSON, and `ANALYSIS_VERSION` updates old estimates on load while keeping manual ones.
+- **Rejected for now:** dynamic grids for variable tempo, which need a new data model and evidence; bar-aware sync, while bars are this uncertain; decrypting `master.db` for reference data.
+
 ## ADR-017 · Pre-roll crossfades, exact cues and a true-peak limiter — accepted (2026-10-30)
 
 An audit requested by the maintainer confirmed loop clicks, softened attacks and hard clipping. Replacing the old `gain × envelope` ramp and held-sample transition with a second read voice costs little and fixes the cause rather than the symptom.

@@ -169,7 +169,7 @@ impl Database {
                 |r| r.get(0),
             )
             .map_err(|e| e.to_string())?;
-        if self.music(id).is_none() {
+        if self.music(id).is_none_or(|music| !music.is_current()) {
             self.save(&format!("music:{id}"), &clip.music)?;
         }
         Ok(inserted)
@@ -290,6 +290,33 @@ mod tests {
         db.save("music:1", &serde_json::json!({"bad":true}))
             .unwrap();
         assert!(db.library().unwrap().tracks[0].music.is_none());
+    }
+    #[test]
+    fn analysis_saved_by_older_versions_stays_readable() {
+        let db = Database::open(Path::new(":memory:")).unwrap();
+        db.connection.execute("INSERT INTO tracks(id,path,title,artist,duration,sample_rate,peaks) VALUES(1,'a.wav','A','B',30,48000,'[]')",[]).unwrap();
+        // Exactly what version 1 wrote: no bars and no first sound.
+        let stored = serde_json::json!({
+            "version": 1,
+            "bpm": 124.0,
+            "beatOffset": 0.25,
+            "bpmConfidence": 0.5,
+            "key": null,
+            "keyConfidence": 0.0,
+            "manual": false
+        });
+        db.save("music:1", &stored).unwrap();
+        let estimate = db.music(1).expect("still valid");
+        assert_eq!(estimate.bpm, Some(124.));
+        assert_eq!((estimate.downbeat, estimate.first_sound), (0., 0.));
+        assert!(!estimate.is_current(), "an old estimate is recalculated");
+        let mut corrected = stored;
+        corrected["manual"] = true.into();
+        db.save("music:1", &corrected).unwrap();
+        assert!(
+            db.music(1).unwrap().is_current(),
+            "a manual correction is never replaced"
+        );
     }
     #[test]
     fn playlists_persist_and_cascade_without_deleting_files() {

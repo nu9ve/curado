@@ -11,3 +11,9 @@ export function keyLabel(key: MusicalKey | null, notation: 'american' | 'camelot
     ? `${(key.minor ? MINOR : MAJOR)[key.tonic]}${key.minor ? 'A' : 'B'}`
     : `${NOTES[key.tonic]}${key.minor ? 'm' : ''}`;
 }
+
+/** Whether a grid line starts a bar. Works from positions, so editing the grid cannot break it. */
+export function isDownbeat(time: number, beat: number, downbeat: number, beatsPerBar = 4) {
+  const beats = Math.round((time - downbeat) / beat);
+  return ((beats % beatsPerBar) + beatsPerBar) % beatsPerBar === 0;
+}

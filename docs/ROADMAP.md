@@ -36,7 +36,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 
 ## P1 · Deeper mixing
 
-- S4 foundation exists: offline BPM/key, editable grid, beat loops, native sync/deferred cues. Need real corpus/accuracy metrics, variable-tempo strategy and uncertain-grid handling.
+- S4 foundation exists: whole-track BPM/key, editable grid and bars, beat loops, native sync/deferred cues and a benchmark against stored rekordbox grids. Need listening, ground truth for phase and bars, a variable-tempo strategy and uncertain-grid handling.
 - Initial Signalsmith pitch/key lock prepares offline clips. Need listening quality, incremental streaming integration and global memory budget; preserve latency compensation/transport contracts.
 - Multichannel cue/master output and pair selection; ASIO/JACK/PipeWire per platform require configuration/routing/UI/hardware tests.
 - Continuous jog/nudge by dragging platter, timestamped actions, relative MIDI, hotplug, LEDs/UI MIDI feedback (S7).

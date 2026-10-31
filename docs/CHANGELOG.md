@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Whole-track beat analysis
+
+Replaced the 90-second estimate with three-band onsets, epoch-folded tempo over the whole track, a grid placed just before the real attack, bars and first-sound detection. Added bar lines, **compás aquí** and `bun run music:eval`, which compares with stored rekordbox grids. On tracks not used for tuning, BPM within ±0.02 went from 14.1 % to 61.0 % and phase within 5 ms from 4.4 % to 40.4 %. Bars barely changed. See [Status](STATUS.md) and ADR-018. Lessons: measure the premise before fixing it, because trimming MP3 delay looked like the correction and moved grids away from rekordbox; and a test tolerance is not evidence, because synthetic kicks passed while real tracks did not.
+
 ## 2026-10-30 · Clean transport and limiter
 
 Audited the engine and fixed the transport and output findings. Loop boundaries, jumps, pause and PCM swaps crossfade through a second read voice, and cues and play pre-roll 3 ms so their attack stays at full gain. Quantize uses the nearest beat when saving and never moves a saved cue; sync takes the short way to the master's beat, nudge works while synced and a paused follower keeps its position. A −1 dBTP look-ahead true-peak limiter replaces the ±0.98 clamp, with a LIM lamp in both mix layouts. Adds 3 ms to cue and play attacks and 1.6 ms of output latency at 48 kHz. Measured, not yet listened to; see [Status](STATUS.md) and ADR-017. Lesson: the old ±20 ms grid test tolerance hid a 13–25 ms bias, so tolerances need to reflect what is audible.

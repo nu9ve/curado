@@ -1,0 +1,129 @@
+{
+  "kind": "agreement with stored rekordbox grids on tracks never used for tuning, not ground truth",
+  "date": "2026-10-30",
+  "command": "bun run music:eval -- --music <dir> --split holdout --limit 800",
+  "analysisVersion1": {
+    "tracks": 731,
+    "noBpm": 3.8,
+    "bpmWithin0.02": 14.1,
+    "bpmWithin0.1": 24.9,
+    "bpmWithin0.5": 44.0,
+    "double": 1.1,
+    "half": 5.7,
+    "ratio": 10.1,
+    "other": 35.2,
+    "confidenceMedianRight": 0.55,
+    "confidenceMedianWrong": 0.42,
+    "phaseTight": {
+      "n": 182,
+      "medianMs": 19.6,
+      "p10Ms": -216.9,
+      "p90Ms": 84.7,
+      "within5": 4.4,
+      "within10": 12.6,
+      "within20": 30.8,
+      "within50": 66.5
+    },
+    "phaseByFormat": {
+      "flac": {
+        "n": 0,
+        "medianMs": null,
+        "p10Ms": null,
+        "p90Ms": null,
+        "within5": 0.0,
+        "within10": 0.0,
+        "within20": 0.0,
+        "within50": 0.0
+      },
+      "mp3": {
+        "n": 174,
+        "medianMs": 19.6,
+        "p10Ms": -218.3,
+        "p90Ms": 77.5,
+        "within5": 4.0,
+        "within10": 12.1,
+        "within20": 29.9,
+        "within50": 67.2
+      },
+      "wav": {
+        "n": 8,
+        "medianMs": 19.8,
+        "p10Ms": -5.1,
+        "p90Ms": 84.7,
+        "within5": 12.5,
+        "within10": 25.0,
+        "within20": 50.0,
+        "within50": 50.0
+      }
+    },
+    "driftMedianMs": 1.3,
+    "driftP90Ms": 179.6,
+    "barsCompared": 232,
+    "barMatch": 57.3,
+    "analysisMedianMs": 112,
+    "analysisMaxMs": 261,
+    "timesRealtime": 2244
+  },
+  "analysisVersion2": {
+    "tracks": 731,
+    "noBpm": 4.1,
+    "bpmWithin0.02": 61.0,
+    "bpmWithin0.1": 69.5,
+    "bpmWithin0.5": 76.7,
+    "double": 4.2,
+    "half": 1.9,
+    "ratio": 2.3,
+    "other": 10.7,
+    "confidenceMedianRight": 0.49,
+    "confidenceMedianWrong": 0.17,
+    "phaseTight": {
+      "n": 508,
+      "medianMs": -1.8,
+      "p10Ms": -41.5,
+      "p90Ms": 182.9,
+      "within5": 40.4,
+      "within10": 51.0,
+      "within20": 63.6,
+      "within50": 77.2
+    },
+    "phaseByFormat": {
+      "flac": {
+        "n": 4,
+        "medianMs": 219.2,
+        "p10Ms": -2.7,
+        "p90Ms": 219.7,
+        "within5": 50.0,
+        "within10": 50.0,
+        "within20": 50.0,
+        "within50": 50.0
+      },
+      "mp3": {
+        "n": 480,
+        "medianMs": -1.9,
+        "p10Ms": -41.5,
+        "p90Ms": 178.6,
+        "within5": 39.2,
+        "within10": 50.4,
+        "within20": 63.5,
+        "within50": 77.7
+      },
+      "wav": {
+        "n": 24,
+        "medianMs": -0.9,
+        "p10Ms": -108.0,
+        "p90Ms": 185.6,
+        "within5": 62.5,
+        "within10": 62.5,
+        "within20": 66.7,
+        "within50": 70.8
+      }
+    },
+    "driftMedianMs": 0.6,
+    "driftP90Ms": 32.2,
+    "barsCompared": 443,
+    "barMatch": 58.5,
+    "analysisMedianMs": 261,
+    "analysisMaxMs": 3439,
+    "timesRealtime": 733
+  }
+}

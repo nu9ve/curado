@@ -70,9 +70,22 @@ Loading retains each slot's FX. A/B reset tempo to 1×, transpose to 0, key lock
 
 ## Musical analysis and control
 
-`music.rs` analyzes at most 90 s after decoding: attack envelope, autocorrelation and period refinement for BPM/offset; FFT/chroma/major-minor profiles for key. This is an additional offline pass, separate from waveform construction during decoding. It does not detect bars/downbeats, variable tempo or modulation. Periodicity/margin indicators are not calibrated probabilities; silence or insufficient evidence can return unknowns.
+`music.rs` analyzes the whole track after decoding, as an additional offline pass separate from waveform construction; `beat.rs` owns the grid, and FFT/chroma/major-minor profiles give the key.
 
-Versioned analysis with a manual flag lives in `settings["music:<id>"]`, without a schema-v3 migration. Library data includes it optionally; older tracks analyze on load/reanalysis. Loading preserves saved corrections. Editing accepts registered IDs and validated values, saves to SQLite and updates metadata for every renderer slot holding the track. Original tags are never written.
+1. **Onsets:** log-energy rise per 5 ms in three bands (below 180 Hz, 180–2200 Hz, above 2200 Hz), each normalized.
+2. **Tempo candidates:** an autocorrelation comb over the combined curve, kept to 70–180 BPM. The comb rejects readings that are too fast and phase coherence rejects those too slow. 70–90 and 140–180 BPM can read either way; the fast reading wins through 165 BPM, and beyond that only with a kick on every beat or a clear backbeat.
+3. **Exact tempo:** epoch folding. Attacks wrapped onto one period pile up only if the period is right, so a whole track resolves tempo much better than a window. Round tempos win when the audio cannot tell them apart.
+4. **Phase:** all bands folded onto one beat. A kick rises in the bass and across the spectrum together, so an off-beat bass note or hi-hat cannot take the grid. A full-rate search around the strongest beats then finds the real start of the attack, and the grid sits 1 ms before it.
+5. **Bars:** the first sound and the top of the track are the starting belief; kicks on 1, backbeat energy on 2 and 4 and section changes on a downbeat have to outweigh it. `downbeat` stores a position in seconds, so editing BPM or offset cannot invalidate it. Bars are displayed and editable; sync still works per beat.
+6. **First sound:** the first sample within 50 dB of the peak. An unsaved cue starts there, on the grid with Q.
+
+`bpmConfidence` is `1 − 1/folding`, how clearly attacks pile up. It is the track's own evidence, not a probability, and it does separate right from wrong tempos against stored grids (see [Status](STATUS.md)). No BPM is reported without level movement over 200 ms, a pulse standing out from other tempos and minimum folding. There is one constant grid per track: variable tempo gets a low confidence rather than a dynamic grid. Modulation is not detected.
+
+**Timeline:** decoding deliberately keeps encoder delay. Against stored grids, rekordbox's MP3 timeline includes it, so curado's positions match rekordbox's directly; trimming with Symphonia's gapless option moved grids about 25 ms away from them. `first_sound` skips that silence for cues.
+
+Versioned analysis with a manual flag lives in `settings["music:<id>"]`, without a schema-v3 migration. Library data includes it optionally; a track's estimate is recalculated on load or reanalysis when older than `ANALYSIS_VERSION`, so listings show the older BPM until then. Loading preserves saved corrections. Editing accepts registered IDs and validated values, saves to SQLite and updates metadata for every renderer slot holding the track. Original tags are never written.
+
+`bun run music:eval` compares the analysis with the grids rekordbox stored on this machine, reading `ANLZ0000.DAT` and never `master.db`, and prints aggregates without titles or paths. A hash splits tracks into `dev` for tuning and `holdout` for reporting. rekordbox is a reference, not ground truth; its local files carry no cues and only a file name, so audio is found by unique name.
 
 Each deck starts with Q enabled and has beat-loop length and sync state. Master guides tempo/phase; follower derives rate from both BPMs. Key-locked tempo changes await preparation, and the follower keeps its old rate until then; if both need new PCM, one entry applies the whole batch before a block. Sync never starts transport.
 

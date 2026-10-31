@@ -26,6 +26,7 @@ fn clip_of(id: u64, samples: Vec<[f32; 2]>, grid: bool) -> Arc<Clip> {
             key: None,
             key_confidence: 0.,
             manual: true,
+            ..Default::default()
         },
     })
 }
@@ -334,6 +335,27 @@ fn quantize_never_moves_a_saved_cue() {
     h.control(0, Control::Cue(2)).unwrap();
     render(&mut r, jump_frames());
     assert!((h.snapshot().slots[0].position - OFFSET).abs() < 1e-6);
+}
+
+#[test]
+fn an_unsaved_cue_starts_at_the_first_sound() {
+    let mut clip = clip_of(1, vec![[0.1; 2]; SR as usize * 20], true);
+    let music = &mut Arc::get_mut(&mut clip).unwrap().music;
+    music.first_sound = 3.2;
+    music.downbeat = OFFSET + BEAT;
+    let (h, mut r) = engine(SR);
+    h.load(0, clip).unwrap();
+    h.control(0, Control::Cue(0)).unwrap();
+    render(&mut r, jump_frames());
+    let s = h.snapshot().slots[0].clone();
+    // Q puts it on the nearest beat: 3.125 is the grid line closest to 3.2.
+    assert!((s.position - 3.125).abs() < 1e-6, "{}", s.position);
+    assert_eq!(s.music.first_sound, 3.2);
+    assert_eq!(s.music.downbeat, OFFSET + BEAT);
+    h.control(0, Control::Quantize(false)).unwrap();
+    h.control(0, Control::Cue(0)).unwrap();
+    render(&mut r, jump_frames());
+    assert!((h.snapshot().slots[0].position - 3.2).abs() < 1e-6);
 }
 
 fn two_decks(follower_seconds: f64, master_seconds: f64) -> (EngineHandle, Renderer) {

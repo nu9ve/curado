@@ -1,5 +1,6 @@
 pub mod analysis;
 pub mod annotations;
+mod beat;
 pub mod decode;
 mod dsp;
 pub mod limiter;
@@ -704,14 +705,17 @@ impl Deck {
         }
     }
     /// A saved cue plays exactly where it was stored; Q alone never moves it. `on_grid` keeps
-    /// a synced deck in phase. An unsaved cue reads 0:00 and still means the first beat.
+    /// a synced deck in phase. An unsaved cue reads 0:00 and means the track's first sound.
     fn trigger_cue(&mut self, index: usize, on_grid: bool, sr: u32) {
         let Some(clip) = &self.clip else {
             return;
         };
         let len = clip.samples.len() as f64;
         let stored = (clip.cues.get(index) * clip.sample_rate as f64).clamp(0., len);
-        let target = if on_grid || stored == 0. {
+        let target = if stored == 0. {
+            let first = self.music.first_sound * clip.sample_rate as f64;
+            self.snap(first.min(len), f64::round).min(len)
+        } else if on_grid {
             self.snap(stored, f64::round).min(len)
         } else {
             stored

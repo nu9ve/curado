@@ -2,6 +2,7 @@ import { tr } from '../lib/language';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useTheme, currentPalette } from '../lib/theme-store';
+import { isDownbeat } from '../lib/music';
 import { drawOverview, drawWindow, renderTiles, useWaveform } from '../lib/waveform';
 import type { WaveColors } from '../lib/waveform';
 import type { Slot } from '../lib/types';
@@ -192,12 +193,14 @@ export function ZoomWave({
       );
       ctx.fillStyle = p.tokens['--text-muted'];
       for (let n = first; n < first + WINDOW_SECONDS / beat + 2; n++) {
-        const x = Math.round(toX(slot.music.beatOffset + n * beat));
+        const time = slot.music.beatOffset + n * beat;
+        const x = Math.round(toX(time));
         if (x < 0 || x > w) continue;
-        ctx.globalAlpha = 0.4;
-        ctx.fillRect(x, 0, 1, h);
+        const bar = isDownbeat(time, beat, slot.music.downbeat);
+        ctx.globalAlpha = bar ? 0.85 : 0.4;
+        ctx.fillRect(x, 0, bar ? 2 : 1, h);
         ctx.globalAlpha = 1;
-        ctx.fillRect(x, h - 6, 1, 6);
+        ctx.fillRect(x, h - (bar ? 10 : 6), bar ? 2 : 1, bar ? 10 : 6);
       }
     }
     // Played side slightly dimmed so the direction of travel reads at a glance.

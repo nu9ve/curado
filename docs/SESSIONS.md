@@ -26,11 +26,11 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S4 · Beatgrid, BPM, key and sync (P1 mixing)
 
-**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. Quality is not complete: a 2026-10-30 comparison with stored rekordbox grids found 47.9 % of 200 real tracks within ±0.5 BPM and grids 13–25 ms after clean synthetic kicks. Real corpus and listening remain.
+**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. **Whole-track analysis 2026-10-30:** see Status for agreement with stored rekordbox grids. Quality is not complete: listening, ground truth for phase and bars, and variable tempo remain.
 
 - **Context:** three-band waveform exists; rhythmic structure needs validation/refinement.
 - **Scope:** offline BPM/onsets in decode worker near `analysis.rs`, persistent grid metadata (currently versioned settings in SQLite, see ARCHITECTURE), visible beat markers, quantized loops/tempo sync. Extend initial key lock to incremental streaming and validate quality.
-- **Done when:** known-BPM corpus within ±0.1 BPM; 1/2/4/8-beat loops without discontinuity.
+- **Done when:** known-BPM corpus within ±0.1 BPM, measured with `bun run music:eval` and listening; 1/2/4/8-beat loops without discontinuity on real tracks.
 
 ## S5 · Web explorer: SoundCloud/fractos radio (P2)
 

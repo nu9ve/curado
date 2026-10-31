@@ -35,7 +35,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Salta al hot cue y reproduce este deck.',
-    'Suena exactamente donde lo guardaste. Con SYNC y Q activos en el seguidor espera al siguiente beat del master y usa el beat más cercano para no perder la fase. Sin posición guardada empieza en el primer beat. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
+    'Suena exactamente donde lo guardaste. Con SYNC y Q activos en el seguidor espera al siguiente beat del master y usa el beat más cercano para no perder la fase. Sin posición guardada empieza en el primer sonido de la pista, ajustado al grid con Q. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
   ],
   setCue: [
     'Guarda la posición actual en este hot cue.',
@@ -51,7 +51,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   cueBoth: [
     'Salta al hot cue de A y B y reproduce ambos a la vez.',
-    'Una sola acción del motor aplica los dos saltos en el mismo bloque. Cada pista usa su propio cue; sin cue guardado empieza en 0:00. No ajusta BPM ni restaura un master silenciado.',
+    'Una sola acción del motor aplica los dos saltos en el mismo bloque. Cada pista usa su propio cue; sin cue guardado empieza en su primer sonido. No ajusta BPM ni restaura un master silenciado.',
   ],
   seek: [
     'Busca una posición dentro de esta pista.',
@@ -178,7 +178,7 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Jump to the hot cue and play.',
-    'It plays exactly where you saved it. With SYNC and Q on the follower, it waits for the next master beat and uses the nearest beat to keep phase. An unsaved cue starts at the first beat. Shift-click saves. A jump outside the loop disables it.',
+    'It plays exactly where you saved it. With SYNC and Q on the follower, it waits for the next master beat and uses the nearest beat to keep phase. An unsaved cue starts at the track’s first sound, on the grid with Q. Shift-click saves. A jump outside the loop disables it.',
   ],
   setCue: [
     'Save the current position to this hot cue.',
