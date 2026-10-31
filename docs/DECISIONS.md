@@ -1,5 +1,15 @@
 # Technical decisions
 
+## ADR-017 · Pre-roll crossfades, exact cues and a true-peak limiter — accepted (2026-10-30)
+
+An audit requested by the maintainer confirmed loop clicks, softened attacks and hard clipping. Replacing the old `gain × envelope` ramp and held-sample transition with a second read voice costs little and fixes the cause rather than the symptom.
+
+- **Pre-roll over a shorter fade:** a fade on the destination audio always attenuates its attack; the old path lost 17.7 dB in the first 2 ms from pause. Starting 3 ms early delivers the target at unity. Accepted cost: 3 ms more between a command and the attack it targets. Loop boundaries have no such cost because both voices are scheduled ahead.
+- **Raised cosine over equal power:** equal power adds up to 3 dB on correlated audio, and loop material is often correlated. A brief dip on uncorrelated audio is preferred to adding level before a limiter.
+- **Exact cues:** quantize re-snapping on recall destroyed off-grid cues and would destroy imported ones. Q now applies when setting; a synced follower still uses its nearest grid line at trigger time, because staying in phase is what the user asked for there, without changing the saved cue.
+- **Nudge beats sync:** realigning undid every nudge, which removed the only by-ear correction for a wrong grid. A nudge now lasts until the next realignment. No stored offset was added; revisit with continuous sync.
+- **Limiter over soft clipping:** a look-ahead limiter stays transparent below the ceiling and distorts far less above it (55 Hz at ×3: −29 dBc against −11 dBc for the old clamp). Accepted cost: 1.6 ms latency at 48 kHz and about 6 µs per 256-frame block. −1 dBTP over the previous ±0.98 leaves room for converter overs. The default gain staging stayed unchanged: defaults do not reach the limiter with two 0 dBFS decks. Reconsider ceiling, release and gain staging after listening tests.
+
 ## ADR-016 · English documentation and bilingual entry points — accepted (2026-10-26)
 
 The maintainer requested English documentation, a friendly README, a Spanish welcome/README, agent-assisted setup, mixer imagery and a nu9ve.xyz credit. English is the technical documentation language; README.es.md remains Spanish, with reciprocal top links. Existing Spanish UI labels are retained in usage instructions; this is not UI localization. SETUP is the user/agent installation path; AGENTS retains engineering invariants and Spanish communication with the maintainer.

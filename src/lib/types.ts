@@ -110,6 +110,8 @@ export interface Audio {
   streamError: boolean;
   callbacks: number;
   clipped: number;
+  limited: number;
+  limiterDb: number;
   masterDeck: number;
 }
 export interface Output {

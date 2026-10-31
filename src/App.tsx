@@ -35,6 +35,7 @@ import { readMixLayout, saveMixLayout } from './lib/mix-layout';
 import type { MixLayout } from './lib/mix-layout';
 import { Deck } from './components/Deck';
 import { Mixer, SampleBank } from './components/Mixer';
+import { HardwareConsole } from './components/HardwareConsole';
 import { Library } from './components/Library';
 import { Visual } from './components/Visual';
 import { Settings } from './components/Settings';
@@ -620,7 +621,7 @@ function MixView({
     </div>
   );
   return (
-    <div className="mix-view">
+    <div className={`mix-view ${layout === 'console' ? 'mix-view-console' : ''}`}>
       <div className="mix-layout-bar" role="group" aria-label={tr('Vista de mezcla', 'Mix layout')}>
         <span>{tr('Vista de mezcla', 'Mix layout')}</span>
         <button
@@ -638,51 +639,53 @@ function MixView({
           {tr('cabina', 'console')}
         </button>
       </div>
-      {layout === 'classic' && waves}
-      <div className={layout === 'console' ? 'hardware-scroll' : undefined}>
-        <div className={layout === 'console' ? 'console hardware-surface' : 'console'}>
-          {layout === 'console' && (
-            <div className="hardware-screen">
-              <div className="hardware-screen-header">
-                <span>curado</span>
-                <span>{tr('CABINA · 2 CANALES', 'CONSOLE · 2 CHANNELS')}</span>
-              </div>
-              {waves}
-              <div className="hardware-screen-footer">
-                <span>DECK A</span>
-                <span>DECK B</span>
-              </div>
-            </div>
-          )}
-          <Deck
-            index={0}
-            onLibrary={onLibrary}
-            tracks={library.tracks}
-            keys={keys}
-            onError={onError}
-            loading={loading.includes(0)}
-          />
-          <Mixer keys={keys} onError={onError} />
-          <Deck
-            index={1}
-            onLibrary={onLibrary}
-            tracks={library.tracks}
-            keys={keys}
-            onError={onError}
-            loading={loading.includes(1)}
-          />
-        </div>
-      </div>
-      <div className="console-foot">
-        <SampleBank
-          tracks={library.tracks}
+      {layout === 'console' ? (
+        <HardwareConsole
+          library={library}
           keys={keys}
+          loading={loading}
           onError={onError}
-          onLoad={onLoad}
+          onLibrary={onLibrary}
           selected={selected}
+          onLoad={onLoad}
+          onTrigger={onTrigger}
         />
-        <KeyboardMap keys={keys} mode="mix" onTrigger={onTrigger} />
-      </div>
+      ) : (
+        <>
+          {waves}
+          <div className="console">
+            <Deck
+              index={0}
+              onLibrary={onLibrary}
+              tracks={library.tracks}
+              keys={keys}
+              onError={onError}
+              loading={loading.includes(0)}
+            />
+            <Mixer keys={keys} onError={onError} />
+            <Deck
+              index={1}
+              onLibrary={onLibrary}
+              tracks={library.tracks}
+              keys={keys}
+              onError={onError}
+              loading={loading.includes(1)}
+            />
+          </div>
+        </>
+      )}
+      {layout === 'classic' && (
+        <div className="console-foot">
+          <SampleBank
+            tracks={library.tracks}
+            keys={keys}
+            onError={onError}
+            onLoad={onLoad}
+            selected={selected}
+          />
+          <KeyboardMap keys={keys} mode="mix" onTrigger={onTrigger} />
+        </div>
+      )}
     </div>
   );
 }

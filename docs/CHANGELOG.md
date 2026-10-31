@@ -1,5 +1,29 @@
 # Change history
 
+## 2026-10-30 · Clean transport and limiter
+
+Audited the engine and fixed the transport and output findings. Loop boundaries, jumps, pause and PCM swaps crossfade through a second read voice, and cues and play pre-roll 3 ms so their attack stays at full gain. Quantize uses the nearest beat when saving and never moves a saved cue; sync takes the short way to the master's beat, nudge works while synced and a paused follower keeps its position. A −1 dBTP look-ahead true-peak limiter replaces the ±0.98 clamp, with a LIM lamp in both mix layouts. Adds 3 ms to cue and play attacks and 1.6 ms of output latency at 48 kHz. Measured, not yet listened to; see [Status](STATUS.md) and ADR-017. Lesson: the old ±20 ms grid test tolerance hid a 13–25 ms bias, so tolerances need to reflect what is audible.
+
+## 2026-10-29 · Shared console pads and keyboard map
+
+Each console deck can switch its existing performance pad surface between its three hot cues and curado's four shared sample slots. Empty sample pads load the selected library track; Shift-click replaces a loaded sample. Pad modes are temporary frontend state and do not alter transport or shortcuts. Moved the reactive keyboard map into deck B with pointed/last-action descriptions. Hardware pad modes and extra cues remain pending; visual, interaction and listening review remain pending.
+
+## 2026-10-29 · Integrated deck controls
+
+Moved the curado effects, musical controls, linked transport and sample bank from the detached side/below panels into the console chassis below the relevant deck pads, following the maintainer's screenshots. Collapsed the keyboard map and full mixer in console view to avoid an oversized section below. Existing action and audio contracts are unchanged; visual and interaction review remain pending.
+
+## 2026-10-29 · Console side controls
+
+Responded to the maintainer's screenshot showing unused space around the fitted console. Per-deck curado filters, echo and musical controls, linked transport and the existing sample bank now occupy side rails in wide views and reflow below the console at smaller widths; the full mixer remains expandable. Existing native actions and pending hardware functions are unchanged. Visual and interaction review remain pending.
+
+## 2026-10-29 · Console viewport fitting
+
+Responded to maintainer screenshots showing clipped console controls and empty stretched decks. Fixed the hardware surface proportions, positioned the pads below the jogs rather than at the stretched bottom, corrected the master meter height, and fit the surface to the available sheet size with a minimum scale and scrolling fallback. No audio actions or DSP changed. Visual and pointer interaction verification remain pending.
+
+## 2026-10-29 · RX3-inspired console refinement
+
+Replaced the first console arrangement with a dedicated CSS-drawn dark hardware surface: central screen, channel strips and FX sections, side jogs, transport and eight pads per deck. Existing functionality uses the native action contract; unimplemented controls remain visibly dimmed and accessibly labelled as coming soon. Curado's filters, echo and musical controls remain available in an expandable section. This is not a photograph, exact replica or new DSP. Visual, listening and hardware review remain pending.
+
 ## 2026-10-29 · Reactive Metal scenes
 
 Added a faceted gateway with particles, circular waveform/spectrum and depth-tested low-poly spectral city. Added temporary scene, glow, sensitivity, speed and color controls; hide/restore, fullscreen and spring camera interactions. A bounded on-demand master capture feeds a worker-side 2,048-point FFT and smoothed 24-bin spectrum; no FFT or allocation runs in the callback. Updated both READMEs and architecture. See STATUS for validation and limits.

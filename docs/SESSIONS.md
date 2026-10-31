@@ -18,13 +18,15 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S3 · Audio quality: resampler, EQ and limiter (P0)
 
-- **Context:** linear interpolation, one-pole EQ and ±.98 ceiling.
-- **Scope:** bandlimited sinc/polyphase resampler, DJ biquad EQ with full kill, bipolar HP/LP, loop-boundary crossfade, actual limiter. Review automation/smoothing, denormals, latency, bypass and callback budget (invariant 6).
-- **Done when:** aliasing/discontinuity tests, new offline P99 probe, no callback allocation.
+**Partly implemented 2026-10-30:** transport/loop crossfades and a true-peak limiter, verified by measurements but not by listening.
+
+- **Context:** linear interpolation and one-pole EQ.
+- **Scope:** bandlimited sinc/polyphase resampler, DJ biquad EQ with full kill, bipolar HP/LP. Review automation/smoothing, denormals, latency, bypass and callback budget (invariant 6).
+- **Done when:** aliasing tests, new offline P99 probe, no callback allocation.
 
 ## S4 · Beatgrid, BPM, key and sync (P1 mixing)
 
-**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. Quality is not complete: real corpus, listening and discontinuity-free loops remain.
+**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. Quality is not complete: a 2026-10-30 comparison with stored rekordbox grids found 47.9 % of 200 real tracks within ±0.5 BPM and grids 13–25 ms after clean synthetic kicks. Real corpus and listening remain.
 
 - **Context:** three-band waveform exists; rhythmic structure needs validation/refinement.
 - **Scope:** offline BPM/onsets in decode worker near `analysis.rs`, persistent grid metadata (currently versioned settings in SQLite, see ARCHITECTURE), visible beat markers, quantized loops/tempo sync. Extend initial key lock to incremental streaming and validate quality.

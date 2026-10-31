@@ -1,5 +1,60 @@
 # curado status
 
+## Clean transport and limiter · 2026-10-30
+
+An audit requested by the maintainer measured the engine with synthetic audio of known timing and with 200 tracks of their local library against the beat grids rekordbox had stored, read-only and without opening `master.db`. This session fixes what it found in transport and output; analysis and DSP findings remain open below. See [ADR-017](DECISIONS.md) and [Architecture](ARCHITECTURE.md).
+
+Implemented: a second read voice crossfades loop boundaries, jumps, pause and PCM swaps; cues and play pre-roll 3 ms so their target sounds at exact unity gain; SET CUE, IN, OUT and beat loops use the nearest beat; quantize never moves a saved cue on recall; sync takes the short way to the master's beat; nudge works on a synced deck; a paused follower keeps its position; a synced Q cue lands on the master beat including its pre-roll. A stereo-linked 1.5 ms look-ahead limiter with 4× true-peak detection replaces the ±0.98 clamp at a −1 dBTP ceiling. A **LIM** lamp in both mix layouts shows the reduction, with limited frames and hard clipping in Settings. Master and crossfader smoothing now derive from the sample rate.
+
+| Measurement                                     | Before                | After                       |
+| ----------------------------------------------- | --------------------- | --------------------------- |
+| Largest sample step, looping sustained 55 Hz    | 0.589                 | 0.007 (ordinary fade slope) |
+| Hot cue from pause on a kick, first 2 / 2–5 ms  | −17.7 / −5.3 dB       | −0.0 / −0.0 dB              |
+| Hot cue while playing on a kick, first 2 ms     | −6.8 dB               | −0.0 dB                     |
+| Two 0 dBFS decks, LOW +6 dB on both             | 4.4 % samples clipped | 0 clipped, peak 0.891       |
+| Worst spur, 55 Hz sine ×3 over / 220 Hz ×3 over | −11.1 / −10.5 dBc     | −29.1 / −60.1 dBc           |
+| Sync with the follower 50 ms from aligned       | moved −450 ms         | moved +50 ms                |
+| +20 ms nudge on a synced follower               | no effect             | +20 ms                      |
+| SET CUE pressed 5 ms before the beat at 10 s    | stored 9.5 s          | stored 10 s                 |
+| Off-grid cue at 10.3 s recalled with Q on       | jumped to 10 s        | plays 10.3 s                |
+
+The first two rows use perfect grids. Periodic synthetic loops hide the click even without a fade, so the loop result needs real material. Costs: 3 ms between a cue or play command and its target, plus a constant 1.6 ms of limiter latency at 48 kHz. Interleaved runs of `render_probe` on the same host, 8 each: previous engine P50 ≈37.7 µs, P99 54–95 µs, max 144–237 µs; this engine P50 ≈44 µs, P99 61–110 µs, max 109–731 µs, against 5,333 µs. Two earlier runs of this engine, taken right after compiling, showed max 24.9 and 40.2 ms; they did not recur in the 16 interleaved runs, and the cause is unknown like the historical outlier below. Not a hardware measurement.
+
+Open findings from the audit:
+
+- **Analysis:** grids sit 13–25 ms after clean synthetic kicks. Against stored rekordbox grids, 47.9 % of the 200 tracks were within ±0.5 BPM, 9.5 % within ±0.02, 17.9 % had ratio errors and 34.2 % another wrong BPM; confidence barely separates right from wrong (median 0.53 and 0.41). Only 5 % of 44 tracks with the right tempo had a phase within 5 ms. rekordbox is a reference, not ground truth, and tracks were matched by file name. Key was not compared.
+- **Decoding:** MP3 decodes 25.06 ms late and AAC 47.89 ms, because encoder delay is not trimmed.
+- **Capacity:** the 96 MiB cap rejects 25–32 % of that library.
+- **DSP:** a 44.1 kHz file on a 48 kHz output loses 3.4 dB at 15 kHz with an image at −11.6 dBc. LOW kill reaches only −11.7 dB at 60 Hz. LP/HP are 6 dB/octave.
+- **Sync:** key lock keeps the follower at its old rate for about 3 s on a four-minute track, and phase has no continuous correction.
+- **Cues:** an unsaved cue is still indistinguishable from one saved at 0:00, which needs the cue data model planned with rekordbox import.
+
+Verification: `bun run check` passed (35 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (66 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit over loop fades, pause fades, PCM replacement and panic. The macOS `.app` built (13.58 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `a26f7675237906a7006fabc759ebc0b1e2c6cff729a9c6256361918ba323ce09`. **No listening, visual, playback-device or hardware test was performed.** Next: the maintainer should listen to loops on real tracks, hot cues, pause and a hot mix for pumping, and check the LIM lamp in both layouts. Then improve analysis and decoding offsets.
+
+## Integrated console controls · 2026-10-29
+
+Maintainer screenshots showed that the separate controls still occupied space below the console even though the deck chassis had room under the pads. Per-deck curado LP/HP/echo, beat division and musical controls now sit inside their respective decks below the pads; linked A/B transport is in deck A and the shared sample bank is in deck B. The console's keyboard map and full mixer are collapsed but remain accessible. Actions, engine and unavailable hardware controls are unchanged. The beatgrid editor and dynamic status messages may increase the console's height; fit and small-window scrolling remain in place.
+
+Verification: `bun run check` passed (30 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (44 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.56 MiB), passed ad hoc signature verification, and was installed and registered without launching; executable SHA-256 `d711da1190293e38c575fc55434ce7888d8797e2e4c270a42fd393e11a18dcbd`. No new visual, pointer, playback or accessibility verification was performed. Next: inspect both decks with loaded tracks, beatgrid editing, samples, themes and small windows with explicit visual-test authorization; effects and hardware functionality remain in [Mixer views](MIXER-VIEWS.md).
+
+## Console side controls · 2026-10-29
+
+The maintainer's screenshot of the fitted console showed unused space on both sides. Wide sheets now place per-deck curado LP/HP/echo and beat division, musical controls, linked A/B transport and the existing sample bank beside the console; narrower sheets reflow these controls below it. The full curado mixer remains expandable and the keyboard map remains below. These controls use the existing native action contract; hardware FX placeholders remain unavailable and no DSP was changed.
+
+Verification: `bun run check` passed (30 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (44 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.56 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `4801371e323da1550c1f10c2e9caf50ca74d3b4f8b698e32fa6bae65b99d0e5c`. No new visual, pointer, playback or accessibility verification was performed. Next: inspect wide and narrow layouts, scaling and live control behavior with explicit visual-test authorization; preserve the separate audio backlog in [Mixer views](MIXER-VIEWS.md).
+
+## Console viewport fitting · 2026-10-29
+
+Maintainer-supplied screenshots showed the console extending beyond the initial viewport and its decks stretching into empty space. The hardware surface now keeps fixed proportions, fits the available sheet width and initial height with resize observation, puts pads directly below the jogs, and corrects the master meter height. The scale is capped at 120% and floored at 65%; smaller available spaces retain scrolling. Existing audio actions and pending controls are unchanged.
+
+Verification: `bun run check` passed (30 tests, including fit and small-window fallback), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (44 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.56 MiB) and its ad hoc signature verified. Installation was blocked because the installed curado was running; it was not interrupted. Close the installed app and run `bun run desktop:install --no-build` while this bundle remains current. The supplied images show the earlier layout; no visual, pointer, playback or accessibility verification of this change was performed. Next: verify fitting and interactive controls in windowed and fullscreen sizes with explicit visual-test authorization, including small windows and accessibility scaling.
+
+## RX3-inspired console refinement · 2026-10-29
+
+The alternate console now has a dedicated dark hardware-like surface with a central waveform display, load buttons, vertical mixer channels, side jogs, transport, eight pads per deck and reference FX/headphone controls. Existing controls dispatch the same native actions; unavailable controls are dimmed and explicitly labelled coming soon, without audio actions. Only three hot cues work on each deck; the jog toggles playback, CUE invokes hot cue 1, and MASTER TEMPO uses curado's key lock. Original curado filters, echo, beat divisions and musical controls remain in an expandable section. The surface is CSS-drawn, not a photograph or exact RX3 replica. See [Mixer views](MIXER-VIEWS.md) for the capabilities and dedicated DSP backlog.
+
+Verification: `bun run check` passed (28 tests, including unavailable control labeling), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (44 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built (13.56 MiB), passed ad hoc signature verification, and was installed and registered without launching; executable SHA-256 `13b26cd94119b055959c8e567a2e2c42618caa9a4f453dbc3aa4b7aae6c28bbc`. No visual, playback, listening or physical hardware comparison was performed. Next: with explicit authorization, inspect layout accuracy, scrolling, readability, keyboard/focus and theme behavior, then iterate; implement effects and monitoring in a separate audio session.
+
 ## Reactive Metal scenes · 2026-10-29
 
 The macOS Metal helper now has seven scenes: the earlier terrain, orbit, tunnel and ribbons plus a faceted gateway with particles, circular waveform/spectrum and depth-tested low-poly spectral city. A native panel controls scene, glow, sensitivity, speed and color. H hides/restores the panel and toolbar, F toggles native fullscreen, R resets the camera; dragging the visual moves it with a spring return. Preferences are temporary. Glow affects the screen-shader scenes, not terrain or city.
@@ -159,7 +214,7 @@ Unverified: alternate four styles/light mode, real waveform readability, mini be
 ## Important limits
 
 - Preloaded PCM ≤96 MiB/file (~4:22 at 48 kHz stereo); prefetch adds another clip; tuning adds source/result memory.
-- Linear playback interpolation, basic EQ/ceiling, no loop crossfade; offline pitch is not continuous low-latency streaming DSP.
+- Linear playback interpolation and basic EQ; offline pitch is not continuous low-latency streaming DSP.
 - UI position/detail/platters at 20 Hz, 50 ms steps (S2).
 - MIDI feedback not mirrored in UI (S7); manual MIDI connect, no Clock/relative encoders/LEDs/physical controller verification.
 - One stereo output, no independent headphone cue, ASIO/JACK/native PipeWire.

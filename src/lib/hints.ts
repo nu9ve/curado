@@ -35,11 +35,11 @@ const descriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Salta al hot cue y reproduce este deck.',
-    'Con SYNC y Q activos en el seguidor espera al siguiente beat del master. Sin posición guardada usa el inicio ajustado al grid. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
+    'Suena exactamente donde lo guardaste. Con SYNC y Q activos en el seguidor espera al siguiente beat del master y usa el beat más cercano para no perder la fase. Sin posición guardada empieza en el primer beat. Shift + clic guarda. Un salto fuera del loop lo desactiva.',
   ],
   setCue: [
     'Guarda la posición actual en este hot cue.',
-    'Se guarda por pista y se comparte si cargas la misma pista en ambos decks. Guardar no cambia la reproducción.',
+    'Con Q activo se ajusta al beat más cercano. Se guarda por pista y se comparte si cargas la misma pista en ambos decks. Guardar no cambia la reproducción.',
   ],
   playBoth: [
     'Inicia A y B en el mismo bloque de audio.',
@@ -59,19 +59,19 @@ const descriptions: Record<string, [string, string]> = {
   ],
   nudge: [
     'Desplaza la posición de este deck unos milisegundos.',
-    'Sirve para corregir alineación a oído. No cambia permanentemente la velocidad ni sincroniza beats.',
+    'Sirve para corregir alineación a oído, también con SYNC activo; se conserva hasta que algo vuelva a alinear el deck, como un cue del master o reactivar SYNC. No cambia permanentemente la velocidad.',
   ],
   loop: [
     'Activa o desactiva el loop de este deck.',
-    'Con BPM conocido usa la longitud elegida en beats y Q alinea el comienzo. Sin beatgrid crea hasta cuatro segundos. Los límites aún no tienen crossfade.',
+    'Con BPM conocido usa la longitud elegida en beats y Q alinea el comienzo. Sin beatgrid crea hasta cuatro segundos. Los límites se funden para evitar clicks sin recortar el ataque del inicio.',
   ],
   loopIn: [
     'Marca el comienzo del loop en la posición actual.',
-    'Desactiva el loop mientras defines su final con OUT. Solo afecta a este deck.',
+    'Con Q activo se ajusta al beat más cercano. Desactiva el loop mientras defines su final con OUT. Solo afecta a este deck.',
   ],
   loopOut: [
     'Marca el final y activa el loop si está después de IN.',
-    'El tramo se repite en este deck. Los límites todavía no tienen crossfade.',
+    'Con Q activo se ajusta al beat más cercano. El tramo se repite en este deck y los límites se funden para evitar clicks.',
   ],
   trigger: [
     'Reproduce el sample desde el inicio.',
@@ -115,11 +115,11 @@ const descriptions: Record<string, [string, string]> = {
   ],
   quantize: [
     'Activa o desactiva el ajuste al beatgrid.',
-    'Está activado por defecto. Los loops y cues usan el grid nativo; sin BPM conocido no se puede cuantizar. Corrige BPM y offset si la detección no coincide.',
+    'Está activado por defecto. Ajusta al beat más cercano los loops y los cues que guardas; un cue ya guardado no se mueve. Sin BPM conocido no se puede cuantizar. Corrige BPM y offset si la detección no coincide.',
   ],
   loopBeats: [
     'Crea un loop con una longitud en beats.',
-    'Con Q activo comienza en el inicio del beat. El beatgrid pertenece a esta pista; sync conserva la relación de tempo con el master.',
+    'Con Q activo comienza en el beat más cercano. El beatgrid pertenece a esta pista; sync conserva la relación de tempo con el master.',
   ],
   sync: [
     'Vincula tempo y fase de este deck al master.',
@@ -178,11 +178,11 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   cue: [
     'Jump to the hot cue and play.',
-    'With SYNC and Q on the follower, the cue waits for the next master beat. Shift-click saves. A jump outside the loop disables it.',
+    'It plays exactly where you saved it. With SYNC and Q on the follower, it waits for the next master beat and uses the nearest beat to keep phase. An unsaved cue starts at the first beat. Shift-click saves. A jump outside the loop disables it.',
   ],
   setCue: [
     'Save the current position to this hot cue.',
-    'Cues are saved per track and shared by both decks. Saving does not change playback.',
+    'With Q on, it snaps to the nearest beat. Cues are saved per track and shared by both decks. Saving does not change playback.',
   ],
   playBoth: [
     'Start A and B in the same audio block.',
@@ -202,19 +202,19 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   nudge: [
     'Move this deck a few milliseconds.',
-    'Use it to adjust alignment by ear. It does not permanently change speed.',
+    'Use it to adjust alignment by ear, including with SYNC on; it lasts until something realigns the deck, such as a master cue or re-enabling SYNC. It does not permanently change speed.',
   ],
   loop: [
     'Toggle this deck’s loop.',
-    'With BPM it uses the selected beat length and Q aligns the start. Without a grid it creates up to four seconds. Boundaries have no crossfade yet.',
+    'With BPM it uses the selected beat length and Q aligns the start. Without a grid it creates up to four seconds. Boundaries are faded to avoid clicks without cutting the attack at the start.',
   ],
   loopIn: [
     'Mark the loop start at the current position.',
-    'The loop is disabled until you set its end with OUT.',
+    'With Q on, it snaps to the nearest beat. The loop is disabled until you set its end with OUT.',
   ],
   loopOut: [
     'Mark the end and enable the loop if it follows IN.',
-    'The section repeats on this deck. Boundaries do not yet have a crossfade.',
+    'With Q on, it snaps to the nearest beat. The section repeats on this deck and boundaries are faded to avoid clicks.',
   ],
   trigger: [
     'Play the sample from the start.',
@@ -258,11 +258,11 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   quantize: [
     'Toggle beatgrid quantization.',
-    'Enabled by default. Correct BPM and offset if detection does not match.',
+    'Enabled by default. It snaps loops and the cues you save to the nearest beat; a saved cue never moves. Correct BPM and offset if detection does not match.',
   ],
   loopBeats: [
     'Create a loop of the selected beat length.',
-    'With Q on, it starts at the beat. The beatgrid belongs to this track.',
+    'With Q on, it starts at the nearest beat. The beatgrid belongs to this track.',
   ],
   sync: [
     'Link this deck’s tempo and phase to the master.',
@@ -354,6 +354,10 @@ const sections: Record<string, [string, string]> = {
     'Abre la vista mini siempre encima.',
     'Conserva el transporte y permite volver a la vista completa.',
   ],
+  limiter: [
+    'Indica cuánto está bajando el limitador la mezcla.',
+    'Evita el recorte a −1 dBTP. Una reducción pequeña en los golpes es normal; en rojo aplana la mezcla: baja canales, EQ o master.',
+  ],
 };
 
 const englishSections: Record<string, [string, string]> = {
@@ -388,6 +392,10 @@ const englishSections: Record<string, [string, string]> = {
   mini: [
     'Open the always-on-top mini view.',
     'Transport is preserved and you can return to the full view.',
+  ],
+  limiter: [
+    'Shows how much the limiter is turning the mix down.',
+    'It prevents clipping at −1 dBTP. A little reduction on hits is normal; red flattens the mix, so lower channels, EQ or master.',
   ],
 };
 

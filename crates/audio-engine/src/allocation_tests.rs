@@ -116,4 +116,32 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     renderer.render(&mut output, 2);
     ACTIVE.with(|a| a.set(false));
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
+    // Loop fades, a pause fade, PCM replaced under a fading voice and its later return.
+    handle.control(0, crate::Control::Quantize(false)).unwrap();
+    handle.control(0, crate::Control::Seek(0.01)).unwrap();
+    handle.control(0, crate::Control::LoopIn).unwrap();
+    handle.control(0, crate::Control::Seek(0.03)).unwrap();
+    handle.control(0, crate::Control::LoopOut).unwrap();
+    handle.control(0, crate::Control::Play).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    for _ in 0..40 {
+        renderer.render(&mut output, 2);
+    }
+    ACTIVE.with(|a| a.set(false));
+    handle.load_and_play(0, clip()).unwrap();
+    handle.load(0, clip()).unwrap();
+    handle.control(1, crate::Control::Pause).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    for _ in 0..10 {
+        renderer.render(&mut output, 2);
+    }
+    ACTIVE.with(|a| a.set(false));
+    handle.control(0, crate::Control::Panic).unwrap();
+    ACTIVE.with(|a| a.set(true));
+    for _ in 0..10 {
+        renderer.render(&mut output, 2);
+    }
+    ACTIVE.with(|a| a.set(false));
+    assert_eq!(COUNTS.with(Cell::get), (0, 0));
+    handle.collect();
 }

@@ -38,13 +38,17 @@ fn synced_quantized_cue_waits_for_the_master_beat_and_panic_cancels_it() {
     h.control(1, Control::Sync(true)).unwrap();
     render(&mut r, 1);
     h.control(1, Control::Cue(0)).unwrap();
-    render(&mut r, 11998);
+    // The cue starts its pre-roll early so that it reaches its target on the master beat.
+    let preroll = (48000. * JUMP_FADE_SECONDS) as usize;
+    render(&mut r, 11998 - preroll);
     assert!(h.snapshot().slots[1].queued);
     assert!(h.snapshot().slots[1].position > 1.5);
     render(&mut r, 3);
     let s = h.snapshot();
     assert!(!s.slots[1].queued);
-    assert!((s.slots[1].position - 0.125).abs() < 0.0001);
+    assert!((s.slots[1].position - (0.125 - JUMP_FADE_SECONDS)).abs() < 0.0001);
+    render(&mut r, preroll);
+    assert!((h.snapshot().slots[1].position - 0.125).abs() < 0.0001);
     h.control(0, Control::Seek(0.375)).unwrap();
     h.control(1, Control::Cue(0)).unwrap();
     render(&mut r, 1);

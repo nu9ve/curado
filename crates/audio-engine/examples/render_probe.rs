@@ -40,5 +40,5 @@ fn main() {
     }
     timings.sort_by(f64::total_cmp);
     let snap = handle.snapshot();
-    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"visualCapture\":{},\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{}}}",visuals,timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped);
+    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"visualCapture\":{},\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{},\"limitedFrames\":{}}}",visuals,timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped,snap.limited);
 }

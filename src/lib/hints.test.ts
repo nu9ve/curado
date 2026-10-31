@@ -18,6 +18,8 @@ const audio = (): Audio => ({
   streamError: false,
   callbacks: 0,
   clipped: 0,
+  limited: 0,
+  limiterDb: 0,
 });
 const snapshot = (): AppSnapshot => ({
   tuningError: null,

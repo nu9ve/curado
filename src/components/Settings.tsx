@@ -159,7 +159,11 @@ export function Settings({
                 Callbacks<b>{snap.audio?.callbacks ?? 0}</b>
               </span>
               <span>
-                {tr('Muestras limitadas', 'Clipped samples')}
+                {tr('Frames limitados', 'Limited frames')}
+                <b>{snap.audio?.limited ?? 0}</b>
+              </span>
+              <span>
+                {tr('Recorte duro', 'Hard clipping')}
                 <b>{snap.audio?.clipped ?? 0}</b>
               </span>
             </div>

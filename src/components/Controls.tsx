@@ -1,4 +1,5 @@
 import { tr } from '../lib/language';
+import { limiterLevel } from '../lib/limiter';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 
@@ -67,6 +68,31 @@ export function Meter({
       style={{ '--t': t } as CSSProperties}
     >
       <i />
+    </div>
+  );
+}
+
+/** Lights while the master limiter turns the mix down, with the reduction in dB. */
+export function LimiterLamp({ reduction }: { reduction: number }) {
+  const level = limiterLevel(reduction);
+  const amount = level === 'idle' ? 0 : reduction;
+  return (
+    <div
+      className="limiter-lamp"
+      data-level={level}
+      data-help="limiter"
+      role="meter"
+      aria-label={tr('Limitador del master', 'Master limiter')}
+      aria-valuemin={0}
+      aria-valuemax={24}
+      aria-valuenow={Math.min(24, Math.round(amount * 10) / 10)}
+      aria-valuetext={
+        level === 'idle' ? tr('Sin reducción', 'No reduction') : `−${amount.toFixed(1)} dB`
+      }
+    >
+      <i aria-hidden="true" />
+      LIM
+      {level !== 'idle' && <span>−{amount.toFixed(1)}</span>}
     </div>
   );
 }

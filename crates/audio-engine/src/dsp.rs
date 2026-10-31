@@ -56,7 +56,7 @@ impl Effects {
             low_a: coeff(220., sr),
             high_a: coeff(2600., sr),
             filter_a: 1.,
-            gain: 0.,
+            gain: Params::default().gain,
             eq: [1.; 3],
             wet: 0.,
             filter_target: 1.,
@@ -84,8 +84,12 @@ impl Effects {
             coeff(80. * (200.0_f32).powf(value), sr)
         };
     }
-    pub fn process(&mut self, input: [f32; 2], p: Params, envelope: f32) -> [f32; 2] {
-        self.gain += (p.gain * envelope - self.gain) * self.smoothing;
+    /// A silent deck has no fader move to smooth: the next attack starts at the set level.
+    pub fn snap_gain(&mut self, gain: f32) {
+        self.gain = gain;
+    }
+    pub fn process(&mut self, input: [f32; 2], p: Params) -> [f32; 2] {
+        self.gain += (p.gain - self.gain) * self.smoothing;
         for (current, target) in self.eq.iter_mut().zip([p.low, p.mid, p.high]) {
             *current += (target - *current) * self.smoothing;
         }
@@ -152,11 +156,11 @@ mod tests {
         };
         fx.set_echo_time(0.5, sr);
         for _ in 0..24000 {
-            fx.process([0.; 2], p, 1.);
+            fx.process([0.; 2], p);
         }
         let mut first_echo = (0_i32, 0_f32);
         for i in 0..12000 {
-            let out = fx.process(if i == 0 { [0.5; 2] } else { [0.; 2] }, p, 1.);
+            let out = fx.process(if i == 0 { [0.5; 2] } else { [0.; 2] }, p);
             assert!(out.iter().all(|v| v.is_finite()));
             if i > 100 && out[0].abs() > first_echo.1 {
                 first_echo = (i, out[0].abs());
@@ -177,7 +181,7 @@ mod tests {
             let mut power = 0.;
             for i in 0..24000 {
                 let x = (std::f32::consts::TAU * 60. * i as f32 / 12000.).sin() * 0.5;
-                let out = fx.process([x, x], p, 1.);
+                let out = fx.process([x, x], p);
                 if i >= 12000 {
                     power += out[0] * out[0];
                 }

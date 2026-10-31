@@ -9,13 +9,15 @@ The current UI labels are Spanish. This guide explains them in English and prese
 3. Press Play in **Reproductor**. Use **Importar música** or **Carpeta** for your own files.
 4. Select a row and load A/B. Double-click loads A, then press Play. Loading stops/resets only the destination slot.
 5. Create a playlist with sidebar +; double-click its name to rename. Select a track and use “Añadir a playlist.” “Escuchar selección” plays filtered tracks in order from the first, with repeat off/all/one.
-6. Switch to **Mezcla** for the console. Select a track and press + on a sample pad to assign it.
+6. Switch to **Mezcla**. In the classic view, select a track and press + on a sample pad. In **cabina**, select **SAMPLER** above either deck's pads and click an empty pad to load the selection; Shift-click a loaded pad to replace it.
 7. Player's **Metal** button (macOS only) opens a native landscape; the eye button pauses the integrated visual.
 8. The topbar picture-in-picture button enters the always-on-top **mini view**; expand restores full view and previous size.
 
 ## Mixing console
 
 Layout follows your keyboard: **A left, B right, mixer center, samples below**.
+
+The **cabina** layout instead uses the same performance pads for **HOT CUE** or **SAMPLER**, chosen independently on each deck. The sampler references the same four global samples on both decks; the other pad positions are unavailable. Switching pad modes does not change playback or keyboard bindings. The keyboard map in deck B shows the action for a pointed key and the latest keyboard action.
 
 - Two detailed waveforms show 8 s with a centered playhead; click to seek relative to center. Bass is blue, mids amber, highs white; RGB/mono alternatives are in Appearance.
 - Each deck has title/remaining time, full waveform with numbered cues/loop, a platter rotating with engine position (click toggles play), three hot cues, transport, nudge, loop/IN/OUT and an outer vertical pitch control (±50%, double-click resets).
@@ -43,7 +45,7 @@ Knobs/faders: vertical drag (Shift = fine), wheel, arrows (Shift = fine; Page Up
 
 Samples 1–4: `Z / X / C / V`. Crossfader left/center/right: `← / ↓ / →`. Stop native decks and zero master: `Esc`.
 
-A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. All three start at 0:00 and display their time before saving. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries and prevents partial tail loops. Nudge changes position, not jog inertia.
+A **hot cue jumps and plays**, including from pause/EOF; retrigger never toggles pause. It sounds exactly where you saved it, at full level, about 3 ms after the command. All three start at 0:00 and display their time before saving; pressing one you never saved starts at the first beat with Q on. Shift-click saves without playing. Waveform seek preserves pause/play; focused waveform arrows seek, Shift for finer steps. Cue/seek/nudge outside a loop disables it; inside preserves it. With BPM, Loop uses selected beats; without a grid it falls back to up to four seconds. Q aligns boundaries to the nearest beat and prevents partial tail loops. Loop boundaries are faded so they do not click, and the attack at the start of the loop stays intact. Nudge changes position, not jog inertia.
 
 Hotkeys use physical codes while the local window is focused. Typing in inputs or moving sliders does not trigger them. Space/Enter on buttons retain accessible activation. **Configuración → Teclado** remaps and detects conflicts. Player disables B/sample hotkeys. After panic, restore master and resume playback yourself. Web content has separate focus and audio.
 
@@ -51,13 +53,13 @@ Hotkeys use physical codes while the local window is focused. Typing in inputs o
 
 Import estimates BPM, beat offset and key. Library shows original BPM, standard letter notation (C, C♯, Am…) and Camelot. Older tracks analyze on load. Open **beatgrid / análisis** to edit BPM (×2/÷2), mark “beat aquí,” select key or reanalyze. Reanalysis replaces manual corrections; saving never edits original files. Periodicity is analysis evidence, not an accuracy percentage; some music has no useful global BPM/key.
 
-- **MASTER** selects reference; **SYNC** on the other deck matches tempo/phase without starting it. Set BPM on master. Manually moving follower speed disables sync. Rate range is 0.5×–1.5×; absolute tempo accepts 40–300 BPM within that rate range.
-- **Q** starts enabled. Cues/IN/OUT and loops use the grid; sizes are 1/2/4/8/16 beats. Near EOF, loops move to keep full beats or refuse if none fit. With SYNC+Q, follower cue waits for next master beat and shows “en espera.” Panic/linked pause cancel it; silence must not be followed by a deferred restart.
+- **MASTER** selects reference; **SYNC** on the other deck matches tempo/phase without starting it, taking the shortest way to the master's beat. A paused follower keeps its position and aligns when it starts. Set BPM on master. Manually moving follower speed disables sync. Nudging either deck adjusts the relative phase by ear until a master cue, SYNC or another event realigns it; sync does not correct drift continuously. Rate range is 0.5×–1.5×; absolute tempo accepts 40–300 BPM within that rate range.
+- **Q** starts enabled. Saving a cue, IN, OUT and loops use the nearest beat; sizes are 1/2/4/8/16 beats. A cue already saved is never moved by Q. Near EOF, loops move to keep full beats or refuse if none fit. With SYNC+Q, a follower cue waits for the next master beat, shows “en espera” and plays from its nearest beat to keep phase. Panic/linked pause cancel it; silence must not be followed by a deferred restart.
 - **Key lock** starts enabled. −/+ transpose semitones without BPM changes; center resets to 0. Displayed key follows applied tuning; without key lock, varispeed contributes cents. **Key sync** matches master tonic or relative key if modes differ, requires master key lock and does not turn minor into major. It is a one-time adjustment, not continuous following.
 - Tempo/key changes requiring preparation display **preparando** and keep previous audio until ready. Play/cues/mixer remain usable. New requests cancel old ones; failure offers retry. Full-clip preparation takes time and additional memory.
 - **HP** is independent of LP. **ECHO · BEATS** offers 0.25/0.5/0.75/1/2 beats using output BPM, or 120 BPM without analysis. Smoothed delay-time changes may sweep the repeats' pitch.
 
-Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music. Loops still lack crossfade; extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
+Loading resets that deck's tempo/transpose/key lock/sync but keeps FX; loading master disables follower sync. Player entry cancels sync/pending cues and returns master to A. Check the grid before mixing: one BPM cannot synchronize variable-tempo music, and estimated grids currently sit slightly after the real attack. Extreme pitch changes may affect transients/timbre. Real-music validation remains pending.
 
 ## Context footer
 
@@ -79,7 +81,7 @@ Players control their own web audio, outside local master/crossfader/FX/sync/Esc
 
 ## Audio and background behavior
 
-**Configuración → Audio** shows backend/sample rate/callbacks/clipped samples. A growing clipping count indicates excess level; lower channel/master. Output/buffer changes unload all six slots. Start with automatic buffer; test 256/512 only with measurements. Bluetooth adds latency the app cannot remove.
+The **LIM** lamp in the master section lights while the limiter turns the mix down and shows the reduction in dB. A little on the hits is normal; red (6 dB or more) flattens the mix, so lower channels, EQ or master. **Configuración → Audio** shows backend/sample rate/callbacks, limited frames and hard clipping, which should stay at zero. Output/buffer changes unload all six slots. Start with automatic buffer; test 256/512 only with measurements. Bluetooth adds latency the app cannot remove.
 
 Closing main hides it if tray/menu bar exists. Tray can show, play/pause A, silence native audio or quit. Playback does not survive process exit/system suspend; no daemon/service is installed. If disconnect reports an error, choose an available output and apply/recover. Reopening UI does not reconstruct the engine. Moved files currently need reimporting.
 

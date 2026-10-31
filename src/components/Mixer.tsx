@@ -5,7 +5,7 @@ import type { KeyBinding, Track } from '../lib/types';
 import { EMPTY_SLOT } from '../lib/types';
 import { bindingLabel } from '../lib/keyboard';
 import { actionKey } from '../lib/feedback';
-import { Key, Knob, Meter, Slider } from './Controls';
+import { Key, Knob, LimiterLamp, Meter, Slider } from './Controls';
 
 const eq = (v: number) => {
   const db = v > 0 ? 20 * Math.log10(v) : -Infinity;
@@ -132,6 +132,7 @@ export function Mixer({ keys, onError }: { keys: KeyBinding[]; onError: (e: unkn
       <Channel index={0} onError={onError} />
       <div className="mixer-master">
         <span className="mixer-brand">mx·2</span>
+        <LimiterLamp reduction={audio?.limiterDb ?? 0} />
         <Meter vertical value={audio?.peak ?? 0} label={tr('Nivel master', 'Master level')} />
         <Slider
           label="MASTER"
