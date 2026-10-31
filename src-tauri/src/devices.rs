@@ -8,7 +8,10 @@ use crate::{
     library::{supported, Database},
     rekordbox::{self, Cue, DeviceTrack, Export, HOT_CUES},
 };
-use curado_audio::music::{MusicAnalysis, ANALYSIS_VERSION};
+use curado_audio::{
+    decode::read_cover,
+    music::{MusicAnalysis, ANALYSIS_VERSION},
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -134,6 +137,24 @@ impl Devices {
     #[cfg(test)]
     pub fn remember(&self, info: DeviceInfo, root: PathBuf) {
         self.known.lock().unwrap().push((info, root));
+    }
+    /// A rekordbox track's cover, empty without one. rekordbox's own comes first: it is a small
+    /// file already made for this, where the audio file would need opening, and few carry one.
+    pub fn cover(&self, device: &str, track: u32) -> Result<Vec<u8>, String> {
+        let export = self.export(device)?;
+        let track = export
+            .tracks
+            .iter()
+            .find(|candidate| candidate.id == track)
+            .ok_or("La pista ya no está en el dispositivo")?;
+        let root = self.root(device)?;
+        let artwork = artwork_file(&root, track).and_then(|path| read_bounded(&path));
+        Ok(artwork
+            .or_else(|| {
+                let path = resolve(&root, &exported(&root, &track.path)).ok()?;
+                read_cover(&path)
+            })
+            .unwrap_or_default())
     }
     pub fn list(&self) -> Vec<DeviceInfo> {
         let known = self.known.lock().unwrap();
@@ -366,6 +387,46 @@ fn read_bounded(path: &Path) -> Option<Vec<u8>> {
         .then(|| fs::read(path).ok())
         .flatten()
 }
+/// The larger of the two pictures rekordbox makes for a track, or the only one. Inside the drive
+/// and an image, whatever the export claims, since it comes from the stick.
+fn artwork_file(root: &Path, track: &DeviceTrack) -> Option<PathBuf> {
+    let (stem, extension) = track.artwork.rsplit_once('.')?;
+    if !matches!(
+        extension.to_ascii_lowercase().as_str(),
+        "jpg" | "jpeg" | "png"
+    ) {
+        return None;
+    }
+    [format!("{stem}_m.{extension}"), track.artwork.clone()]
+        .iter()
+        .find_map(|path| {
+            inside(root, &exported(root, path))
+                .ok()
+                .filter(|path| path.is_file())
+        })
+}
+/// Keeps where a track's picture is, for when it is asked for by its library id.
+fn remember_artwork(
+    db: &Database,
+    id: u64,
+    root: &Path,
+    track: &DeviceTrack,
+) -> Result<(), String> {
+    let key = format!("artwork:{id}");
+    let saved: Option<String> = db.setting(&key);
+    match artwork_file(root, track).map(|path| path.to_string_lossy().to_string()) {
+        Some(path) if saved.as_ref() != Some(&path) => db.save(&key, &path),
+        None if saved.is_some() => db.forget(&key),
+        _ => Ok(()),
+    }
+}
+/// A library track's cover, empty without one: the picture from its drive, or its own.
+pub fn library_cover(path: &Path, artwork: Option<&str>) -> Vec<u8> {
+    artwork
+        .and_then(|artwork| read_bounded(Path::new(artwork)))
+        .or_else(|| read_cover(path))
+        .unwrap_or_default()
+}
 /// Registers a rekordbox track and brings over its grid, key and cues, without touching the
 /// drive. What the user changed in curado stays: a new export never overwrites it.
 pub fn import_track(
@@ -381,6 +442,7 @@ pub fn import_track(
         track.artist.as_str()
     };
     let id = db.register_reference(&path, &track.title, artist, track.duration as f64)?;
+    remember_artwork(db, id, root, track)?;
     let key = format!("device-track:{id}");
     let record: Option<DeviceRecord> = db.setting(&key);
     let analysis_path = inside(root, &exported(root, &track.analysis_path)).ok();
@@ -638,6 +700,7 @@ mod tests {
             rating: 0,
             path: "/Contents/one.mp3".into(),
             analysis_path: "/PIONEER/USBANLZ/P0/A/ANLZ0000.DAT".into(),
+            artwork: String::new(),
         }
     }
     fn write_analysis(root: &Path, hot: &[(u32, u32)]) {
@@ -656,6 +719,60 @@ mod tests {
             .unwrap()
             .set_modified(later)
             .unwrap();
+    }
+
+    #[test]
+    fn a_track_takes_the_larger_picture_rekordbox_made() {
+        let root = temporary("artwork");
+        let small = root.join("PIONEER/Artwork/00001/a1.jpg");
+        touch(&small);
+        touch(&root.join("Contents/one.mp3"));
+        let mut track = exported_track(1);
+        track.artwork = "/PIONEER/Artwork/00001/a1.jpg".into();
+        assert_eq!(artwork_file(&root, &track), Some(small.clone()));
+        let medium = root.join("PIONEER/Artwork/00001/a1_m.jpg");
+        fs::write(&medium, b"medium").unwrap();
+        assert_eq!(artwork_file(&root, &track), Some(medium.clone()));
+
+        let db = Database::open(Path::new(":memory:")).unwrap();
+        let mut annotations = Annotations::default();
+        let id = import_track(&db, &mut annotations, &root, &track).unwrap();
+        let saved: Option<String> = db.setting(&format!("artwork:{id}"));
+        assert_eq!(saved.as_deref(), medium.to_str());
+        let audio = root.join("Contents/one.mp3");
+        assert_eq!(library_cover(&audio, saved.as_deref()), b"medium");
+        // Once the drive is gone or the file was not audio, there is just no cover.
+        assert!(library_cover(&audio, Some("/nowhere/a1.jpg")).is_empty());
+        assert!(library_cover(&audio, None).is_empty());
+        // A new export without it forgets it, even when nothing else changed.
+        track.artwork = String::new();
+        import_track(&db, &mut annotations, &root, &track).unwrap();
+        assert_eq!(db.setting::<String>(&format!("artwork:{id}")), None);
+    }
+
+    #[test]
+    fn a_stick_cannot_pass_other_files_off_as_artwork() {
+        let root = temporary("artwork-outside");
+        let outside = temporary("artwork-secret").join("secret.jpg");
+        touch(&outside);
+        touch(&root.join("notes.txt"));
+        let mut track = exported_track(1);
+        let climb = format!(
+            "/../{}",
+            outside
+                .strip_prefix(root.parent().unwrap())
+                .unwrap()
+                .display()
+        );
+        for path in [
+            climb.as_str(),
+            "/notes.txt",
+            "/PIONEER/none.jpg",
+            "/noextension",
+        ] {
+            track.artwork = path.into();
+            assert_eq!(artwork_file(&root, &track), None, "{path}");
+        }
     }
 
     #[test]
@@ -921,6 +1038,29 @@ mod tests {
     }
 
     /// `CURADO_TEST_DEVICE=/Volumes/USB cargo test -p curado real_import -- --ignored --nocapture`
+    /// `CURADO_TEST_DEVICE=/Volumes/USB cargo test -p curado real_artwork -- --ignored --nocapture`
+    #[test]
+    #[ignore = "needs a real rekordbox USB"]
+    fn real_artwork() {
+        let root = PathBuf::from(std::env::var("CURADO_TEST_DEVICE").unwrap());
+        let data = fs::read(root.join("PIONEER/rekordbox/export.pdb")).unwrap();
+        let export = rekordbox::parse_export(&data).unwrap();
+        let (mut named, mut found, mut jpeg) = (0, 0, 0);
+        for track in &export.tracks {
+            named += !track.artwork.is_empty() as usize;
+            let Some(path) = artwork_file(&root, track) else {
+                continue;
+            };
+            found += 1;
+            jpeg += read_bounded(&path).is_some_and(|b| b.starts_with(&[0xff, 0xd8])) as usize;
+        }
+        println!(
+            "{} tracks: {named} name a picture, {found} found, {jpeg} are JPEG",
+            export.tracks.len()
+        );
+        assert_eq!(found, jpeg);
+    }
+
     #[test]
     #[ignore = "needs a real rekordbox USB"]
     fn real_import() {

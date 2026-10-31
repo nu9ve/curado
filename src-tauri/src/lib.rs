@@ -1,6 +1,7 @@
 mod annotations;
 mod demo;
 mod devices;
+mod haptics;
 mod library;
 mod memory;
 mod midi;
@@ -575,6 +576,39 @@ fn tracking_stop(state: tauri::State<'_, Arc<AppState>>) {
 fn tracking_preview(on: bool, state: tauri::State<'_, Arc<AppState>>) {
     state.tracking.set_preview(on);
 }
+/// The bytes of a track's embedded cover, empty if it has none. Takes an id, never a path.
+#[tauri::command]
+async fn track_cover(
+    id: u64,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<tauri::ipc::Response, String> {
+    let s = state.inner().clone();
+    work(move || {
+        let (path, artwork) = {
+            let db = s.db.lock().unwrap();
+            (db.path(id)?, db.setting::<String>(&format!("artwork:{id}")))
+        };
+        Ok(devices::library_cover(&path, artwork.as_deref()))
+    })
+    .await
+    .map(tauri::ipc::Response::new)
+}
+#[tauri::command]
+async fn device_cover(
+    device: String,
+    track: u32,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<tauri::ipc::Response, String> {
+    let s = state.inner().clone();
+    work(move || s.devices.cover(&device, track))
+        .await
+        .map(tauri::ipc::Response::new)
+}
+/// A tap on a Force Touch trackpad, always on the main thread as AppKit asks.
+#[tauri::command]
+fn haptic(pattern: haptics::Pattern, app: tauri::AppHandle) {
+    let _ = app.run_on_main_thread(move || haptics::perform(pattern));
+}
 #[tauri::command]
 async fn track_beats(
     id: u64,
@@ -982,6 +1016,9 @@ pub fn run() {
                 import_media,
                 export_rekordbox_xml,
                 track_beats,
+                track_cover,
+                device_cover,
+                haptic,
                 tracking_start,
                 tracking_stop,
                 tracking_preview,

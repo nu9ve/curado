@@ -10,6 +10,7 @@ export interface Workspace {
   info: boolean;
   autoGain: boolean;
   badges: boolean;
+  haptics: boolean;
   /** Part of the width that goes to the console when the side panel is open. */
   split: number;
 }
@@ -21,6 +22,7 @@ export const DEFAULT_WORKSPACE: Workspace = {
   info: true,
   autoGain: false,
   badges: true,
+  haptics: true,
   split: 0.72,
 };
 export const MIN_SPLIT = 0.35;
@@ -41,7 +43,9 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
   } catch {
     return DEFAULT_WORKSPACE;
   }
-  const flag = (name: 'railMix' | 'railPlayer' | 'panelOpen' | 'info' | 'autoGain' | 'badges') => {
+  const flag = (
+    name: 'railMix' | 'railPlayer' | 'panelOpen' | 'info' | 'autoGain' | 'badges' | 'haptics',
+  ) => {
     const value = saved[name];
     return typeof value === 'boolean' ? value : DEFAULT_WORKSPACE[name];
   };
@@ -53,6 +57,7 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
     info: flag('info'),
     autoGain: flag('autoGain'),
     badges: flag('badges'),
+    haptics: flag('haptics'),
     split: typeof saved.split === 'number' ? clampSplit(saved.split) : DEFAULT_WORKSPACE.split,
   };
 }

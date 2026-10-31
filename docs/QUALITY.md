@@ -52,7 +52,9 @@ The following is a **plan**, not a completed test record. Respect current author
 
 12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
 
-15. Camera: permission prompt, MANOS and CARA, the light going off on leaving Mix or switching apps and back on return, unplugging a camera, another app holding it, CPU use with and without VER.
+16. Touch: taps per control on a Force Touch trackpad and their timing, whether `webkitForce` arrives and a deep press stays comfortable and does not open a lookup, and no effect on audio at the fastest drag.
+
+15. Camera: permission prompt, MANOS and CARA, the light going off on leaving Mix or switching apps and back on return, unplugging a camera, another app holding it, CPU use with and without VER, and whether the XY overlay lines up with a real hand.
 
 14. Keyboard in real use, every badge against its action. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
 

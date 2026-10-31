@@ -19,11 +19,13 @@ import {
 } from '../lib/console-pads';
 import type { PadMode } from '../lib/console-pads';
 import { actionKey } from '../lib/feedback';
+import { haptic } from '../lib/haptics';
 import { tr } from '../lib/language';
 import type { BeatFxState, Slot } from '../lib/types';
 import { Knob } from './Controls';
 
 const act = (slot: number, kind: string, value = 0) => actionKey({ slot, kind, value });
+const RIM_NOTCH = Math.PI / 15;
 
 /**
  * A platter, as on the hardware: the top scratches with vinyl mode on and bends the tempo with it
@@ -43,6 +45,7 @@ export function useJog(
     touching: boolean;
     pending: number;
     frame: number;
+    rim: number;
   } | null>(null);
   const moved = useRef(false);
   const measure = (element: Element, x: number, y: number) => {
@@ -87,7 +90,7 @@ export function useJog(
         const { angle, reach } = measure(e.currentTarget, e.clientX, e.clientY);
         // The edge of the wheel never scratches. A stopped record just moves under the hand.
         const touching = !playing || (vinyl && reach < 0.8);
-        drag.current = { angle, moved: false, touching, pending: 0, frame: 0 };
+        drag.current = { angle, moved: false, touching, pending: 0, frame: 0, rim: 0 };
         e.currentTarget.dataset.touch = String(touching);
       },
       onPointerMove: (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -97,6 +100,12 @@ export function useJog(
         const delta = angleDelta(state.angle, angle);
         if (!state.moved && Math.abs(delta) < 0.03) return;
         state.angle = angle;
+        // One notch per dimple on the rim as it passes under the hand.
+        state.rim += Math.abs(delta);
+        if (state.rim >= RIM_NOTCH) {
+          state.rim %= RIM_NOTCH;
+          haptic('level');
+        }
         if (!state.moved) {
           state.moved = true;
           moved.current = true;

@@ -71,6 +71,7 @@ import { KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
+import { setHapticsEnabled } from './lib/haptics';
 import { TrackInfo } from './components/TrackInfo';
 import { BeatFxPanel, ColorFxPanel } from './components/Performance';
 import { clampSplit, DEFAULT_WORKSPACE, useWorkspace } from './lib/workspace';
@@ -79,6 +80,7 @@ import type { SidePanel, Workspace } from './lib/workspace';
 export default function App() {
   useLanguage();
   const [workspace, updateWorkspace] = useWorkspace();
+  useEffect(() => setHapticsEnabled(workspace.haptics), [workspace.haptics]);
   const [library, setLibrary] = useState<LibraryData>({ tracks: [], playlists: [] });
   const [view, setView] = useState('all');
   const mode = useMode();
@@ -999,6 +1001,17 @@ function MixView({
               {tr('teclas', 'keys')}
             </button>
           )}
+          <button
+            type="button"
+            aria-pressed={workspace.haptics}
+            title={tr(
+              'Toques al mover controles, en un trackpad con Force Touch',
+              'Taps when moving controls, on a Force Touch trackpad',
+            )}
+            onClick={() => onWorkspace({ haptics: !workspace.haptics })}
+          >
+            {tr('toques', 'haptics')}
+          </button>
           <span className="mix-bar-gap" />
           <button
             type="button"

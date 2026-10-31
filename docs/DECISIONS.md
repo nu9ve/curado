@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-028 · Covers from rekordbox first, taps per input, a picture under the XY — accepted (2026-10-31)
+
+The maintainer asked for covers in the track lists, haptics by kind of control with finer movement under pressure, and a faint camera image inside the XY surfaces.
+
+- **rekordbox's picture before the file's.** On the maintainer's USB, 2 of 250 sampled MP3s appeared to embed a cover, while 1,131 of 2,800 exported tracks name a picture in `PIONEER/Artwork` and 1,120 of those exist. Those files are small and need no audio file opened. So `export.pdb`'s artwork table comes first and Symphonia's reader of embedded pictures second. The path comes from the stick, so it must resolve inside the drive and be an image.
+- **A library id still has its picture.** A track from a drive plays by library id, so `artwork:<id>` keeps the path, refreshed on every import. If the drive is gone there is just no cover. The interface asks by id, never by path.
+- **Thumbnails, not originals.** The interface reads covers only as they scroll into view, two at a time so a USB is not kept busy while a track loads, drops what scrolled past, and keeps up to 600 small JPEGs in memory. Tracks without a cover are remembered too. The pattern from the track id, always dithered, is what shows otherwise.
+- **`NSHapticFeedbackManager`, without a dependency.** One command over a raw `objc_msgSend`, doing nothing elsewhere. Each input maps its own passages: an end is `generic`, an origin or center `alignment`, a step `level`. Knobs have 24 steps, sliders 16, and dials, Beat FX steps, the XY grid and platter dimples have theirs. Passing notches give way to one every 28 ms, since a fast drag crosses many. **Toques** turns them off.
+- **Pressure means finer, up to 4×,** as Shift does, and they multiply. Each move counts by the factor at that moment, so pressing harder never jumps a value. A slider normally follows the pointer, so once fine it moves relatively until released. It reads `webkitForce`, which reports 1 at a click and 2 at a force click.
+- **Overlay as a third state.** **VER** shows the picture in the panel, **XY** shows each side faintly inside its surface, and neither is on by default. The picture needs the same lifecycle as **VER**, so nothing else starts it. It is placed so a hand lands under its point, which stretches it horizontally. Being true to the point mattered more than the proportions.
+- **A hand owns its half.** Each half of the view is now a whole surface, so a hand reaches all of it without crossing into the other's, and the overlay shows exactly that half. The preview went from 160 to 320 pixels wide, since half of it fills a surface.
+- **Not verified:** taps and `webkitForce` were not felt on a Force Touch trackpad, and a Magic Mouse has no haptic hardware, so nothing can happen there. The overlay has not been seen with a real camera. By the maintainer's standing preference, no visual review was done of this work.
+
 ## ADR-027 · Camera tracking in a process that can be killed — accepted (2026-10-30)
 
 The maintainer asked for hand and face tracking as an option, with the camera released whenever it is not in view and recovered cleanly.

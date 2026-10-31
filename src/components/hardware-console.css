@@ -479,6 +479,22 @@
     conic-gradient(var(--tone) calc(var(--p) * 360deg), #30343a 0);
   box-shadow: 0 0 0 3px #000;
 }
+.rx-jog-lcd img {
+  position: absolute;
+  inset: 6%;
+  width: 88%;
+  height: 88%;
+  border-radius: 50%;
+  object-fit: cover;
+  opacity: 0.55;
+  pointer-events: none;
+}
+.rx-jog-lcd b,
+.rx-jog-lcd em,
+.rx-jog-lcd small {
+  position: relative;
+  text-shadow: 0 0 3px #000;
+}
 .rx-jog-lcd b {
   color: var(--tone);
   font: 18px var(--font-display);
@@ -1184,6 +1200,14 @@
     linear-gradient(90deg, #ffffff0a 1px, transparent 1px) 0 0 / 25% 100%,
     #07090c;
   box-shadow: inset 0 0 0 1px #4a4d50;
+}
+.rx-xy-camera {
+  position: absolute;
+  max-width: none;
+  object-fit: fill;
+  transform: scaleX(-1);
+  opacity: 0.3;
+  pointer-events: none;
 }
 .rx-xy-surface.is-touched {
   box-shadow:

@@ -23,6 +23,8 @@ import {
 } from '../lib/console-pads';
 import type { PadMode } from '../lib/console-pads';
 import { cueColor, useCueInfo } from '../lib/cues';
+import { useCover } from '../lib/covers';
+import { haptic } from '../lib/haptics';
 import { keyLabel, transposeKey } from '../lib/music';
 import { useLivePosition } from '../lib/position';
 import { EMPTY_SLOT, remaining } from '../lib/types';
@@ -34,8 +36,11 @@ import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
 import { bindingLabel, TOGGLE_KINDS } from '../lib/keyboard';
 import {
+  overlayPlacement,
+  setTrackingOverlay,
   useTrackedPoint,
   useTrackingControl,
+  useTrackingOverlay,
   useTrackingPreview,
   useTrackingStatus,
 } from '../lib/tracking';
@@ -202,7 +207,9 @@ function StepDial({
   const drag = useRef<number | null>(null);
   const move = (delta: number) => {
     const { index, onStep, count } = latest.current;
-    onStep(Math.max(0, Math.min(count - 1, index + delta)));
+    const next = Math.max(0, Math.min(count - 1, index + delta));
+    if (next !== index) haptic('level');
+    onStep(next);
   };
   useEffect(() => {
     const element = ref.current;
@@ -289,12 +296,14 @@ function StepDial({
 function JogDisc({ index, slot, name }: { index: number; slot: Slot; name: string }) {
   const live = useLivePosition(index, slot.position);
   const progress = slot.duration ? Math.min(1, live / slot.duration) : 0;
+  const { element, image } = useCover(slot.id ? { kind: 'track', id: slot.id } : null);
   return (
     <>
       <span className="rx-jog-disc" style={{ '--turn': `${live * 200}deg` } as CSSProperties}>
         <i />
       </span>
-      <span className="rx-jog-lcd" style={{ '--p': progress } as CSSProperties}>
+      <span ref={element} className="rx-jog-lcd" style={{ '--p': progress } as CSSProperties}>
+        {image && <img alt="" src={image} />}
         <b>{name}</b>
         <em>{remaining({ position: live, duration: slot.duration })}</em>
         <small>{slot.sync ? 'SYNC' : slot.playing ? '▶' : 'Ⅱ'}</small>
@@ -1320,7 +1329,10 @@ function XPad({
       onPointerMove={(e) => {
         if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
         const beats = at(e.currentTarget, e.clientX);
-        if (beats !== fx.beats) send('beatFxBeats', beats);
+        if (beats !== fx.beats) {
+          haptic('level');
+          send('beatFxBeats', beats);
+        }
       }}
       onPointerUp={() => {
         if (!wasOn.current) send('beatFxOn', 0);
@@ -1366,6 +1378,9 @@ function XYPad({
   const [x, y] = xyPoint(mode, slot, fx);
   // A tracked hand is one more way of pointing, through the same moves as a finger.
   const tracked = useTrackedPoint(index);
+  const overlayMode = useTrackingOverlay();
+  const image = useTrackingPreview();
+  const place = overlayPlacement(index, overlayMode);
   const engaged = tracked?.engaged ?? false;
   const held = useRef(false);
   const modeNow = useRef(mode);
@@ -1384,6 +1399,18 @@ function XYPad({
   const finish = () => {
     setTouching(false);
     send(xyRelease(mode));
+  };
+  const lastCell = useRef('');
+  /** A notch crossing the grid drawn on the surface, a snap at its center. */
+  const feel = (element: Element, e: React.PointerEvent) => {
+    const bounds = element.getBoundingClientRect();
+    const cell = (value: number) => Math.floor(Math.max(0, Math.min(0.999, value)) * 4);
+    const cx = cell((e.clientX - bounds.left) / bounds.width);
+    const cy = cell((e.clientY - bounds.top) / bounds.height);
+    const here = `${cx}:${cy}`;
+    if (lastCell.current && here !== lastCell.current)
+      haptic(cx >= 1 && cx <= 2 && cy >= 1 && cy <= 2 ? 'alignment' : 'level');
+    lastCell.current = here;
   };
   return (
     <div className={`rx-xy tone-${index ? 'b' : 'a'}`}>
@@ -1416,11 +1443,26 @@ function XYPad({
           send(point(e.currentTarget, e));
         }}
         onPointerMove={(e) => {
-          if (e.currentTarget.hasPointerCapture(e.pointerId)) send(point(e.currentTarget, e));
+          if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+          feel(e.currentTarget, e);
+          send(point(e.currentTarget, e));
         }}
         onPointerUp={finish}
         onPointerCancel={finish}
       >
+        {overlayMode !== 'off' && image && (overlayMode === 'hands' || index === 0) && (
+          <img
+            className="rx-xy-camera"
+            alt=""
+            src={`data:image/jpeg;base64,${image}`}
+            style={{
+              left: `${place.left}%`,
+              width: `${place.width}%`,
+              top: `${place.top}%`,
+              height: `${place.height}%`,
+            }}
+          />
+        )}
         <i style={{ left: `${x * 100}%`, bottom: `${y * 100}%` }} />
         {tracked && (
           <i
@@ -1509,6 +1551,7 @@ function SamplesPanel({
   );
 }
 
+type CameraViewMode = 'none' | 'panel' | 'overlay';
 const CAMERA_STATUS: Record<string, [string, string]> = {
   off: ['apagada', 'off'],
   paused: ['en pausa · libre', 'paused · released'],
@@ -1524,13 +1567,13 @@ const CAMERA_STATUS: Record<string, [string, string]> = {
 function CameraControls({
   mode,
   onMode,
-  preview,
-  onPreview,
+  view,
+  onView,
 }: {
   mode: TrackMode;
   onMode: (mode: TrackMode) => void;
-  preview: boolean;
-  onPreview: (on: boolean) => void;
+  view: CameraViewMode;
+  onView: (view: CameraViewMode) => void;
 }) {
   const status = useTrackingStatus();
   const words = CAMERA_STATUS[status] ?? CAMERA_STATUS.off;
@@ -1567,9 +1610,25 @@ function CameraControls({
         </button>
       ))}
       {mode !== 'off' && (
-        <button aria-pressed={preview} onClick={() => onPreview(!preview)}>
-          {tr('VER', 'VIEW')}
-        </button>
+        <>
+          <button
+            aria-pressed={view === 'panel'}
+            title={tr('Muestra la cámara aquí', 'Shows the camera here')}
+            onClick={() => onView(view === 'panel' ? 'none' : 'panel')}
+          >
+            {tr('VER', 'VIEW')}
+          </button>
+          <button
+            aria-pressed={view === 'overlay'}
+            title={tr(
+              'Muestra cada lado de la cámara tenue dentro de su superficie XY',
+              'Shows each side of the camera faintly inside its XY surface',
+            )}
+            onClick={() => onView(view === 'overlay' ? 'none' : 'overlay')}
+          >
+            XY
+          </button>
+        </>
       )}
       <small>{tr(...words)}</small>
     </div>
@@ -1606,8 +1665,12 @@ function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
   const devices = useDevices();
   const lastMidi = useRef('');
   const [active, setActive] = useState(false);
-  const [preview, setPreview] = useState(false);
-  const { mode, setMode } = useTrackingControl(preview);
+  const [view, setView] = useState<CameraViewMode>('none');
+  const { mode, setMode } = useTrackingControl(view !== 'none');
+  useEffect(() => {
+    setTrackingOverlay(view === 'overlay' ? mode : 'off');
+    return () => setTrackingOverlay('off');
+  }, [view, mode]);
   useEffect(() => {
     if (!midi.lastMessage || midi.lastMessage === lastMidi.current) return;
     lastMidi.current = midi.lastMessage;
@@ -1622,8 +1685,8 @@ function ConnectionsPanel({ onSettings }: { onSettings: () => void }) {
         <b>{tr('CONEXIONES', 'CONNECTIONS')}</b>
         <button onClick={onSettings}>MIDI LEARN</button>
       </div>
-      <CameraControls mode={mode} onMode={setMode} preview={preview} onPreview={setPreview} />
-      {mode !== 'off' && preview ? (
+      <CameraControls mode={mode} onMode={setMode} view={view} onView={setView} />
+      {mode !== 'off' && view === 'panel' ? (
         <CameraView mode={mode} />
       ) : (
         <dl>

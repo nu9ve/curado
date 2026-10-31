@@ -45,6 +45,7 @@ La interfaz comienza en español; la opción de inglés está en desarrollo y al
 - **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
 - **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
 - **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
+- **Sentir y ver:** covers en las listas y en los platos, de rekordbox o del archivo; toques según el tipo de control en un trackpad con Force Touch, movimiento más fino al presionar más fuerte, y una imagen tenue y opcional de la cámara dentro de las superficies XY.
 - **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
 - **Trae tu USB:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists, y las pistas cargan con sus grids, tonalidades y hot cues. Cualquier disco se puede explorar para buscar audio. curado solo los lee.
 - **Efectos en cada canal:** seis efectos de color y catorce de beat, distintos por canal y en el master, más roll, beat jump, slip, reversa, scratch y freno de vinilo.

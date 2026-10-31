@@ -5,24 +5,53 @@ import { control, parameter, useSnapshot } from '../lib/bridge';
 import type { KeyBinding, Track } from '../lib/types';
 import { EMPTY_SLOT, remaining, time } from '../lib/types';
 import { actionKey } from '../lib/feedback';
+import { useCover } from '../lib/covers';
 import { WaveOverview } from './Waveform';
 import { Meter, Slider } from './Controls';
 import { keyFor } from './Deck';
 import { Logo } from './Logo';
 import { ContextHelp } from './ContextHelp';
 
-/** Generative cover from the track id: theme colors, a smooth gradient and dithered grain. */
-export function TrackArt({ id, size = 'md' }: { id?: number; size?: 'sm' | 'md' | 'lg' }) {
-  const seed = id ? Math.imul(id, 2654435761) >>> 0 : 0;
+/**
+ * The track's own cover once it is in view. Until then, or without one, a pattern made from its
+ * id: theme colors, a smooth gradient and dithered grain, the same for the same track every time.
+ */
+export function TrackArt({
+  id,
+  size = 'md',
+  device,
+  deviceTrack,
+}: {
+  id?: number;
+  size?: 'sm' | 'md' | 'lg';
+  device?: string;
+  deviceTrack?: number;
+}) {
+  const number = id ?? deviceTrack;
+  const seed = number ? Math.imul(number, 2654435761) >>> 0 : 0;
   const style = {
     '--art-mix': `${20 + (seed % 60)}%`,
     '--art-angle': `${seed % 360}deg`,
     '--art-x': `${(seed >> 8) % 100}%`,
     '--art-y': `${(seed >> 16) % 100}%`,
   } as CSSProperties;
+  const { element, image } = useCover(
+    device && deviceTrack
+      ? { kind: 'device', device, track: deviceTrack }
+      : id
+        ? { kind: 'track', id }
+        : null,
+    size === 'lg',
+  );
   return (
-    <div className={`track-art ${size} ${id ? '' : 'empty'}`} style={style} aria-hidden="true">
-      {!id && <Logo size={size === 'lg' ? 64 : 22} />}
+    <div
+      ref={element}
+      className={`track-art ${size} ${number ? '' : 'empty'} ${image ? 'has-cover' : ''}`}
+      style={style}
+      aria-hidden="true"
+    >
+      {!number && <Logo size={size === 'lg' ? 64 : 22} />}
+      {image && <img alt="" src={image} />}
     </div>
   );
 }

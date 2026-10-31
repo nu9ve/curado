@@ -1,5 +1,27 @@
 # curado status
 
+## Covers, haptics and camera over the XY · 2026-10-31
+
+The maintainer asked for covers in the track lists, haptics by kind of control with finer movement under pressure, and a third camera state inside the XY surfaces. See [ADR-028](DECISIONS.md) and [Controls](CONTROLS.md).
+
+- **Covers:** lists, device tables, the player and the jog display show the track's cover, or a dithered pattern from its id. A rekordbox picture comes first, then one embedded in the file.
+- **Haptics:** knobs, sliders, dials, Beat FX steps, the XY grid and platters tap by the kind of passage, with a **toques** switch.
+- **Pressure:** a harder press moves knobs and sliders up to 4× more finely, and multiplies with Shift.
+- **Camera:** **XY** shows each side of the picture faintly inside its surface, and each hand now owns its half of the view.
+- **A test flaw fixed:** two decode tests shared one temporary file and could fail each other. It predates this work and showed up as a flaky run.
+
+**Automatically tested:** the artwork table and id lookup, choosing the larger picture, a path outside the drive or not an image being refused, the path kept and forgotten across imports, an embedded picture read from a tagged MP3, damaged and coverless files, cover cache order, what each passage feels like, the pressure factor, each hand's half, and the overlay's placement against the point it drives.
+
+**Real USB, read only:** of 2,800 exported tracks, 1,131 name a picture, 1,120 of those files exist, and all 1,120 are JPEG. Reading them took under 6 seconds in all.
+
+**Not tried:** taps and pressure on a Force Touch trackpad, including whether WKWebView delivers `webkitForce`; the overlay with a real camera, where its stretched picture may or may not feel natural; and how any of this looks. By the standing preference no visual review was done, so the jog display's cover, the new **toques** button and the art in device rows are checked in code only.
+
+Verification: `bun run check` passed (84 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (192 tests, 8 more ignored that need real data) and `cargo clippy --workspace --all-targets -- -D warnings` passed. The macOS `.app` built, links AppKit and passed ad hoc signature verification.
+
+**Installation blocked:** curado was open, so the installed copy was left alone and its audio untouched. It is still the previous build (`ec455cd…`). To update once it is closed, run `bun run desktop:install --no-build`.
+
+**Next:** feel the taps and decide their strength and density, try pressure and the overlay on real hardware, then the earlier hardware list in [Quality](QUALITY.md).
+
 ## Press fix, layout review and camera tracking · 2026-10-30
 
 The maintainer reported controls jumping when pressed, needing a second click. Positions used `transform`, which the press style and key feedback replace. They now use `translate`; with a press applied to each of the 167 console buttons in a preview, none moved. Dial names no longer collide, labels stay in capitals under the gothic style, and SYNC and MASTER no longer touch.

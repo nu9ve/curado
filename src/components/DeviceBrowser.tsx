@@ -4,6 +4,7 @@ import { call } from '../lib/bridge';
 import { matchesQuery, tracksInSection } from '../lib/devices';
 import type { DeviceSection } from '../lib/devices';
 import { tr, useLanguage } from '../lib/language';
+import { TrackArt } from './Player';
 import { time } from '../lib/types';
 import type { DeviceExport, DeviceFolder, DeviceInfo, DeviceTrack } from '../lib/types';
 
@@ -45,6 +46,7 @@ function LoadButtons({
 }
 
 function DeviceRow({
+  device,
   track,
   index,
   chosen,
@@ -53,6 +55,7 @@ function DeviceRow({
   onSelect,
   onLoad,
 }: {
+  device: string;
   track: DeviceTrack;
   index: number;
   chosen: boolean;
@@ -77,6 +80,7 @@ function DeviceRow({
       <td className="number">{String(index + 1).padStart(2, '0')}</td>
       <td>
         <div className="table-title">
+          <TrackArt device={device} deviceTrack={track.id} size="sm" />
           <div>
             <strong>{track.title}</strong>
             <small>{track.artist || track.album}</small>
@@ -97,6 +101,7 @@ function DeviceRow({
 }
 
 function TrackTable({
+  device,
   tracks,
   mix,
   loading,
@@ -104,6 +109,7 @@ function TrackTable({
   onSelect,
   onLoad,
 }: {
+  device: string;
   tracks: DeviceTrack[];
   mix: boolean;
   loading: boolean;
@@ -128,6 +134,7 @@ function TrackTable({
         <tbody>
           {tracks.slice(0, VISIBLE_ROWS).map((track, i) => (
             <DeviceRow
+              device={device}
               key={track.id}
               track={track}
               index={i}
@@ -337,6 +344,7 @@ export function DeviceBrowser({
             <p className="device-note">{tr('Leyendo biblioteca…', 'Reading library…')}</p>
           ) : (
             <TrackTable
+              device={device.id}
               tracks={shown}
               mix={mix}
               loading={loading}

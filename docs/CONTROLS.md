@@ -31,7 +31,9 @@ Layout follows your keyboard: **A left, B right, mixer center, samples below**.
 
 **Above the console** there are panels the hardware has no room for: **SAMPLES** with its level, **XY 1** and **XY 2**, and **CONEXIONES** with MIDI activity, the audio output, the cue output and drives. An XY surface moves two parameters at once, one per channel with two fingers on a touchscreen, and returns to neutral on release. Its point also follows MIDI and the knobs. Its modes are COLOR, FILTER, BEAT FX and EQ.
 
-**Camera:** in **CONEXIONES**, **MANOS** or **CARA** drive the XY surfaces; off every time curado opens. Each hand moves the surface on its side and acts while pinching; a face moves XY 1 and acts on leaning in. **VER** shows the picture. It stops by itself when you leave Mix or switch to another app, the camera light goes off, and it comes back on return. Images stay on your Mac.
+**Camera:** in **CONEXIONES**, **MANOS** or **CARA** drive the XY surfaces; off every time curado opens. Each hand moves the surface on its side and acts while pinching; a face moves XY 1 and acts on leaning in. **VER** shows the picture in the panel and **XY** shows each side faintly inside its surface. Each half of the view is a whole surface, so a hand reaches all of its own. It stops by itself when you leave Mix or switch to another app, the camera light goes off, and it comes back on return. Images stay on your Mac.
+
+**Touch:** on a Force Touch trackpad, controls tap as they move: a light notch per step, a snap at a center or origin, a stop at each end. Dials, the XY grid and platter dimples have their own. **toques** turns them off. Pressing harder on a knob or slider moves it up to 4× more finely, like Shift, and both multiply. A Magic Mouse has no way to tap or sense pressure.
 
 **Headphones:** with an output of 4 or more channels, 3 and 4 are the cue: channel **CUE**, **MASTER**, **MIXING** and **LEVEL**. Holding the waveform of the selected track in **información** is **TOUCH PREVIEW**: it goes to the headphones, or at half level through the speakers on a stereo output, and says so.
 

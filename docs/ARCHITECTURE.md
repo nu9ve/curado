@@ -141,6 +141,10 @@ The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular
 
 `native/CuradoTracker.swift` is a separate process: AVFoundation at 640×480, Vision at most 15 times a second, and JSON lines on its output. `tracking.rs` supervises it and passes checked frames as `tracking:frame`. `lib/tracking.ts` steadies them into points for the XY surfaces, which use the same moves as a finger. It never touches the audio path.
 
+## Covers and haptics
+
+`track_cover(id)` and `device_cover(device, track)` return raw image bytes from a worker, empty without one: the picture named in `export.pdb`, kept as `artwork:<id>` for library ids, then the file's embedded one through `decode::read_cover`. `lib/covers.ts` loads them as they come into view, two at a time, and caches shrunken JPEG data URLs, which fit the CSP. `haptic(pattern)` reaches `NSHapticFeedbackManager` on the main thread and does nothing off macOS. `lib/haptics.ts` holds what each passage feels like and the factor from pressure, for `Knob`, `Slider` and the console's own inputs.
+
 ## Connected devices and rekordbox
 
 `devices.rs` lists mounted drives every 2 s on its own worker, without holding locks while it asks, because a dead network drive can take long to answer. `rekordbox.rs` reads `PIONEER/rekordbox/export.pdb` and `ANLZ` files with no new dependency, based on the formats documented by Deep Symmetry's Crate Digger. `exportLibrary.db` (OneLibrary) is ignored: it is encrypted, and the unencrypted export has the same library.

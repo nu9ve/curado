@@ -1205,6 +1205,20 @@ input[type='range']::-moz-range-thumb {
 [data-texture='dither'] .track-art::after {
   opacity: 0.22;
 }
+/* Always dithered without a cover, so a missing one still looks chosen. */
+.track-art:not(.has-cover)::after {
+  opacity: 0.28;
+}
+.track-art.has-cover::after {
+  opacity: 0;
+}
+.track-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .track-art.empty {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }

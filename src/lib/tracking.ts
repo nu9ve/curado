@@ -28,18 +28,42 @@ const fit = (value: number) => Math.max(0, Math.min(1, (value - MARGIN) / (1 - M
 
 /**
  * The picture comes unmirrored, so the side a person sees their hand on is the opposite one:
- * flipping it makes the left hand reach the left surface, like a mirror.
+ * flipping it makes the left hand reach the left surface, like a mirror. Each half of the view is
+ * a whole surface, so a hand reaches all of its own without crossing into the other's. A face has
+ * one surface and the whole view.
  */
 export function assignSources(frame: TrackFrame): [Source | null, Source | null] {
   if (frame.face) {
     return [{ x: 1 - frame.face.x, y: frame.face.y, press: frame.face.size, kind: 'face' }, null];
   }
-  const hands = (frame.hands ?? [])
-    .map((hand): Source => ({ x: 1 - hand.x, y: hand.y, press: hand.pinch, kind: 'hand' }))
-    .sort((a, b) => a.x - b.x);
-  if (hands.length >= 2) return [hands[0], hands[1]];
-  if (hands.length === 1) return hands[0].x < 0.5 ? [hands[0], null] : [null, hands[0]];
-  return [null, null];
+  const sides: [Source | null, Source | null] = [null, null];
+  for (const hand of frame.hands ?? []) {
+    const mirrored = 1 - hand.x;
+    const side = mirrored < 0.5 ? 0 : 1;
+    sides[side] ??= {
+      x: (mirrored - side * 0.5) * 2,
+      y: hand.y,
+      press: hand.pinch,
+      kind: 'hand',
+    };
+  }
+  return sides;
+}
+/**
+ * Where to put the camera picture inside a surface so that a hand lands under its point, in
+ * percent of the surface. It stretches, because half of a 4:3 picture is being shown on a wider
+ * box, and being true to the point matters more here.
+ */
+export function overlayPlacement(index: number, mode: TrackMode) {
+  const visible = 1 - 2 * MARGIN;
+  const across = mode === 'face' ? visible : visible / 2;
+  const first = mode === 'face' ? MARGIN : (index + MARGIN) / 2;
+  return {
+    left: -(first / across) * 100,
+    width: (1 / across) * 100,
+    top: -(MARGIN / visible) * 100,
+    height: (1 / visible) * 100,
+  };
 }
 export interface Source {
   x: number;
@@ -81,6 +105,7 @@ export function shouldRun(mode: TrackMode, visible: boolean, focused: boolean): 
   return mode !== 'off' && visible && focused;
 }
 
+let overlay: TrackMode = 'off';
 let points: [TrackPoint | null, TrackPoint | null] = [null, null];
 let preview: string | null = null;
 let status = 'off';
@@ -122,6 +147,12 @@ function clear(next: string) {
 }
 export const useTrackedPoint = (index: number) =>
   useSyncExternalStore(subscribe, () => points[index]);
+/** The tracking mode when the picture should show inside the surfaces, or off. */
+export const useTrackingOverlay = () => useSyncExternalStore(subscribe, () => overlay);
+export function setTrackingOverlay(mode: TrackMode) {
+  overlay = mode;
+  notify();
+}
 export const useTrackingStatus = () => useSyncExternalStore(subscribe, () => status);
 export const useTrackingPreview = () => useSyncExternalStore(subscribe, () => preview);
 

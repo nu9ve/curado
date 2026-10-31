@@ -122,7 +122,8 @@ final class Tracker: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     }
     private func preview(_ pixels: CVPixelBuffer) -> String? {
         let image = CIImage(cvPixelBuffer: pixels)
-        let scale = 160 / image.extent.width
+        // Half of this ends up filling an XY surface, so it needs more than a thumbnail.
+        let scale = 320 / image.extent.width
         let small = image.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
             let data = images.jpegRepresentation(

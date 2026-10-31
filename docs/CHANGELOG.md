@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · Covers, haptics and camera over the XY
+
+Track lists and platters show covers, from rekordbox's own pictures on a USB or the file's, with a dithered pattern otherwise. Controls tap on a Force Touch trackpad according to their kind, pressing harder moves them more finely, and **XY** shows the camera faintly inside each surface, each hand owning its half. See [Status](STATUS.md) and [ADR-028](DECISIONS.md).
+
 ## 2026-10-30 · Press fix and camera tracking
 
 Fixed console controls jumping when pressed. Added optional hand and face tracking for the XY surfaces, off by default, in a helper process that is killed whenever it is not in view. See [Status](STATUS.md) and ADR-027. Lesson: two features using one CSS property fight silently, and only a person clicking it noticed.

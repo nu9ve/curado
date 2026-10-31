@@ -66,6 +66,51 @@ pub fn decode_with_limit(
 ) -> Result<Clip, String> {
     decode_bounded(path, id, cached, max_bytes, &|| false)
 }
+/// Largest cover worth bringing into memory: real ones are far smaller.
+const MAX_COVER_BYTES: usize = 16 * 1024 * 1024;
+/// The picture embedded in a file, without decoding any audio. The front cover if it says which.
+pub fn read_cover(path: &Path) -> Option<Vec<u8>> {
+    catch_unwind(AssertUnwindSafe(|| cover_inner(path)))
+        .ok()
+        .flatten()
+}
+fn cover_inner(path: &Path) -> Option<Vec<u8>> {
+    use symphonia::core::meta::StandardVisualKey;
+    let file = File::open(path).ok()?;
+    let mss = MediaSourceStream::new(Box::new(file), Default::default());
+    let mut hint = Hint::new();
+    if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+        hint.with_extension(ext);
+    }
+    let mut probed = symphonia::default::get_probe()
+        .format(
+            &hint,
+            mss,
+            &FormatOptions::default(),
+            &MetadataOptions::default(),
+        )
+        .ok()?;
+    let mut best: Option<Vec<u8>> = None;
+    let mut consider = |rev: &symphonia::core::meta::MetadataRevision| {
+        for visual in rev.visuals() {
+            let front = visual.usage == Some(StandardVisualKey::FrontCover);
+            if visual.data.len() <= MAX_COVER_BYTES && (front || best.is_none()) {
+                best = Some(visual.data.to_vec());
+                if front {
+                    return;
+                }
+            }
+        }
+    };
+    if let Some(rev) = probed.metadata.get().as_ref().and_then(|m| m.current()) {
+        consider(rev);
+    }
+    if let Some(rev) = probed.format.metadata().current() {
+        consider(rev);
+    }
+    best
+}
+
 /// `cancelled` is checked per packet, so a newer load never waits for a long one to finish.
 pub fn decode_bounded(
     path: &Path,
@@ -382,6 +427,56 @@ mod fuzz {
     }
 
     #[test]
+    fn a_file_without_a_cover_or_that_is_not_audio_has_none() {
+        let path = std::env::temp_dir().join(format!("curado-cover-{}.wav", std::process::id()));
+        std::fs::write(&path, wav(4000, 2, 16)).unwrap();
+        assert_eq!(read_cover(&path), None);
+        std::fs::write(&path, b"garbage").unwrap();
+        assert_eq!(read_cover(&path), None);
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(read_cover(&path), None);
+    }
+
+    /// An MP3 frame header and silence, behind a tag holding the picture, as a tagger writes it.
+    fn tagged_mp3(cover: &[u8]) -> Vec<u8> {
+        let mut frame = vec![
+            0_u8, b'i', b'm', b'a', b'g', b'e', b'/', b'j', b'p', b'e', b'g', 0,
+        ];
+        frame.extend([3_u8, 0]);
+        frame.extend_from_slice(cover);
+        let mut tag_body = b"APIC".to_vec();
+        tag_body.extend((frame.len() as u32).to_be_bytes());
+        tag_body.extend([0, 0]);
+        tag_body.extend(frame);
+        let synchsafe = |n: usize| {
+            [
+                (n >> 21 & 0x7f) as u8,
+                (n >> 14 & 0x7f) as u8,
+                (n >> 7 & 0x7f) as u8,
+                (n & 0x7f) as u8,
+            ]
+        };
+        let mut file = b"ID3\x03\x00\x00".to_vec();
+        file.extend(synchsafe(tag_body.len()));
+        file.extend(tag_body);
+        for _ in 0..40 {
+            // MPEG-1 layer III, 128 kbps, 44.1 kHz: 417 bytes.
+            file.extend([0xff, 0xfb, 0x90, 0x00]);
+            file.extend(vec![0_u8; 413]);
+        }
+        file
+    }
+
+    #[test]
+    fn a_cover_comes_out_as_the_file_stored_it() {
+        let path = std::env::temp_dir().join(format!("curado-cover-{}.mp3", std::process::id()));
+        let cover = vec![0xd8_u8; 2048];
+        std::fs::write(&path, tagged_mp3(&cover)).unwrap();
+        assert_eq!(read_cover(&path).as_deref(), Some(cover.as_slice()));
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
     fn a_decoder_panic_stays_inside_the_load() {
         let result: Result<Clip, String> =
             catch_unwind(AssertUnwindSafe(|| panic!("from a decoder")))
@@ -391,7 +486,7 @@ mod fuzz {
 
     #[test]
     fn a_load_stops_at_its_time_limit() {
-        let path = std::env::temp_dir().join(format!("curado-limit-{}.wav", std::process::id()));
+        let path = std::env::temp_dir().join(format!("curado-timeout-{}.wav", std::process::id()));
         std::fs::write(&path, wav(4000, 2, 16)).unwrap();
         let result = decode_within(&path, 1, None, 1 << 28, &|| false, Duration::ZERO);
         assert_eq!(result.err().as_deref(), Some(TIMED_OUT));

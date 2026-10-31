@@ -2,6 +2,7 @@ import { tr } from '../lib/language';
 import { limiterLevel } from '../lib/limiter';
 import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
+import { currentPressure, detent, fineFactor, haptic } from '../lib/haptics';
 
 export function Key({ children, code }: { children: ReactNode; code?: string }) {
   return <kbd data-key={code}>{children}</kbd>;
@@ -161,6 +162,9 @@ function keyStep(
 
 const SEGMENTS = 25;
 const SWEEP = 270;
+/** Notches a full turn or travel has, felt on a Force Touch trackpad. */
+const KNOB_STEPS = 24;
+const SLIDER_STEPS = 16;
 /** Rotary control: vertical drag (Shift = fine), wheel, arrows, double click to reset. */
 export function Knob({
   label,
@@ -179,8 +183,13 @@ export function Knob({
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ y: number; value: number } | null>(null);
   const [active, setActive] = useState(false);
+  const shownNow = useRef(shown);
+  shownNow.current = shown;
   const set = (v: number) => {
     const next = clampTo(v, min, max);
+    const feel = detent(shownNow.current, next, min, max, origin, KNOB_STEPS);
+    if (feel) haptic(feel);
+    shownNow.current = next;
     hold(next);
     onChange(next);
   };
@@ -225,8 +234,12 @@ export function Knob({
       }}
       onPointerMove={(e) => {
         if (!drag.current) return;
-        const scale = e.shiftKey ? 600 : 150;
-        set(drag.current.value + ((drag.current.y - e.clientY) / scale) * (max - min));
+        // Each step counts by how fine it is now, so pressing harder never jumps the value.
+        const moved = drag.current.y - e.clientY;
+        drag.current.y = e.clientY;
+        const scale = 150 * fineFactor(currentPressure(), e.shiftKey);
+        drag.current.value = clampTo(drag.current.value + (moved / scale) * (max - min), min, max);
+        set(drag.current.value);
       }}
       onPointerUp={() => {
         drag.current = null;
@@ -295,16 +308,38 @@ export function Slider({
   const { shown, hold, letGo } = useLiveValue(value);
   const track = useRef<HTMLDivElement>(null);
   const active = useRef(false);
+  const shownNow = useRef(shown);
+  shownNow.current = shown;
+  const fine = useRef<{ at: number; value: number } | null>(null);
   const set = (v: number) => {
     const next = clampTo(v, min, max);
+    const feel = detent(shownNow.current, next, min, max, origin, SLIDER_STEPS);
+    if (feel) haptic(feel);
+    shownNow.current = next;
     hold(next);
     onChange(next);
   };
-  const fromPointer = (x: number, y: number) => {
+  const fromPointer = (x: number, y: number, shift: boolean) => {
     const r = track.current?.getBoundingClientRect();
     if (!r) return;
-    const t = vertical ? 1 - (y - r.top) / r.height : (x - r.left) / r.width;
-    set(min + clampTo(t, 0, 1) * (max - min));
+    const along = vertical ? 1 - (y - r.top) / r.height : (x - r.left) / r.width;
+    const factor = fineFactor(currentPressure(), shift);
+    // Normally the cap goes to the pointer. Once fine, it moves by less than the pointer does,
+    // and stays that way until let go, since going back to the pointer would jump.
+    if (factor > 1.2 || fine.current) {
+      if (!fine.current) {
+        fine.current = { at: along, value: shownNow.current };
+        haptic('alignment');
+      }
+      const change = ((along - fine.current.at) / factor) * (max - min);
+      fine.current = {
+        at: along,
+        value: clampTo(fine.current.value + change, min, max),
+      };
+      set(fine.current.value);
+      return;
+    }
+    set(min + clampTo(along, 0, 1) * (max - min));
   };
   const t = (shown - min) / (max - min);
   const o = (origin - min) / (max - min);
@@ -330,9 +365,10 @@ export function Slider({
           e.currentTarget.focus({ preventScroll: true });
           e.currentTarget.setPointerCapture(e.pointerId);
           active.current = true;
-          fromPointer(e.clientX, e.clientY);
+          fine.current = null;
+          fromPointer(e.clientX, e.clientY, false);
         }}
-        onPointerMove={(e) => active.current && fromPointer(e.clientX, e.clientY)}
+        onPointerMove={(e) => active.current && fromPointer(e.clientX, e.clientY, e.shiftKey)}
         onPointerUp={() => {
           active.current = false;
           letGo();

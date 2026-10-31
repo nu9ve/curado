@@ -13,6 +13,7 @@ const TABLE_ALBUMS: u32 = 0x03;
 const TABLE_KEYS: u32 = 0x05;
 const TABLE_PLAYLIST_TREE: u32 = 0x07;
 const TABLE_PLAYLIST_ENTRIES: u32 = 0x08;
+const TABLE_ARTWORK: u32 = 0x0d;
 /// Rows sit after the page's fixed header, and their offsets count from here.
 const PAGE_HEAP: usize = 0x28;
 /// One group: 16 row offsets, a presence mask and a transaction mask.
@@ -41,6 +42,9 @@ pub struct DeviceTrack {
     pub path: String,
     #[serde(skip)]
     pub analysis_path: String,
+    /// The picture rekordbox made for it, relative to the device root. Empty without one.
+    #[serde(skip)]
+    pub artwork: String,
 }
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -181,6 +185,9 @@ pub fn parse_export(data: &[u8]) -> Result<Export, String> {
     let keys = names(data, TABLE_KEYS, |row| {
         Some((u32_le(row, 0)?, device_string(row, 8)?))
     });
+    let artwork = names(data, TABLE_ARTWORK, |row| {
+        Some((u32_le(row, 0)?, device_string(row, 4)?))
+    });
     let mut export = Export::default();
     each_row(data, TABLE_TRACKS, |row| {
         let string = |index: usize| -> Option<String> {
@@ -205,6 +212,9 @@ pub fn parse_export(data: &[u8]) -> Result<Export, String> {
                 rating: *row.get(0x59)?,
                 path: string(STRING_FILE_PATH)?,
                 analysis_path: string(STRING_ANALYSIS_PATH)?,
+                artwork: lookup(&artwork, u32_le(row, 0x1c)?)
+                    .unwrap_or_default()
+                    .into(),
             })
         })();
         export.tracks.extend(track);
@@ -640,6 +650,24 @@ mod tests {
             &[],
         );
         pdb.bytes()
+    }
+
+    #[test]
+    fn a_track_points_to_its_artwork_by_id() {
+        let mut pdb = Pdb::new();
+        let mut with = track(1, "Con", 0, 0);
+        with[0x1c..0x20].copy_from_slice(&9_u32.to_le_bytes());
+        let mut missing = track(2, "Perdida", 0, 0);
+        missing[0x1c..0x20].copy_from_slice(&10_u32.to_le_bytes());
+        pdb.table(TABLE_TRACKS, &[with, missing, track(3, "Sin", 0, 0)], &[]);
+        pdb.table(
+            TABLE_ARTWORK,
+            &[named(9, &short("/PIONEER/Artwork/00001/a9.jpg"))],
+            &[],
+        );
+        let export = parse_export(&pdb.bytes()).unwrap();
+        let art: Vec<&str> = export.tracks.iter().map(|t| t.artwork.as_str()).collect();
+        assert_eq!(art, ["/PIONEER/Artwork/00001/a9.jpg", "", ""]);
     }
 
     #[test]

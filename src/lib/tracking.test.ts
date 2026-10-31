@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
-import { assignSources, Follower, LOST_MS, shouldRun } from './tracking';
+import { assignSources, Follower, LOST_MS, overlayPlacement, shouldRun } from './tracking';
 import type { Source } from './tracking';
 
 const hand = (x: number, pinch = 1): Source => ({ x, y: 0.5, press: pinch, kind: 'hand' });
@@ -14,18 +14,44 @@ test('the camera only runs when wanted, in view and in front', () => {
   expect(shouldRun('hands', true, false)).toBe(false);
 });
 
-test('hands go to the surface on their side, as in a mirror', () => {
+test('each hand has the whole surface on its side, as in a mirror', () => {
   const pair = (x: number) => ({ x, y: 0.5, pinch: 1, size: 0.2 });
-  // Raw x 0.8 is on the left of a mirrored picture.
-  const [left, right] = assignSources({ hands: [pair(0.2), pair(0.8)] });
-  expect(left?.x).toBeCloseTo(0.2);
-  expect(right?.x).toBeCloseTo(0.8);
-  expect(assignSources({ hands: [pair(0.8)] })[0]).not.toBeNull();
+  // Raw x 0.8 is on the left of a mirrored picture: 0.2 across, so 0.4 of the left half.
+  const [left, right] = assignSources({ hands: [pair(0.8), pair(0.2)] });
+  expect(left?.x).toBeCloseTo(0.4);
+  expect(right?.x).toBeCloseTo(0.6);
   expect(assignSources({ hands: [pair(0.8)] })[1]).toBeNull();
   expect(assignSources({ hands: [pair(0.2)] })[0]).toBeNull();
-  expect(assignSources({ hands: [pair(0.2)] })[1]).not.toBeNull();
+  // Near the middle a hand is at the inner edge of its own surface, and both edges reach.
+  expect(assignSources({ hands: [pair(0.51)] })[0]?.x).toBeCloseTo(0.98);
+  expect(assignSources({ hands: [pair(0.49)] })[1]?.x).toBeCloseTo(0.02);
+  // Two on one side: the first has it.
+  const crowded = assignSources({ hands: [pair(0.9), pair(0.7)] });
+  expect(crowded[0]?.x).toBeCloseTo(0.2);
+  expect(crowded[1]).toBeNull();
   expect(assignSources({})).toEqual([null, null]);
-  expect(assignSources({ face: { x: 0.3, y: 0.4, size: 0.3 } })[0]?.kind).toBe('face');
+  const face = assignSources({ face: { x: 0.3, y: 0.4, size: 0.3 } });
+  expect(face[0]?.kind).toBe('face');
+  expect(face[0]?.x).toBeCloseTo(0.7);
+});
+
+test('the picture lines up with the point it drives', () => {
+  // Where a place in the view lands on the surface, by the placement.
+  const onSurface = (viewX: number, index: number, mode: 'hands' | 'face') => {
+    const place = overlayPlacement(index, mode);
+    return (place.left + viewX * place.width) / 100;
+  };
+  // The same as following the place through the source and the margin.
+  const followed = (viewX: number, side: number) => {
+    const local = (viewX - side * 0.5) * 2;
+    return (local - 0.1) / 0.8;
+  };
+  for (const x of [0.1, 0.25, 0.4]) expect(onSurface(x, 0, 'hands')).toBeCloseTo(followed(x, 0));
+  for (const x of [0.6, 0.75, 0.9]) expect(onSurface(x, 1, 'hands')).toBeCloseTo(followed(x, 1));
+  expect(onSurface(0.5, 0, 'face')).toBeCloseTo(0.5);
+  expect(onSurface(0.1, 0, 'face')).toBeCloseTo(0);
+  const place = overlayPlacement(0, 'hands');
+  expect((place.top + 0.5 * place.height) / 100).toBeCloseTo(0.5);
 });
 
 test('a pinch presses and lets go at different points, so it does not flicker', () => {
