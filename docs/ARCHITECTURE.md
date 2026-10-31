@@ -141,6 +141,10 @@ The helper provides terrain, orbit, tunnel, ribbons, a faceted gateway, circular
 
 `native/CuradoTracker.swift` is a separate process: AVFoundation at 640×480, Vision at most 15 times a second, and JSON lines on its output. `tracking.rs` supervises it and passes checked frames as `tracking:frame`. `lib/tracking.ts` steadies them into points for the XY surfaces, which use the same moves as a finger. It never touches the audio path.
 
+## Keyboard and pointer together
+
+`keyIsForTheMix` in `lib/keyboard.ts` decides who owns a key: fields keep all of them, a control with `:focus-visible` keeps Space, Enter and arrows, and focus left by a click claims nothing. Controls check the same thing in their own key handlers. `App` counts pointers down, so `matchKey` can ignore a modifier that means nothing during a drag, and blurs whatever held focus when something else is pressed.
+
 ## Covers and haptics
 
 `track_cover(id)` and `device_cover(device, track)` return raw image bytes from a worker, empty without one: the picture named in `export.pdb`, kept as `artwork:<id>` for library ids, then the file's embedded one through `decode::read_cover`. `lib/covers.ts` loads them as they come into view, two at a time, and caches shrunken JPEG data URLs, which fit the CSP. `haptic(pattern)` reaches `NSHapticFeedbackManager` on the main thread and does nothing off macOS. `lib/haptics.ts` holds what each passage feels like and the factor from pressure, for `Knob`, `Slider` and the console's own inputs.

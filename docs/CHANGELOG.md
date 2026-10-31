@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-31 · Keyboard during drags, auto loop and a new README
+
+Keys now work while dragging a control and right after touching one, in combination too. Added **AUTO LOOP** for each deck with lengths from 1/4 to 32 beats, on `B` and `N`. Moved the load section off deck 2's IN and OUT. Rewrote both READMEs with new pictures made from invented tracks. See [Status](STATUS.md) and [ADR-029](DECISIONS.md).
+
 ## 2026-10-31 · Covers, haptics and camera over the XY
 
 Track lists and platters show covers, from rekordbox's own pictures on a USB or the file's, with a dithered pattern otherwise. Controls tap on a Force Touch trackpad according to their kind, pressing harder moves them more finely, and **XY** shows the camera faintly inside each surface, each hand owning its half. See [Status](STATUS.md) and [ADR-028](DECISIONS.md).

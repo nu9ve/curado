@@ -135,6 +135,8 @@ interface RangeProps {
   className?: string;
 }
 const clampTo = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+/** Whether a control got its focus from the keyboard, rather than from a click. */
+export const tabbed = (e: { currentTarget: Element }) => e.currentTarget.matches(':focus-visible');
 function keyStep(
   e: ReactKeyboardEvent,
   value: number,
@@ -142,6 +144,8 @@ function keyStep(
   max: number,
   reset: number,
 ): number | null {
+  // Only when reached with Tab: otherwise these keys are the mix's, even right after a drag.
+  if (!tabbed(e)) return null;
   const step = (max - min) / (e.shiftKey ? 100 : 25);
   const next =
     e.key === 'ArrowUp' || e.key === 'ArrowRight'
@@ -225,9 +229,8 @@ export function Knob({
       aria-valuetext={format?.(shown)}
       data-action={action}
       onPointerDown={(e) => {
-        // No text selection or native drag while turning; keep keyboard focus on the knob.
+        // No text selection or native drag while turning.
         e.preventDefault();
-        e.currentTarget.focus({ preventScroll: true });
         e.currentTarget.setPointerCapture(e.pointerId);
         drag.current = { y: e.clientY, value: shown };
         setActive(true);
@@ -362,7 +365,6 @@ export function Slider({
         data-action={action}
         onPointerDown={(e) => {
           e.preventDefault();
-          e.currentTarget.focus({ preventScroll: true });
           e.currentTarget.setPointerCapture(e.pointerId);
           active.current = true;
           fine.current = null;

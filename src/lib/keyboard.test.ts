@@ -5,8 +5,10 @@ import {
   TOGGLE_KINDS,
   allowedInMode,
   bindingLabel,
+  keyIsForTheMix,
   matchKey,
   resolveAction,
+  withAutoLoopKeys,
 } from './keyboard';
 import { EMPTY_SLOT } from './types';
 import type { Audio } from './types';
@@ -70,6 +72,46 @@ describe('keyboard performance contract', () => {
     expect(pressed('ArrowLeft', { ctrlKey: true })?.kind).toBe('crossfader');
     expect(pressed('ArrowDown', { repeat: true })?.kind).toBe('listMove');
     expect(pressed('KeyF', { repeat: true })).toBeUndefined();
+  });
+  test('touching a control does not take the keyboard away', () => {
+    const element = (typing: boolean, tabbed: boolean) => ({
+      closest: () => (typing ? ({} as Element) : null),
+      matches: () => tabbed,
+    });
+    // Left with focus by a click, as after turning a knob: every key is the mix's.
+    for (const code of ['KeyF', 'Space', 'ArrowDown', 'Enter'])
+      expect(keyIsForTheMix(element(false, false), code)).toBe(true);
+    // Reached with Tab: it keeps what it uses, and letters still play the mix.
+    expect(keyIsForTheMix(element(false, true), 'ArrowDown')).toBe(false);
+    expect(keyIsForTheMix(element(false, true), 'Space')).toBe(false);
+    expect(keyIsForTheMix(element(false, true), 'KeyF')).toBe(true);
+    // Typing is typing, however it got there.
+    expect(keyIsForTheMix(element(true, false), 'KeyF')).toBe(false);
+  });
+  test('a modifier held for a drag does not swallow the key', () => {
+    const shifted = { ...event('KeyF'), shiftKey: true };
+    expect(matchKey(shifted, DEFAULT_KEYS, 'mix')).toBeUndefined();
+    expect(matchKey(shifted, DEFAULT_KEYS, 'mix', true)?.action.kind).toBe('toggle');
+    // What a combination means still comes first.
+    const saved = { ...event('Digit1'), shiftKey: true };
+    expect(matchKey(saved, DEFAULT_KEYS, 'mix', true)?.action.kind).toBe('setCue');
+    expect(
+      matchKey({ ...event('KeyF'), metaKey: true }, DEFAULT_KEYS, 'mix', true),
+    ).toBeUndefined();
+  });
+  test('auto loop has a key on each hand, and old layouts get it where free', () => {
+    expect(pressed('KeyB')).toMatchObject({ slot: 0, kind: 'autoLoop' });
+    expect(pressed('KeyN')).toMatchObject({ slot: 1, kind: 'autoLoop' });
+    expect(pressed('KeyB', { shiftKey: true })).toMatchObject({ kind: 'loopScale', value: 0.5 });
+    expect(pressed('KeyN', { ctrlKey: true })).toMatchObject({ slot: 1, value: 2 });
+    expect(withAutoLoopKeys(DEFAULT_KEYS)).toBe(DEFAULT_KEYS);
+    const toggle = { slot: 0, kind: 'toggle', value: 0 };
+    const merged = withAutoLoopKeys([{ code: 'KeyB', shift: false, action: toggle }]);
+    expect(merged[0].action.kind).toBe('toggle');
+    expect(merged.filter((b) => b.code === 'KeyB' && !b.shift && !b.ctrl && !b.alt)).toHaveLength(
+      1,
+    );
+    expect(merged.some((b) => b.code === 'KeyN' && b.action.kind === 'autoLoop')).toBe(true);
   });
   test('every engine action in the scheme is one the engine accepts', async () => {
     const engine = await Bun.file('crates/audio-engine/src/lib.rs').text();

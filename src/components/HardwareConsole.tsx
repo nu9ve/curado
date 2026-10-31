@@ -6,6 +6,7 @@ import { actionKey, useHud } from '../lib/feedback';
 import { tr } from '../lib/language';
 import { consoleScale } from '../lib/console-fit';
 import {
+  LOOP_PADS,
   BEAT_DIVISIONS,
   BEAT_FX,
   BEAT_FX_ORDER,
@@ -29,7 +30,7 @@ import { keyLabel, transposeKey } from '../lib/music';
 import { useLivePosition } from '../lib/position';
 import { EMPTY_SLOT, remaining } from '../lib/types';
 import type { BeatFxState, KeyBinding, Library, LibraryEdit, Slot, Track } from '../lib/types';
-import { Knob, LimiterLamp, Meter, Slider } from './Controls';
+import { Knob, LimiterLamp, Meter, Slider, tabbed } from './Controls';
 import { PerformancePads, useJog } from './Performance';
 import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
@@ -281,6 +282,7 @@ function StepDial({
           drag.current = null;
         }}
         onKeyDown={(e) => {
+          if (!tabbed(e)) return;
           const delta = { ArrowUp: -1, ArrowLeft: -1, ArrowDown: 1, ArrowRight: 1 }[e.key];
           if (!delta) return;
           e.preventDefault();
@@ -288,6 +290,65 @@ function StepDial({
           move(delta);
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * A loop with one press. On the hardware the four-beat button is on the deck; here the lengths
+ * sit together in the empty stretch above it, each deck's in its own color.
+ */
+function AutoLoop({
+  index,
+  slot,
+  x,
+  onError,
+}: {
+  index: number;
+  slot: Slot;
+  x: number;
+  onError: (e: unknown) => void;
+}) {
+  const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
+  const disabled = !slot.id || !slot.music.bpm;
+  const beats = slot.loopBeats;
+  return (
+    <div
+      className={`rx-at rx-autoloop ${index ? 'tone-b' : ''}`}
+      role="group"
+      aria-label={`Auto loop deck ${index + 1}`}
+      style={at(x, 28)}
+    >
+      <button
+        className="rx-autoloop-main"
+        aria-pressed={slot.looping}
+        disabled={disabled}
+        data-action={act(index, 'autoLoop')}
+        title={tr(
+          'Empieza o termina un loop desde aquí, sin marcar IN y OUT',
+          'Starts or ends a loop from here, without marking IN and OUT',
+        )}
+        onClick={() => send('autoLoop')}
+      >
+        <span>AUTO LOOP</span>
+        <KeyBadge action={act(index, 'autoLoop')} />
+        <b>{beatLabel(beats)}</b>
+      </button>
+      <div>
+        {LOOP_PADS.map((value) => (
+          <button
+            key={value}
+            aria-pressed={slot.looping && beats === value}
+            data-next={beats === value}
+            disabled={disabled}
+            aria-label={`Auto loop ${beatLabel(value)} ${tr('beats', 'beats')}`}
+            data-action={act(index, 'loopBeats', value)}
+            onClick={() => send('loopBeats', value)}
+          >
+            {beatLabel(value)}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1943,6 +2004,7 @@ export function HardwareConsole({
           </div>
           <div className="rx-chassis" />
           <div className="rx-band rx-band-left" aria-label="MIC">
+            <AutoLoop index={0} slot={slots[0]} x={98} onError={onError} />
             <span className="rx-at rx-section-title" style={at(236, 24)}>
               MIC
             </span>
@@ -1963,14 +2025,15 @@ export function HardwareConsole({
             </Soon>
           </div>
           <div className="rx-band rx-band-right">
-            <b className="rx-at rx-brand" style={at(250, 36)}>
+            <AutoLoop index={1} slot={slots[1]} x={210} onError={onError} />
+            <b className="rx-at rx-brand" style={at(375, 22)}>
               curado
             </b>
             {[0, 1].map((i) => (
               <div
                 key={i}
                 className={`rx-at rx-usb ${drives[i] ? 'is-on' : ''}`}
-                style={at(i ? 415 : 335, 62)}
+                style={at(i ? 415 : 335, 78)}
                 title={drives[i]?.name}
               >
                 <span>USB {i + 1}</span>

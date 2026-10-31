@@ -1,5 +1,26 @@
 # curado status
 
+## Keyboard during drags, auto loop and a new README · 2026-10-31
+
+The maintainer reported that keys stopped responding during a drag or while something was selected, and asked for auto loops and better documentation. See [ADR-029](DECISIONS.md).
+
+- **Keyboard:** pressing a knob or slider left it holding focus, and the key handler ignored everything then. Now only a text field keeps every key, and a control reached with Tab keeps Space, Enter and arrows.
+- **Auto loop:** a native `autoLoop` action, `B` and `N`, a strip above each deck and lengths from 1/4 to 32. A new length on a playing loop keeps its start, including from the beat loop pads.
+- **Layout:** the load section hid deck 2's IN and half of OUT, in the build the maintainer had been using. It now ends above that row, and the brand and USB slots moved to make room for the strip.
+- **Documentation:** both READMEs rewritten, stale statements removed such as the old key table, "no headphone cue", 20 Hz playheads and unmeasured key. New pictures replace the old mix and settings ones, and `docs/assets/mixer.png` and `docs/curado-mix.png` remain, unreferenced.
+
+**Automatically tested:** auto loop start, exit and new start, resizing from the same start with the read head staying inside, choosing a length before a loop, decks only, key ownership, modifiers during a drag, and old layouts gaining the keys where free.
+
+**With real input events in headless Chrome, against the real interface and a stand-in engine (`check:input`):** `F` while turning a knob, Shift + `J` during a drag, Shift + 1 still saving, three keys during a crossfade, keys and Space after letting go, arrows not moving the knob just touched, typing staying in a field and a press giving the keyboard back, arrows on a knob reached with focus-visible, `B`, `N` and length buttons, the strips overlapping nothing, and every console control on top at its center.
+
+**Not tried:** the app's own WebKit, whose `:focus-visible` could differ from Chrome's on a clicked menu; the installed app; audio during a resize, which only has automated checks; and how many keys a real keyboard takes at once. Pictures show invented tracks and a stand-in engine, and the Metal one is still the older scene.
+
+Verification: `bun run check` passed (87 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (195 tests, 8 more ignored that need real data), `cargo clippy --workspace --all-targets -- -D warnings` and `bun run check:input` passed.
+
+**Installation:** curado was closed this time, so `bun run desktop:install` built, verified, installed and registered the app without launching it, SHA-256 `d6968084…`. This includes the covers, haptics and overlay whose installation was blocked earlier.
+
+**Next:** try these in the app's WebKit, then the hardware list in [Quality](QUALITY.md).
+
 ## Covers, haptics and camera over the XY · 2026-10-31
 
 The maintainer asked for covers in the track lists, haptics by kind of control with finer movement under pressure, and a third camera state inside the XY surfaces. See [ADR-028](DECISIONS.md) and [Controls](CONTROLS.md).
@@ -295,7 +316,7 @@ Verification: Swift typecheck passed; Metal compiled all shader functions and bo
 
 The frontend has an explicit Spanish/English selector in Appearance, with Spanish as the fallback and a versioned localStorage preference. The selected language updates document `lang` and the subscribed UI without restarting audio. Main navigation, library, decks, settings, appearance, keyboard labels and action help have initial English translations; the option is explicitly marked in progress. Native errors, menus, visual window title, some dynamic strings and complete coverage/a11y review remain. The audio settings description now reflects sync and beat echo. No new dependency or native permission was added.
 
-Browser preview on macOS: language changed immediately and persisted across reload; empty player and mix in English and the pixel/light appearance were inspected. Native ARM64 `.app` built, ad hoc signature verified and installed in `~/Applications/curado.app`; the installer found no running installed instance. An explicitly authorized native review loaded the local demo and captured [mix in gothic](assets/mix-gothic-es.jpg) and the [Metal viewer](assets/visual-metal.jpg), and switched the native settings to English. [Settings preview](assets/settings-en-preview.jpg) is a browser capture. Visual inspection is not a listening test. Native UI automation later timed out while preparing another theme, so a complete cross-view, bilingual and multi-theme visual review remains pending.
+Browser preview on macOS: language changed immediately and persisted across reload; empty player and mix in English and the pixel/light appearance were inspected. Native ARM64 `.app` built, ad hoc signature verified and installed in `~/Applications/curado.app`; the installer found no running installed instance. An explicitly authorized native review loaded the local demo and captured mix in gothic (picture since replaced) and the [Metal viewer](assets/visual-metal.jpg), and switched the native settings to English. Settings preview (picture since replaced) is a browser capture. Visual inspection is not a listening test. Native UI automation later timed out while preparing another theme, so a complete cross-view, bilingual and multi-theme visual review remains pending.
 
 Verification: `bun run check` passed (26 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (42 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed. Installed executable SHA-256 `7a500b9157e8ff1e71eee1e0626f6db15c15b564572156539c09d210cef1d206`. Next: translate and test native errors, menus and remaining dynamic strings; verify switching in the installed app and complete the screenshot set before removing the in-progress label.
 

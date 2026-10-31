@@ -173,6 +173,10 @@ const descriptions: Record<string, [string, string]> = {
     'Activa o desactiva el ajuste al beatgrid.',
     'Está activado por defecto. Ajusta al beat más cercano los loops y los cues que guardas; un cue ya guardado no se mueve. Sin BPM conocido no se puede cuantizar. Corrige BPM y offset si la detección no coincide.',
   ],
+  autoLoop: [
+    'Empieza un loop aquí con una sola pulsación, sin marcar IN y OUT. Otra pulsación sale.',
+    'Elige la longitud abajo, también mientras suena: conserva su inicio. Con el teclado, Shift la acorta y Control la alarga.',
+  ],
   loopBeats: [
     'Crea un loop con una longitud en beats.',
     'Con Q activo comienza en el beat más cercano. El beatgrid pertenece a esta pista; sync conserva la relación de tempo con el master.',
@@ -368,6 +372,10 @@ const englishDescriptions: Record<string, [string, string]> = {
   quantize: [
     'Toggle beatgrid quantization.',
     'Enabled by default. It snaps loops and the cues you save to the nearest beat; a saved cue never moves. Correct BPM and offset if detection does not match.',
+  ],
+  autoLoop: [
+    'Starts a loop here with one press, without marking IN and OUT. Another press leaves it.',
+    'Choose its length below, even while it plays: its start stays. On the keyboard, Shift shortens it and Control lengthens it.',
   ],
   loopBeats: [
     'Create a loop of the selected beat length.',

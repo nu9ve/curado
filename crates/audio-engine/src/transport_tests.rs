@@ -1251,3 +1251,82 @@ fn a_preview_goes_to_the_cue_bus_or_quietly_to_the_mains() {
     let (mains, _) = run(2);
     assert!(mains > 0.05, "{mains}");
 }
+
+fn timed_deck() -> (EngineHandle, Renderer) {
+    let (h, mut r) = settled();
+    h.load(0, clip_of(1, sine(40, 55., 0.5), true)).unwrap();
+    render(&mut r, 2048);
+    (h, r)
+}
+
+#[test]
+fn auto_loop_starts_and_ends_with_one_press_and_keeps_its_start_when_resized() {
+    let (h, mut r) = timed_deck();
+    h.control(0, Control::Seek(OFFSET + 8. * BEAT)).unwrap();
+    h.control(0, Control::Play).unwrap();
+    render(&mut r, 2048);
+    h.control(0, Control::AutoLoop).unwrap();
+    render(&mut r, 1);
+    let first = h.snapshot().slots[0].clone();
+    assert!(first.looping);
+    assert_eq!(first.loop_beats, 4.);
+    assert!((first.loop_out - first.loop_in - 4. * BEAT).abs() < 1e-6);
+
+    // Longer and shorter, from the same start, and the read head stays inside.
+    for beats in [8., 1., 0.25] {
+        h.control(0, Control::LoopBeats(beats)).unwrap();
+        render(&mut r, 4096);
+        let s = h.snapshot().slots[0].clone();
+        assert!(s.looping);
+        assert_eq!(s.loop_in, first.loop_in);
+        assert!((s.loop_out - s.loop_in - beats * BEAT).abs() < 1e-6);
+        assert!(s.position >= s.loop_in && s.position <= s.loop_out + 0.01);
+    }
+
+    h.control(0, Control::AutoLoop).unwrap();
+    render(&mut r, 1);
+    assert!(!h.snapshot().slots[0].looping);
+    // Again later: a new loop from where the music is, of the last length, not the old one.
+    let from = h.snapshot().slots[0].position;
+    render(&mut r, frame_at(4. * BEAT));
+    h.control(0, Control::AutoLoop).unwrap();
+    render(&mut r, 1);
+    let again = h.snapshot().slots[0].clone();
+    assert!(again.looping);
+    assert_eq!(again.loop_beats, 0.25);
+    assert!(again.loop_in > from);
+}
+
+#[test]
+fn the_size_of_the_next_auto_loop_can_be_chosen_before_there_is_a_loop() {
+    let (h, mut r) = timed_deck();
+    h.control(0, Control::LoopScale(0.5)).unwrap();
+    render(&mut r, 1);
+    assert_eq!(h.snapshot().slots[0].loop_beats, 2.);
+    for _ in 0..10 {
+        h.control(0, Control::LoopScale(2.)).unwrap();
+    }
+    render(&mut r, 1);
+    assert_eq!(
+        h.snapshot().slots[0].loop_beats,
+        32.,
+        "goes no further than the pads"
+    );
+    h.control(0, Control::Seek(OFFSET + 8. * BEAT)).unwrap();
+    h.control(0, Control::AutoLoop).unwrap();
+    render(&mut r, 1);
+    let s = h.snapshot().slots[0].clone();
+    assert!(s.looping);
+    assert!((s.loop_out - s.loop_in - 32. * BEAT).abs() < 1e-6);
+}
+
+#[test]
+fn only_decks_take_an_auto_loop() {
+    let action = |slot| Action {
+        slot,
+        kind: "autoLoop".into(),
+        value: 0.,
+    };
+    assert!(action(1).validate().is_ok());
+    assert!(action(2).validate().is_err());
+}

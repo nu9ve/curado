@@ -9,6 +9,7 @@ Desktop audio application. Always write the name in lowercase: **curado**. Befor
 - `src-tauri/native/CuradoVisuals.swift`: AppKit + MetalKit window, compiled only on macOS.
 - `src/`: React UI, command bridge, keyboard layout, telemetry, themes/styles (`lib/theme.ts`), waveforms (`lib/waveform.ts`) and keyboard feedback (`lib/feedback.ts`).
 - `crates/audio-engine/src/analysis.rs`: offline three-band waveform analysis during decoding, never in the callback.
+- `scripts/preview/`: stand-in native side for documentation pictures and input checks, run only on request.
 - `docs/`: decisions, contracts, priorities, tests and change history. Start installation work with `docs/SETUP.md`; licensing remains a maintainer decision documented in `docs/LICENSING.md`.
 
 ## User preferences

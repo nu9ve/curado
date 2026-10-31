@@ -3,56 +3,57 @@
 <p align="center">Tu música. Dos decks. Espacio para jugar.<br>Un reproductor y mezclador de escritorio que se toca con el teclado.</p>
 <p align="center"><a href="README.md">English</a> · <a href="docs/SETUP.md">Instalar con tu agente</a> · <a href="docs/README.md">Documentación</a> · Hecho por <a href="https://nu9ve.xyz">nu9ve</a></p>
 
-Bienvenido. **curado** es un espacio para escuchar tu colección, probar una transición o armar una mezcla. Combina biblioteca, dos decks, mixer y ocho pads de samples. Tus archivos se quedan donde están: curado no los mueve ni los modifica.
+Bienvenido. **curado** es un espacio para escuchar tu colección, probar una transición o tocar un set completo desde el teclado. Es una biblioteca de música y una consola de dos decks con la disposición de un sistema DJ todo en uno, con su propio motor de audio. Tu música se queda donde está: curado nunca mueve ni edita tus archivos.
 
-![Vista de mezcla de curado con dos decks cargados y estilo gótico](docs/assets/mix-gothic-es.jpg)
+![La consola de curado con dos decks cargados, un auto loop activo y etiquetas de teclado en cada control](docs/assets/console.jpg)
 
-_Vista nativa de macOS con la sesión de prueba, en español y con estilo gótico. La documentación técnica está en inglés._
+_La consola con pistas inventadas. Cada etiqueta clara es la tecla de ese control._
+
+## Qué trae
+
+**Una consola para tocar.** Platos para hacer scratch, hot cues, slip, reversa, beat jump y pads de cues, loops, rolls, samples, cambios de tono y Release FX. Presiona **AUTO LOOP** para hacer un loop sin marcar IN ni OUT, y elige su duración de 1/4 a 32 beats, incluso mientras suena.
+
+**Efectos en cada canal.** Seis efectos de color y catorce de beat, distintos por canal y en el master.
+
+**El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o usa MIDI Learn. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
+
+**Tu USB de rekordbox tal como está.** Playlists, covers, grids, tonalidades y hot cues aparecen al conectarlo. curado solo lo lee, y puede devolver tus cues con un `rekordbox.xml`.
+
+|                                                                                                         |                                                                                          |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| ![Consola y biblioteca lado a lado, con covers en la lista de pistas](docs/assets/mix-library.jpg)      | ![Reproductor con cover, waveform, visual reactivo y biblioteca](docs/assets/player.jpg) |
+| **Mezcla:** una sola pantalla fija, con biblioteca, herramientas y mapa de teclado en un panel lateral. | **Reproductor:** un deck, una cola con repetición y un visual que sigue la música.       |
+| ![La consola con estilo gótico y acento violeta](docs/assets/console-gothic.jpg)                        | ![Ajustes de apariencia con estilos, temas y colores](docs/assets/settings.jpg)          |
+| **Tu color en cada estilo:** curado, pixel, gothic, y2k y minimal.                                      | **Configuración:** apariencia, salida de audio, teclado y MIDI.                          |
+
+_Muestran la interfaz real en un navegador, con pistas inventadas y un sustituto del motor de audio. [Cómo se hacen](docs/README.md#pictures)._
 
 <details>
-<summary>Más vistas</summary>
+<summary>El paisaje sonoro Metal</summary>
 
 ![Paisaje sonoro Metal de curado](docs/assets/visual-metal.jpg)
 
-_El paisaje sonoro Metal en una ventana independiente de macOS (vista anterior del terreno)._
-
-![Configuración de apariencia en inglés](docs/assets/settings-en-preview.jpg)
-
-_Apariencia e idioma en la vista previa del navegador. La traducción al inglés sigue en desarrollo._
+_Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el osciloscopio circular. Esta imagen muestra una escena anterior de terreno._
 
 </details>
 
-## Recorre la app
+## Todo lo que hace
 
-| Lugar                   | Qué puedes hacer                                                                                                              |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Barra lateral**       | Recorrer la colección, favoritos y playlists; abrir radio, iniciar la sesión de prueba o configurar la app.                   |
-| **Reproductor**         | Escuchar el deck A, usar una cola con repetición y ver el visual integrado que responde al audio.                             |
-| **Mezcla**              | Cargar A y B, revisar sus waveforms y beatgrids, usar cues y loops, y mezclar con EQ, filtros, efectos por canal y ocho pads de samples. |
-| **Biblioteca**          | Buscar pistas locales, revisar el BPM y la tonalidad estimados, cargar una selección y organizar playlists.                   |
-| **Configuración**       | Ajustar apariencia, salida y buffer, asignaciones de teclado y MIDI Learn.                                                    |
-| **Footer y vista mini** | Controlar el deck A y el master; señalar o enfocar un control para ver su ayuda. La vista mini permanece encima.              |
+- **Escuchar:** busca en tu biblioteca, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
+- **Mezclar:** dos decks con vista de consola o la clásica de curado, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
+- **Preparar:** BPM, grid, compases y tonalidad estimados sobre toda la pista, en notación americana y Camelot. Corrígelos a mano. Key lock y transposición de ±12 semitonos. Las pistas cuyo tempo se mueve pueden seguir sus propios beats.
+- **Audífonos:** con una salida de cuatro canales o más, el 3 y el 4 se vuelven un bus de cue con mezcla y nivel, más Touch Preview de la pista seleccionada.
+- **Superficies extra:** dos pads XY para efectos con el dedo, el puntero o, si quieres, con la mano o la cara por cámara, que está apagada hasta que la pidas y se queda en tu Mac.
+- **Trae tu disco:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists; en cualquier otro puedes buscar audio.
+- **Personalizar:** cinco estilos, tu propio color, temas claro/oscuro/sistema y opciones de waveform.
+- **Visualizar:** un visual reactivo en el reproductor y, en macOS, una ventana Metal con siete escenas. Ajusta brillo, reactividad, velocidad y color, arrastra la cámara, H oculta controles y F es pantalla completa.
+- **Explorar:** radio fractos y SoundCloud dentro de la app. Su audio web va aparte del mixer nativo.
 
-La interfaz comienza en español; la opción de inglés está en desarrollo y algunos mensajes nativos permanecen en español. BPM, tonalidad y beatgrid son estimaciones que puedes corregir; SYNC sigue al deck master elegido y no inicia la reproducción. El audio de servicios web funciona separado de los decks locales.
+Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí necesitan conexión. No hay WebAudio que sustituya al motor nativo.
 
-> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas locales en Apple Silicon. Faltan validación de hardware en Windows/Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y los límites de abajo antes de depender de curado para una sesión.
+La interfaz comienza en español; el inglés está en Configuración y aún tiene algunos mensajes nativos en español. BPM, tonalidad y grid son estimaciones que puedes corregir.
 
-## Qué puedes hacer
-
-- **Escuchar:** biblioteca, búsqueda, favoritos, playlists, cola con repetición y vista mini siempre encima.
-- **Mezclar:** dos decks, ocho hot cues por pista, loops por beats, sync de tempo/fase, EQ, filtros LP/HP y echo por beats.
-- **Explorar la música:** BPM/key estimados, notación americana y Camelot, beatgrid editable, key lock y transposición ±12 semitonos.
-- **Controlar:** teclado reasignable, MIDI Learn, feedback animado y ayuda contextual en el footer.
-- **Personalizar:** cinco estilos, tu propio color, claro/oscuro/sistema y variantes de waveform.
-- **Elegir la vista de mezcla:** alterna entre el diseño original de curado y una superficie inspirada en una cabina todo en uno; ambas usan los mismos controles de audio.
-- **Sentir y ver:** covers en las listas y en los platos, de rekordbox o del archivo; toques según el tipo de control en un trackpad con Force Touch, movimiento más fino al presionar más fuerte, y una imagen tenue y opcional de la cámara dentro de las superficies XY.
-- **Visualizar:** abre Metal desde el reproductor en macOS y elige entre siete escenas, como la ciudad espectral y el osciloscopio circular. Ajusta brillo, reactividad, velocidad y color; arrastra para mover la cámara, usa H para ocultar controles y F para pantalla completa.
-- **Trae tu USB:** los discos conectados aparecen en la barra lateral. Un USB de rekordbox muestra sus playlists, y las pistas cargan con sus grids, tonalidades y hot cues. Cualquier disco se puede explorar para buscar audio. curado solo los lee.
-- **Efectos en cada canal:** seis efectos de color y catorce de beat, distintos por canal y en el master, más roll, beat jump, slip, reversa, scratch y freno de vinilo.
-- **De vuelta a rekordbox:** guarda un `rekordbox.xml` con tus cues, loops y grids corregidos, e impórtalo desde rekordbox.
-- **Abrir radio:** fractos y SoundCloud dentro de la app. Su audio web es independiente del mixer nativo.
-
-Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí necesitan conexión.
+> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas en Apple Silicon. Faltan validación de hardware en Windows y Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y [lo que conviene saber](#antes-de-empezar).
 
 ## Dáselo a tu agente
 
@@ -88,32 +89,38 @@ Después de cambiar código, `bun run desktop:install` recompila y actualiza tu 
 ## Tu primera mezcla
 
 1. Abre curado y elige **sesión de prueba** en la barra lateral. Genera dos pistas cortas y cuatro samples locales; no descarga música.
-2. Cambia a **Mezcla**, reproduce A y B y mueve el crossfader.
-3. Prueba un hot cue o un filtro. Señala cualquier control para ver su ayuda en el footer.
-4. Importa tu música. Retirar una pista de la biblioteca nunca borra su archivo original.
+2. Cambia a **Mezcla**, presiona `F` y `J` para reproducir cada deck y mueve el crossfader.
+3. Presiona `B` para un auto loop de cuatro beats y `B` otra vez para salir. Señala cualquier control para ver su ayuda en el footer.
+4. Importa tu música cuando quieras. Importar registra referencias a los archivos; retirar una pista nunca borra su original.
 
-| Acción                  | Deck A        | Deck B        |
-| ----------------------- | ------------- | ------------- |
-| Play/pausa              | Q, Espacio    | P             |
-| Primer cue y reproducir | A             | L             |
-| Hot cues 1/2/3          | 1 / 2 / 3     | 8 / 9 / 0     |
-| Guardar cue             | Shift + 1/2/3 | Shift + 8/9/0 |
-| Loop / IN / OUT         | W / E / R     | O / I / U     |
-| Nudge −/+               | D / F         | J / K         |
+Cada mano toca su deck, con el mismo dedo para la misma función:
 
-Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (no detiene audio web). Todo se reasigna en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
+| Acción         | Deck 1    | Deck 2    | Con Shift   | Con Control  |
+| -------------- | --------- | --------- | ----------- | ------------ |
+| Play/pausa     | `F`       | `J`       |             |              |
+| Cue            | `D`       | `K`       |             |              |
+| Sync           | `G`       | `H`       | deck master | key lock     |
+| Hot cues A–D   | `1 2 3 4` | `7 8 9 0` | guardar     | borrar       |
+| Hot cues E–H   | `Q W E R` | `U I O P` | guardar     | borrar       |
+| Auto loop      | `B`       | `N`       | más corto   | más largo    |
+| Loop in / out  | `Z` `X`   | `/` `.`   | ½ / 2×      |              |
+| Reloop         | `C`       | `,`       | quantize    |              |
+| Nudge          | `A` `S`   | `L` `;`   | un beat     | cuatro beats |
+| Slip           | `V`       | `M`       | reversa     |              |
+| Beat FX on/off | `T`       | `Y`       |             |              |
 
-## Límites actuales
+`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga en un deck. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
+
+## Antes de empezar
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
-- Los efectos, el EQ y la interpolación están medidos, pero aún no escuchados, y no se compararon con el hardware en el que se inspiran. No hay cue de audífonos, que necesita una segunda salida.
-- Los USB de rekordbox son de solo lectura, y los que solo tengan la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
-- El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Tempo y tono cambian al instante; al transponer, las notas muy graves pueden quedar algo altas.
-- Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.
-- Una salida estéreo, sin preescucha independiente por auriculares; recuperación de dispositivos manual.
-- El navegador integrado necesita validación real de reproducción/login y layout. Su audio no responde a master, FX, sync ni pánico locales.
+- Los efectos están medidos. La reproducción y la mezcla se escucharon en el sistema del mantenedor, pero nada se comparó lado a lado con el hardware en el que se inspira.
+- El bus de cue no se ha probado en una interfaz real de 4 canales, ni la cámara con una cámara real, ni los toques y la presión en un trackpad. Sin cuatro canales de salida no hay cue aparte en audífonos. La recuperación de dispositivos es manual.
+- Los USB de rekordbox son de solo lectura, y los que solo tienen la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
+- BPM, grid y tonalidad son estimaciones medidas contra las de rekordbox y pueden fallar: revísalos antes de mezclar. Seguir el tempo es opcional por pista porque se activa en algunas estables. En una pista transpuesta, las notas muy graves pueden quedar algo altas.
+- La reproducción y el login web dentro de la app aún necesitan validación real. El audio web no responde al master, los efectos, el sync ni el pánico locales.
 
-Siguientes prioridades en [Roadmap](docs/ROADMAP.md). Para contribuir, empieza en [AGENTS.md](AGENTS.md) y el [mapa de documentación](docs/README.md). Compilar no demuestra calidad auditiva ni estabilidad en directo.
+Son prioridades activas, no opciones ocultas. Lo que sigue está en [Roadmap](docs/ROADMAP.md). Para contribuir, empieza en [AGENTS.md](AGENTS.md) y el [mapa de documentación](docs/README.md). Compilar no demuestra calidad auditiva ni estabilidad en directo.
 
 ## Licencia y créditos
 

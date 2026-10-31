@@ -5,56 +5,57 @@
 <p align="center">Your music. Two decks. Room to play.<br>A desktop music player and mixer, made for your keyboard.</p>
 <p align="center"><a href="README.es.md">Español</a> · <a href="docs/SETUP.md">Install with your agent</a> · <a href="docs/README.md">Documentation</a> · Made by <a href="https://nu9ve.xyz">nu9ve</a></p>
 
-Listen to your local collection, try a transition, or build a mix without leaving your keyboard. **curado** combines a music library with two decks, a mixer and eight sample pads. Your music stays in its original location; curado never moves or edits the files.
+Listen to your local collection, try a transition, or play a whole set from your keyboard. **curado** is a music library and a two-deck console laid out like an all-in-one DJ system, with its own audio engine. Your music stays where it is; curado never moves or edits your files.
 
-![curado mix view with two loaded decks in the gothic style](docs/assets/mix-gothic-es.jpg)
+![The curado console with two loaded decks, an active auto loop and keyboard badges on every control](docs/assets/console.jpg)
 
-_Native macOS mix view with the local demo, in Spanish and the gothic style._
+_The console with invented tracks. Each pale badge is the key for that control._
+
+## What you get
+
+**A console to play.** Platters you can scratch, hot cues, slip, reverse, beat jump, and pads for cues, loops, rolls, samples, key shifts and Release FX. Press **AUTO LOOP** for a loop with no IN or OUT to mark, and pick its length from 1/4 to 32 beats, even while it plays.
+
+**Effects on every channel.** Six color effects and fourteen beat effects, different per channel and on the master.
+
+**Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or use MIDI Learn. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
+
+**Your rekordbox USB as it is.** Playlists, covers, grids, keys and hot cues appear when you plug it in. curado only reads it, and it can send your cues back through a `rekordbox.xml`.
+
+|                                                                                                 |                                                                                     |
+| ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| ![Console and library side by side, with covers in the track list](docs/assets/mix-library.jpg) | ![Player with cover, waveform, reactive visual and library](docs/assets/player.jpg) |
+| **Mix:** one fixed screen, with the library, tools and keyboard map in a side panel.            | **Player:** one deck, a queue with repeat, and a visual that follows the music.     |
+| ![The console in the gothic style with a violet accent](docs/assets/console-gothic.jpg)         | ![Appearance settings with styles, themes and colors](docs/assets/settings.jpg)     |
+| **Your color in every style:** curado, pixel, gothic, y2k and minimal.                          | **Settings:** appearance, audio output, keyboard and MIDI.                          |
+
+_These show the real interface in a browser with invented tracks and a stand-in for the audio engine. [How they are made](docs/README.md#pictures)._
 
 <details>
-<summary>More views</summary>
+<summary>The Metal soundscape</summary>
 
 ![curado Metal soundscape](docs/assets/visual-metal.jpg)
 
-_The separate Metal soundscape on macOS (earlier terrain view)._
-
-![Appearance settings in English](docs/assets/settings-en-preview.jpg)
-
-_Appearance and language settings in the browser preview. English is still in progress._
+_A separate window on macOS with seven scenes, including a spectral city and a circular oscilloscope. This picture shows an earlier terrain scene._
 
 </details>
 
-## Find your way around
+## Everything it does
 
-| Place                      | What you can do                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Sidebar**                | Browse the collection, playlists and connected drives, open radio, start the local demo or configure the app.                 |
-| **Player**                 | Listen to deck A, use a queue with repeat, and watch the integrated audio-reactive visual.                                    |
-| **Mix**                    | Load A and B, inspect their waveforms and beatgrids, use cues and loops, and mix with EQ, filters, per-channel effects and eight sample pads. |
-| **Library**                | Search local tracks, check estimated BPM and key, load a selection into a deck, and organize playlists.                       |
-| **Settings**               | Adjust appearance, output and buffer, keyboard bindings and MIDI Learn.                                                       |
-| **Footer and mini player** | Control deck A and master volume; hover or focus a control for contextual help. The mini player stays on top.                 |
-
-The interface defaults to Spanish; an English option is in progress, with some native messages still in Spanish. BPM, key and beatgrid are estimates you can correct; SYNC follows a chosen master deck and does not start playback. Web-service audio runs separately from the local decks.
-
-> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows/Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [known limits](#before-you-start).
-
-## Make yourself at home
-
-- **Listen:** search your library, save favorites and playlists, play a queue with repeat, or switch to the mini player.
-- **Mix:** two decks, eight hot cues per track, beat loops, tempo/phase sync, EQ, LP/HP filters and beat echo.
-- **Find the key:** estimated BPM and musical key in standard letter notation and Camelot, an editable beatgrid, key lock and ±12-semitone transposition.
-- **Play by feel:** remappable keyboard controls, MIDI Learn, animated feedback and footer hints that explain the control you point to.
-- **Make it yours:** five visual styles, your own accent color, light/dark/system themes and waveform options.
-- **Choose your mix view:** switch between curado's original layout and an all-in-one console-inspired surface; both use the same audio controls.
-- **Feel and see:** covers in the lists and on the platters, from rekordbox or the file; taps by kind of control on a Force Touch trackpad, finer movement when pressing harder; and an optional faint camera image inside the XY surfaces.
-- **Visualize:** open Metal from the player on macOS and choose from seven scenes, including a spectral city and a circular oscilloscope. Adjust glow, reactivity, speed and color, drag to move the camera, and use H to hide controls or F for fullscreen.
-- **Bring your USB:** connected drives appear in the sidebar. A rekordbox USB shows its playlists, and tracks load with their grids, keys and hot cues. Any drive can be browsed for audio. curado only reads them.
-- **Effects on every channel:** six color effects and fourteen beat effects, different per channel and on the master, plus roll, beat jump, slip, reverse, scratch and vinyl brake.
-- **Back to rekordbox:** save a `rekordbox.xml` with your cues, loops and corrected grids, and import it from rekordbox.
-- **Explore:** fractos radio and SoundCloud inside the app. Their web audio is independent of the native mixer.
+- **Listen:** search your library, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
+- **Mix:** two decks and a choice of console or curado's classic layout, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
+- **Prepare:** BPM, grid, bars and key estimated over the whole track, in letter notation and Camelot. Correct any of them by hand. Key lock and ±12-semitone transposition. Tracks whose tempo moves can follow their own beats.
+- **Headphones:** with an output of four or more channels, 3 and 4 become a cue bus with mix and level, plus Touch Preview for the selected track.
+- **Extra surfaces:** two XY pads for effects by finger, pointer or, if you want, by hand or face through the camera, which is off until you ask and stays on your Mac.
+- **Bring your drive:** connected drives appear in the sidebar. A rekordbox USB shows its playlists; any other drive can be browsed for audio.
+- **Make it yours:** five styles, your own color, light/dark/system themes and waveform options.
+- **Visualize:** a reactive visual in the player and, on macOS, a Metal window with seven scenes. Adjust glow, reactivity, speed and color, drag the camera, H hides controls and F is fullscreen.
+- **Explore:** fractos radio and SoundCloud inside the app. Their web audio is separate from the native mixer.
 
 Local listening and mixing work offline. Web services need internet. There is no WebAudio replacement for the native engine.
+
+The interface starts in Spanish; English is in Settings and still has some native messages in Spanish. BPM, key and grid are estimates you can correct.
+
+> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows and Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [what to know first](#before-you-start).
 
 ## Install with your agent
 
@@ -98,36 +99,42 @@ bun run desktop
 ## Your first mix
 
 1. Open curado and choose **sesión de prueba** in the sidebar. It generates two short tracks and four samples locally; nothing is downloaded.
-2. Switch to **Mezcla**, play A and B, and move the crossfader to hear each side.
-3. Try a hot cue, adjust a filter, or point to a control to read its footer hint.
-4. Import your own music when you are ready. Import registers file references; removing library entries does not delete originals.
+2. Switch to **Mezcla**, press `F` and `J` to play each deck, and move the crossfader.
+3. Press `B` for a four-beat auto loop and `B` again to leave it. Point to any control to read its hint in the footer.
+4. Import your own music when you are ready. Import registers file references; removing library entries never deletes originals.
 
-| Action                     | Deck A        | Deck B        |
-| -------------------------- | ------------- | ------------- |
-| Play/pause                 | Q, Space      | P             |
-| Jump to first cue and play | A             | L             |
-| Hot cues 1/2/3 (pads: 8)   | 1 / 2 / 3     | 8 / 9 / 0     |
-| Save cue                   | Shift + 1/2/3 | Shift + 8/9/0 |
-| Loop / IN / OUT            | W / E / R     | O / I / U     |
-| Nudge −/+                  | D / F         | J / K         |
+Each hand plays its own deck, with the same finger for the same job:
 
-Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does not stop web audio). Remap controls in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
+| Action         | Deck 1    | Deck 2    | With Shift  | With Control |
+| -------------- | --------- | --------- | ----------- | ------------ |
+| Play/pause     | `F`       | `J`       |             |              |
+| Cue            | `D`       | `K`       |             |              |
+| Sync           | `G`       | `H`       | master deck | key lock     |
+| Hot cues A–D   | `1 2 3 4` | `7 8 9 0` | save        | delete       |
+| Hot cues E–H   | `Q W E R` | `U I O P` | save        | delete       |
+| Auto loop      | `B`       | `N`       | shorter     | longer       |
+| Loop in / out  | `Z` `X`   | `/` `.`   | ½ / 2×      |              |
+| Reloop         | `C`       | `,`       | quantize    |              |
+| Nudge          | `A` `S`   | `L` `;`   | one beat    | four beats   |
+| Slip           | `V`       | `M`       | reverse     |              |
+| Beat FX on/off | `T`       | `Y`       |             |              |
+
+`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads into a deck. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
 
 ## Before you start
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
-- Effects, EQ and interpolation are measured, not yet listened to, and were not compared with the hardware they take after. There is no headphone cue, which needs a second output.
+- Effects are measured. Playback and mixing have been heard on the maintainer's system, but nothing was compared side by side with the hardware it takes after.
+- The cue bus has not been tried on a real 4-channel interface, nor the camera with a real camera, nor touch and pressure on a trackpad. Without four output channels there is no separate headphone cue. Device recovery is manual.
 - rekordbox USBs are read only, and USBs with only the newer OneLibrary database show as plain files. Cues reach rekordbox through an XML export that has not been tried in rekordbox yet, so back up its library first. USB tracks with no certain original on the computer arrive there as other tracks.
-- BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Tempo and key change at once; when transposing, very low notes can sit slightly sharp.
-- Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.
-- One stereo output; no independent headphone cue. Device recovery is manual.
-- Web playback/login and the integrated browser layout still need real WebView validation. Web audio bypasses local master, FX, sync and panic.
+- BPM, grid and key estimates are measured against rekordbox's and can be wrong: check them before mixing. Tempo-following is opt-in per track because it fires on some steady ones. On a transposed track, very low notes can sit slightly sharp.
+- Web playback and login inside the app still need real validation. Web audio bypasses the local master, effects, sync and panic.
 
-These are active priorities, not hidden configuration switches. See [Roadmap](docs/ROADMAP.md) for what comes next.
+These are active priorities, not hidden switches. See [Roadmap](docs/ROADMAP.md) for what comes next.
 
 ## Build with us
 
-The sound runs in a Rust engine (CPAL + Symphonia); Tauri and React handle the desktop interface. Decoding and analysis stay outside the audio callback, and everything inside it is preallocated. The engine owns transport and position; the UI displays snapshots.
+The sound runs in a Rust engine (CPAL + Symphonia); Tauri and React handle the desktop interface. Decoding and analysis stay outside the audio callback, and everything inside it is preallocated. The engine owns transport and position; the UI displays snapshots. Separate native helpers hold the Metal window and the camera, so neither can reach the audio.
 
 Start with [AGENTS.md](AGENTS.md), then [Setup](docs/SETUP.md) and the [documentation map](docs/README.md). Record evidence and limits with every change. Passing a build is not a listening test.
 

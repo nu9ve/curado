@@ -27,7 +27,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 ## P1 · Complete player
 
 - Editable queue/shuffle; next-track prefetch exists. Real gapless depends on the native clock.
-- Reorderable playlists, real tags, artwork/albums, file relocation and cancellable incremental scans.
+- Reorderable playlists, real tags, albums (covers show, but are not edited or searched), file relocation and cancellable incremental scans.
 - Theme/style/mode persist; finish navigation state and validated startup output.
 - Alternate views (S6): mini exists; compact/focus/stage/floating visual and per-view size persistence remain.
 - macOS template tray icon/now-playing (S8).

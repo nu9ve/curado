@@ -87,6 +87,61 @@
   right: 0;
   border-radius: 0 14px 0 0;
 }
+.rx-autoloop {
+  display: grid;
+  gap: 3px;
+  width: 176px;
+}
+.rx-autoloop-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 21px;
+  padding: 0 7px;
+  color: #cfd2d4;
+  background: #2a2d30;
+  border: 0;
+  border-radius: 2px;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+}
+.rx-autoloop-main b {
+  margin-left: auto;
+  color: var(--tone);
+  font: 600 10px var(--font-mono);
+}
+.rx-autoloop-main[aria-pressed='true'] {
+  color: #111;
+  background: var(--tone);
+  box-shadow: 0 0 9px var(--tone-glow);
+}
+.rx-autoloop-main[aria-pressed='true'] b {
+  color: #111;
+}
+.rx-autoloop > div {
+  display: flex;
+  gap: 1px;
+  padding: 2px;
+  background: #0a0b0d;
+}
+.rx-autoloop > div button {
+  flex: 1;
+  min-width: 0;
+  min-height: 15px;
+  padding: 0;
+  color: #9ea3a8;
+  background: #2a2d30;
+  border: 0;
+  font-size: 8px;
+}
+.rx-autoloop > div button[data-next='true'] {
+  color: var(--tone);
+  box-shadow: inset 0 -1px 0 var(--tone);
+}
+.rx-autoloop > div button[aria-pressed='true'] {
+  color: #111;
+  background: var(--tone);
+}
 .rx-usb {
   display: grid;
   justify-items: center;
@@ -306,7 +361,8 @@
 .rx-browser {
   position: absolute;
   left: 962px;
-  top: 150px;
+  /* Ends above deck 2's top row, whose IN and OUT would otherwise be under it. */
+  top: 116px;
   z-index: 2;
   width: 112px;
   height: 172px;

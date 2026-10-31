@@ -22,7 +22,7 @@ import { actionKey } from '../lib/feedback';
 import { haptic } from '../lib/haptics';
 import { tr } from '../lib/language';
 import type { BeatFxState, Slot } from '../lib/types';
-import { Knob } from './Controls';
+import { Knob, tabbed } from './Controls';
 
 const act = (slot: number, kind: string, value = 0) => actionKey({ slot, kind, value });
 const RIM_NOTCH = Math.PI / 15;
@@ -216,7 +216,7 @@ export function PerformancePads({
           onPointerUp={release}
           onPointerCancel={release}
           onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+            if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
               e.preventDefault();
               hold();
             }
@@ -251,7 +251,7 @@ export function PerformancePads({
           onPointerUp={release}
           onPointerCancel={release}
           onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+            if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
               e.preventDefault();
               hold();
             }
@@ -299,7 +299,7 @@ export function PerformancePads({
         onPointerUp={release}
         onPointerCancel={release}
         onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && !e.repeat) {
+          if (tabbed(e) && (e.key === 'Enter' || e.key === ' ') && !e.repeat) {
             e.preventDefault();
             hold();
           }

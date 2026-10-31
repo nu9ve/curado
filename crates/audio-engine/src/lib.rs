@@ -94,6 +94,8 @@ pub enum Control {
     CueBoth(usize),
     Quantize(bool),
     LoopBeats(f64),
+    /// One press: a loop of the last length from here, or out of the one playing.
+    AutoLoop,
     Sync(bool),
     MasterDeck,
     Tempo(f64),
@@ -183,6 +185,7 @@ impl Action {
                 Control::CueBoth(self.value as usize)
             }
             "quantize" if matches!(self.value, 0.0 | 1.0) => Control::Quantize(self.value == 1.),
+            "autoLoop" if self.slot < 2 => Control::AutoLoop,
             "loopBeats" if BEAT_DIVISIONS.contains(&self.value) && self.value != 0.75 => {
                 Control::LoopBeats(self.value)
             }
@@ -564,6 +567,7 @@ impl EngineHandle {
                         | Control::RollEnd
                         | Control::BeatJump(_)
                         | Control::LoopScale(_)
+                        | Control::AutoLoop
                         | Control::JogTouch(_)
                         | Control::JogMove(_)
                         | Control::JogBend(_)
@@ -830,6 +834,18 @@ impl Deck {
         self.loop_in = start;
         self.loop_out = (start + span).min(len);
         self.looping = self.loop_out > self.loop_in;
+    }
+    /// A new length for the loop playing keeps its start, so it stays in time with the music.
+    fn resize_loop(&mut self, beats: f64, len: f64, rate: f64) -> bool {
+        if !self.looping {
+            return false;
+        }
+        let span = self.span_from(self.loop_in, beats, rate);
+        if span < self.loop_frames as f64 * 2. || self.loop_in + span > len {
+            return false;
+        }
+        self.loop_out = self.loop_in + span;
+        true
     }
     /// A correction by hand is one tempo, whatever the analysis found before it.
     fn beat_map(&self) -> Option<&[f64]> {
@@ -1512,6 +1528,16 @@ impl Deck {
                         self.loop_out = self.loop_in + span;
                         self.loop_beats *= factor;
                     }
+                } else {
+                    // Nothing to resize yet: it is the length the next auto loop will have.
+                    self.loop_beats = (self.loop_beats * factor).clamp(BEAT_DIVISIONS[0], 32.);
+                }
+            }
+            Control::AutoLoop => {
+                if self.looping {
+                    self.looping = false;
+                } else {
+                    self.make_loop(self.loop_beats, len, rate);
                 }
             }
             Control::JogTouch(on) => {
@@ -1609,7 +1635,9 @@ impl Deck {
             Control::Quantize(q) => self.quantize = q,
             Control::LoopBeats(beats) => {
                 self.loop_beats = beats;
-                self.make_loop(beats, len, rate);
+                if !self.resize_loop(beats, len, rate) {
+                    self.make_loop(beats, len, rate);
+                }
             }
             Control::Low(v) => self.params.low = v,
             Control::Mid(v) => self.params.mid = v,

@@ -43,7 +43,15 @@ import type {
   LibraryEdit,
 } from './lib/types';
 import { EMPTY_SLOT } from './lib/types';
-import { DEFAULT_KEYS, allowedInMode, matchKey, resolveAction } from './lib/keyboard';
+import {
+  DEFAULT_KEYS,
+  TEXT_ENTRY,
+  allowedInMode,
+  keyIsForTheMix,
+  matchKey,
+  resolveAction,
+  withAutoLoopKeys,
+} from './lib/keyboard';
 import { feedback } from './lib/feedback';
 import { refreshWaveform } from './lib/waveform';
 import { invalidateCueInfo } from './lib/cues';
@@ -129,7 +137,7 @@ export default function App() {
           // Saved under the old layout, without the bar's new meaning: it stays stored until a
           // new choice is saved, but the scheme it was made for is gone.
           if (data && !disposed && data.some((key) => key.action.kind === 'toggleBoth'))
-            setKeys(data);
+            setKeys(withAutoLoopKeys(data));
         })
         .catch(onError);
     }
@@ -164,19 +172,40 @@ export default function App() {
   );
   useEffect(() => {
     if (settings || newPlaylist) return;
+    let pressed = 0;
     const handle = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest('input,textarea,select,[contenteditable="true"],[role="slider"]')) return;
-      // A button keeps focus after a click, and the bar must still mean the whole mix then.
-      if (target.closest('button:focus-visible') && ['Space', 'Enter'].includes(e.code)) return;
+      if (!keyIsForTheMix(e.target as HTMLElement, e.code)) return;
       // Match ignoring mode first so blocked keys still explain themselves in the HUD.
-      const binding = matchKey(e, keys, 'mix');
+      const binding = matchKey(e, keys, 'mix', pressed > 0);
       if (!binding) return;
       e.preventDefault();
       trigger(binding);
     };
+    /** Pressing anything but a field gives the keyboard back, even where a press takes no focus. */
+    const press = (e: PointerEvent) => {
+      pressed++;
+      const active = document.activeElement as HTMLElement | null;
+      if (!active || active === document.body) return;
+      if (!(e.target as Element).closest?.(`${TEXT_ENTRY},select`)) active.blur();
+    };
+    const lift = () => {
+      pressed = Math.max(0, pressed - 1);
+    };
+    const forget = () => {
+      pressed = 0;
+    };
     window.addEventListener('keydown', handle);
-    return () => window.removeEventListener('keydown', handle);
+    window.addEventListener('pointerdown', press, true);
+    window.addEventListener('pointerup', lift, true);
+    window.addEventListener('pointercancel', lift, true);
+    window.addEventListener('blur', forget);
+    return () => {
+      window.removeEventListener('keydown', handle);
+      window.removeEventListener('pointerdown', press, true);
+      window.removeEventListener('pointerup', lift, true);
+      window.removeEventListener('pointercancel', lift, true);
+      window.removeEventListener('blur', forget);
+    };
   }, [keys, settings, newPlaylist, trigger]);
   const loadWith = useCallback(
     async (slot: number, start: () => Promise<number | null>) => {

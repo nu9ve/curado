@@ -113,6 +113,7 @@ export function WaveOverview({
         if (e.buttons === 1 && onSeek && d) seekAt(e.clientX, e.currentTarget);
       }}
       onKeyDown={(e) => {
+        if (!e.currentTarget.matches(':focus-visible')) return;
         if (!onSeek || !d || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
         e.preventDefault();
         e.stopPropagation();
@@ -309,6 +310,7 @@ export function ZoomWave({
       aria-valuenow={onSeek ? Math.round(slot.position) : undefined}
       aria-label={tr(`Waveform detallada deck ${name}`, `Detailed waveform deck ${name}`)}
       onKeyDown={(e) => {
+        if (!e.currentTarget.matches(':focus-visible')) return;
         if (!onSeek || !slot.duration || !['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
         e.preventDefault();
         e.stopPropagation();

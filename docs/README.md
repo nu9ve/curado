@@ -22,4 +22,8 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 
 Before changing code, read [AGENTS.md](../AGENTS.md). Start a session by choosing a verifiable priority and reading its dependencies. Close it by recording evidence, limits and a specific next step. Documentation is maintained explicitly; it does not update itself.
 
+## Pictures
+
+The pictures in `docs/assets` show the real interface in a browser, with invented tracks and a stand-in for the native side, so no one's music appears and nothing depends on a machine's library. With `bun run dev` running, `bun run docs:pictures` makes them again and `bun run check:input` plays keys and pointer together with real input events. They use Chrome, or the path in `CHROME`. The Metal picture needs the native window, so it is older. Pictures are made when asked for, as [AGENTS.md](../AGENTS.md) says of visual tests.
+
 Technical documentation is in English. `README.es.md` is the Spanish entry point. The app defaults to Spanish; English localization is in progress. Made by [nu9ve](https://nu9ve.xyz).

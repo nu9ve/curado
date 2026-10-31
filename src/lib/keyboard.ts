@@ -29,6 +29,7 @@ const HANDS = [
     reloop: 'KeyC',
     slip: 'KeyV',
     fx: 'KeyT',
+    auto: 'KeyB',
   },
   {
     slot: 1,
@@ -43,6 +44,7 @@ const HANDS = [
     reloop: 'Comma',
     slip: 'KeyM',
     fx: 'KeyY',
+    auto: 'KeyN',
   },
 ];
 export const DEFAULT_KEYS: KeyBinding[] = [
@@ -87,6 +89,10 @@ export const DEFAULT_KEYS: KeyBinding[] = [
     key(hand.slip, hand.slot, 'slip', 1),
     key(hand.slip, hand.slot, 'reverse', 1, 'shift'),
     key(hand.fx, hand.slot, 'beatFxOn', 1),
+    // One press for a loop, Shift and Control for its length, before or during it.
+    key(hand.auto, hand.slot, 'autoLoop'),
+    key(hand.auto, hand.slot, 'loopScale', 0.5, 'shift'),
+    key(hand.auto, hand.slot, 'loopScale', 2, 'ctrl'),
   ]),
   // Option with a pad's key fires the sample at that place.
   ...['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit7', 'Digit8', 'Digit9', 'Digit0'].map(
@@ -97,6 +103,35 @@ export const DEFAULT_KEYS: KeyBinding[] = [
 export const TOGGLE_KINDS = new Set(['slip', 'reverse', 'beatFxOn', 'keyLock', 'sync', 'quantize']);
 /** Handled by the interface: they move through a list, which the engine knows nothing about. */
 export const LOCAL_KINDS = new Set(['listMove', 'listLoad']);
+/** What can be typed in. It keeps its keys while it has focus, and only then. */
+export const TEXT_ENTRY =
+  'input:not([type="range"],[type="checkbox"],[type="radio"],[type="button"],[type="color"]),textarea,[contenteditable="true"]';
+/** The keys controls work with themselves. */
+const CONTROL_KEYS = new Set(['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']);
+/**
+ * A control reached with Tab keeps the keys it works with, so the app can be used without a
+ * pointer. The focus a click leaves behind claims nothing: having touched a knob or a menu must
+ * not take the keyboard away from the mix.
+ */
+export function keyIsForTheMix(target: Pick<Element, 'closest' | 'matches'>, code: string) {
+  if (target.closest(TEXT_ENTRY)) return false;
+  return !(CONTROL_KEYS.has(code) && target.matches(':focus-visible'));
+}
+/** A layout saved before auto loop existed gets its keys, where they are still free. */
+export function withAutoLoopKeys(saved: KeyBinding[]) {
+  if (saved.some((binding) => binding.action.kind === 'autoLoop')) return saved;
+  const combo = (b: KeyBinding) => `${b.code}:${b.shift}:${!!b.ctrl}:${!!b.alt}`;
+  const taken = new Set(saved.map(combo));
+  return [
+    ...saved,
+    ...DEFAULT_KEYS.filter(
+      (binding) =>
+        (binding.action.kind === 'autoLoop' ||
+          (binding.action.kind === 'loopScale' && ['KeyB', 'KeyN'].includes(binding.code))) &&
+        !taken.has(combo(binding)),
+    ),
+  ];
+}
 export function keyLabel(code: string) {
   return (
     (
@@ -123,6 +158,7 @@ export function actionLabel(kind: string) {
   if (currentLanguage() === 'en') {
     const english: Record<string, string> = {
       toggleBoth: 'Play / pause all',
+      autoLoop: 'Auto loop',
       listMove: 'Move in the list',
       listLoad: 'Load the selection',
       releaseFx: 'Release FX',
@@ -241,6 +277,7 @@ export function actionLabel(kind: string) {
         highPass: 'Filtro HP',
         echoBeats: 'Echo en beats',
         quantize: 'Cuantizado',
+        autoLoop: 'Auto loop',
         loopBeats: 'Loop en beats',
         sync: 'Sync de tempo',
         masterDeck: 'Deck master',
@@ -285,16 +322,18 @@ export function matchKey(
   event: Pick<KeyboardEvent, 'code' | 'shiftKey' | 'metaKey' | 'ctrlKey' | 'altKey' | 'repeat'>,
   bindings: KeyBinding[],
   mode: 'player' | 'mix',
+  /** A pointer is down: a modifier may be there for the drag, so it need not mean a thing here. */
+  dragging = false,
 ) {
   // Command stays the system's and the app's: quit, copy, close.
   if (event.metaKey) return undefined;
-  const binding = bindings.find(
-    (b) =>
-      b.code === event.code &&
-      b.shift === event.shiftKey &&
-      !!b.ctrl === event.ctrlKey &&
-      !!b.alt === event.altKey,
-  );
+  const find = (shift: boolean, ctrl: boolean, alt: boolean) =>
+    bindings.find(
+      (b) => b.code === event.code && b.shift === shift && !!b.ctrl === ctrl && !!b.alt === alt,
+    );
+  const binding =
+    find(event.shiftKey, event.ctrlKey, event.altKey) ??
+    (dragging ? find(false, false, false) : undefined);
   // Holding an arrow runs down a list; holding anything else must not stutter the music.
   if (event.repeat && binding?.action.kind !== 'listMove') return undefined;
   return binding && allowedInMode(binding.action, mode) ? binding : undefined;

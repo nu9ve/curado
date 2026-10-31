@@ -56,7 +56,7 @@ The following is a **plan**, not a completed test record. Respect current author
 
 15. Camera: permission prompt, MANOS and CARA, the light going off on leaving Mix or switching apps and back on return, unplugging a camera, another app holding it, CPU use with and without VER, and whether the XY overlay lines up with a real hand.
 
-14. Keyboard in real use, every badge against its action. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
+14. Keyboard in real use, every badge against its action, keys during a drag in the app's own WebKit, and how many keys a real keyboard takes at once. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
 
 13. Mixing screen in the real app: the console against the hardware, rail and window controls, every style and theme, position stream smoothness and cost. Platter feel: scratch, bend, scroll. Each color and beat effect on each channel and master, tails, EQ kills, roll, slip, reverse and brake on real music, with and without key lock, watching for dropouts. MIDI toggles and roll on a controller. A real variable-tempo track.
 
