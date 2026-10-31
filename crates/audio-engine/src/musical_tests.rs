@@ -1,34 +1,5 @@
 use super::*;
 #[test]
-fn obsolete_tuning_batch_is_acknowledged_and_an_unchanged_deck_can_retry() {
-    let (h, mut r) = engine(48000);
-    let a = clip(1, 120.);
-    let b = clip(2, 120.);
-    h.load(0, a.clone()).unwrap();
-    h.load(1, b.clone()).unwrap();
-    h.control(0, Control::TransposeStep(1)).unwrap();
-    h.control(1, Control::TransposeStep(1)).unwrap();
-    render(&mut r, 1);
-    let snap = h.snapshot();
-    let job = |i: usize, source: Arc<Clip>| TunedClip {
-        clip: source,
-        load_ticket: snap.slots[i].load_ticket,
-        revision: snap.slots[i].tune_revision,
-        tuning: snap.slots[i].tuning,
-    };
-    let batch = [Some(job(0, a)), Some(job(1, b))];
-    h.control(0, Control::TransposeStep(1)).unwrap();
-    let ticket = h.apply_tuning(batch.clone()).unwrap();
-    render(&mut r, 1);
-    assert!(h.tuning_acknowledged(ticket));
-    let s = h.snapshot();
-    assert_eq!(s.slots[1].applied_tuning.semitones, 0);
-    let ticket = h.apply_tuning([None, batch[1].clone()]).unwrap();
-    render(&mut r, 1);
-    assert!(h.tuning_acknowledged(ticket));
-    assert_eq!(h.snapshot().slots[1].applied_tuning.semitones, 1);
-}
-#[test]
 fn synced_quantized_cue_waits_for_the_master_beat_and_panic_cancels_it() {
     let (h, mut r) = engine(48000);
     h.load_and_play(0, clip(1, 120.)).unwrap();
@@ -142,45 +113,6 @@ fn native_sync_matches_tempo_and_beat_phase_and_survives_quantized_loops() {
     h.control(0, Control::SetMode(false)).unwrap();
     render(&mut r, 1);
     assert_eq!(h.snapshot().master_deck, 0);
-}
-#[test]
-fn prepared_audio_preserves_transport_and_old_same_track_jobs_are_rejected() {
-    let (h, mut r) = engine(48000);
-    let source = clip(1, 120.);
-    h.load_and_play(0, source.clone()).unwrap();
-    render(&mut r, 1000);
-    for _ in 0..3 {
-        h.control(0, Control::TransposeStep(1)).unwrap();
-    }
-    h.control(0, Control::Tempo(144.)).unwrap();
-    render(&mut r, 1000);
-    let s = h.snapshot().slots[0].clone();
-    assert_eq!(s.tuning.semitones, 3);
-    assert_eq!(s.applied_tuning.semitones, 0);
-    assert_eq!(s.rate, 1.);
-    let shifted = tuning::prepare(&source, s.tuning, || false).unwrap();
-    let job = TunedClip {
-        clip: shifted,
-        load_ticket: s.load_ticket,
-        revision: s.tune_revision,
-        tuning: s.tuning,
-    };
-    let ticket = h.apply_tuning([Some(job.clone()), None]).unwrap();
-    assert!(!h.tuning_acknowledged(ticket));
-    render(&mut r, 128);
-    let a = h.snapshot().slots[0].clone();
-    assert!(h.tuning_acknowledged(ticket));
-    assert_eq!(a.applied_tuning.semitones, 3);
-    assert!(a.playing);
-    assert!((a.position - s.position - 128. / 48000. * 1.2).abs() < 1e-7);
-    h.load(0, source).unwrap();
-    let ticket = h.apply_tuning([Some(job), None]).unwrap();
-    render(&mut r, 1);
-    let a = h.snapshot().slots[0].clone();
-    assert!(h.tuning_acknowledged(ticket));
-    assert_eq!(a.applied_tuning.semitones, 0);
-    assert!(!a.playing);
-    assert_eq!(a.id, 1);
 }
 #[test]
 fn harmonic_sync_uses_relative_keys_and_validates_missing_metadata() {

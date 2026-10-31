@@ -83,7 +83,7 @@ const descriptions: Record<string, [string, string]> = {
   ],
   rate: [
     'Cambia la velocidad de este deck.',
-    'Con key lock se conserva la tonalidad. El ajuste se prepara fuera del callback y se aplica al estar listo. Sin key lock funciona como varispeed. Doble clic vuelve a velocidad original.',
+    'Con key lock se conserva la tonalidad y el cambio se aplica al instante. Sin key lock funciona como varispeed. Doble clic vuelve a velocidad original.',
   ],
   low: [
     'Ajusta los graves de este canal.',
@@ -135,11 +135,11 @@ const descriptions: Record<string, [string, string]> = {
   ],
   transpose: [
     'Cambia la tonalidad en semitonos sin cambiar el BPM.',
-    'El worker prepara PCM de la misma duración. Durante la preparación sigue sonando el ajuste anterior. No cambia modo mayor/menor.',
+    'Se aplica al instante. No cambia modo mayor/menor. En notas muy graves el tono puede quedar algo alto.',
   ],
   transposeStep: [
     'Sube o baja un semitono sin cambiar el BPM.',
-    'Las pulsaciones se acumulan en el motor. Se cancelan preparaciones obsoletas y se aplica la última petición lista, conservando transporte y cues.',
+    'Se aplica al instante, conservando transporte y cues.',
   ],
   keyLock: [
     'Conserva la tonalidad al cambiar el tempo.',
@@ -226,7 +226,7 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   rate: [
     'Change this deck’s speed.',
-    'Key lock preserves pitch using background preparation; without it, speed also changes pitch. Double-click to reset.',
+    'Key lock keeps pitch and applies at once; without it, speed also changes pitch. Double-click to reset.',
   ],
   low: [
     'Adjust channel bass.',
@@ -278,11 +278,11 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   transpose: [
     'Change key in semitones without changing BPM.',
-    'Audio is prepared in the background while the previous setting continues playing.',
+    'It applies at once and does not change major or minor. Very low notes can sit slightly sharp.',
   ],
   transposeStep: [
     'Move one semitone without changing BPM.',
-    'Requests accumulate and obsolete preparations are canceled; transport and cues are preserved.',
+    'It applies at once; transport and cues are preserved.',
   ],
   keyLock: [
     'Preserve pitch when changing tempo.',

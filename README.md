@@ -37,7 +37,7 @@ _Appearance and language settings in the browser preview. English is still in pr
 
 The interface defaults to Spanish; an English option is in progress, with some native messages still in Spanish. BPM, key and beatgrid are estimates you can correct; SYNC follows a chosen master deck and does not start playback. Web-service audio runs separately from the local decks.
 
-> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows/Linux hardware validation, long-track streaming and release signing are still pending. See [current status](docs/STATUS.md) and [known limits](#before-you-start).
+> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows/Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [known limits](#before-you-start).
 
 ## Make yourself at home
 
@@ -111,8 +111,8 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Native audio panic: `Esc` (does n
 
 ## Before you start
 
-- Tracks are currently preloaded, capped at **96 MiB of decoded PCM per file**: roughly 4:22 at 48 kHz stereo. An hour-long track is not supported yet.
-- BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Pitch changes prepare a full clip in the background and can take time and extra memory.
+- Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
+- BPM and grid estimates are measured against rekordbox's and can be wrong; check them before mixing, especially at low periodicity. Key is unmeasured on real music. Tempo and key change at once; when transposing, very low notes can sit slightly sharp.
 - Playheads update at 20 Hz. Resampling and EQ remain basic. Loop fades and the output limiter pass automated measurements but still need listening tests.
 - One stereo output; no independent headphone cue. Device recovery is manual.
 - Web playback/login and the integrated browser layout still need real WebView validation. Web audio bypasses local master, FX, sync and panic.
@@ -121,7 +121,7 @@ These are active priorities, not hidden configuration switches. See [Roadmap](do
 
 ## Build with us
 
-The sound runs in a Rust engine (CPAL + Symphonia); Tauri and React handle the desktop interface. Decoding, analysis and pitch preparation stay outside the audio callback. The engine owns transport and position; the UI displays snapshots.
+The sound runs in a Rust engine (CPAL + Symphonia); Tauri and React handle the desktop interface. Decoding and analysis stay outside the audio callback, and everything inside it is preallocated. The engine owns transport and position; the UI displays snapshots.
 
 Start with [AGENTS.md](AGENTS.md), then [Setup](docs/SETUP.md) and the [documentation map](docs/README.md). Record evidence and limits with every change. Passing a build is not a listening test.
 

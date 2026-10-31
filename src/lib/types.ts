@@ -98,9 +98,6 @@ export interface Slot {
   loadTicket: number;
   music: MusicAnalysis;
   tuning: Tuning;
-  appliedTuning: Tuning;
-  tuneRevision: number;
-  tunedRevision: number;
   quantize: boolean;
   sync: boolean;
   loopBeats: number;
@@ -142,7 +139,6 @@ export interface AppSnapshot {
   output: Output | null;
   error: string | null;
   midi: MidiState;
-  tuningError: string | null;
 }
 export interface ImportReport {
   added: number;
@@ -160,9 +156,6 @@ export const EMPTY_SLOT: Slot = {
   loadTicket: 0,
   music: EMPTY_MUSIC,
   tuning: DEFAULT_TUNING,
-  appliedTuning: DEFAULT_TUNING,
-  tuneRevision: 0,
-  tunedRevision: 0,
   quantize: true,
   sync: false,
   loopBeats: 4,

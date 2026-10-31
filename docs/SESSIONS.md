@@ -2,12 +2,12 @@
 
 Topics large enough to deserve a separate objective, evidence and closure, in suggested priority order. On starting one, mark its scope in STATUS as in progress; on completion record evidence in CHANGELOG. Format: context, scope, done when, risks.
 
-## S1 · Streaming and global memory budget (P0)
+## S1 · Long tracks and global memory budget (P0)
 
-- **Context:** preloaded PCM limits a track to ~4:22, up to 6 ×96 MiB plus queue prefetch; the most visible structural player limitation.
-- **Scope:** incremental per-deck decode into preallocated rings, bounded seek, cue/loop prefetch, cancellation/decode timeouts. Keep preload for samples. Waveform already computes in the decoding pass without retaining full PCM.
-- **Done when:** a 60-minute track plays/seeks/loops without callback allocations (allocator test), bounded measured total memory and a slow-disk corpus.
-- **Risks:** distant seeks in unindexed codecs, cue latency and queue prefetch interaction.
+**Implemented 2026-10-30 without streaming:** see ADR-019 and Status. A 60-minute track plays, seeks and loops with no callback allocation and a global memory limit; playback touches no disk.
+
+- **Remaining:** import progress and cancellation, a corrupt-file corpus and decode time limits; waveform UI with hour-long tracks, unseen so far.
+- **Reconsider streaming when:** tracks over about 90 minutes matter, or target machines cannot spare the memory. Its risks are distant seeks in unindexed codecs, cue latency and dropouts from slow drives.
 
 ## S2 · Position clock and smooth playhead (P0/UX)
 
@@ -26,7 +26,7 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S4 · Beatgrid, BPM, key and sync (P1 mixing)
 
-**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and worker-prepared pitch/key lock. **Whole-track analysis 2026-10-30:** see Status for agreement with stored rekordbox grids. Quality is not complete: listening, ground truth for phase and bars, and variable tempo remain.
+**Foundation implemented 2026-10-26:** offline analysis, editable grid, quantized loops, native sync, letter/Camelot notation and pitch/key lock, now real time. **Whole-track analysis 2026-10-30:** see Status for agreement with stored rekordbox grids. Quality is not complete: listening, ground truth for phase and bars, and variable tempo remain.
 
 - **Context:** three-band waveform exists; rhythmic structure needs validation/refinement.
 - **Scope:** offline BPM/onsets in decode worker near `analysis.rs`, persistent grid metadata (currently versioned settings in SQLite, see ARCHITECTURE), visible beat markers, quantized loops/tempo sync. Extend initial key lock to incremental streaming and validate quality.

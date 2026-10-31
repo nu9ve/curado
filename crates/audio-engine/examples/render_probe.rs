@@ -28,6 +28,11 @@ fn main() {
         renderer.render(&mut output, 2);
     }
     let visuals = std::env::args().any(|arg| arg == "--visuals");
+    let key_lock = std::env::args().any(|arg| arg == "--key-lock");
+    if key_lock {
+        handle.control(0, Control::Rate(1.06)).unwrap();
+        handle.control(1, Control::Rate(0.94)).unwrap();
+    }
     let blocks = 48000 * 60 / 256;
     let mut timings = Vec::with_capacity(blocks);
     for block in 0..blocks {
@@ -40,5 +45,5 @@ fn main() {
     }
     timings.sort_by(f64::total_cmp);
     let snap = handle.snapshot();
-    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"visualCapture\":{},\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{},\"limitedFrames\":{}}}",visuals,timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped,snap.limited);
+    println!("{{\"kind\":\"offline CPU probe, not hardware latency\",\"sampleRate\":48000,\"frames\":256,\"slots\":6,\"visualCapture\":{},\"keyLock\":{key_lock},\"simulatedSeconds\":60,\"p50Us\":{:.2},\"p95Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33,\"clippedSamples\":{},\"limitedFrames\":{}}}",visuals,timings[blocks/2],timings[blocks*95/100],timings[blocks*99/100],timings[blocks-1],snap.clipped,snap.limited);
 }

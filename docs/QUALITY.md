@@ -50,7 +50,7 @@ The following is a **plan**, not a completed test record. Respect current author
 
 ## Measurement
 
-Synthetic clicks/triads do not certify musical accuracy, and `bun run music:eval` measures agreement with stored rekordbox grids, not truth. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Offline clip pitch preparation is neither streaming DSP nor instant tempo transition; music probes measure no DAC/perceived quality.
+Synthetic clicks/triads do not certify musical accuracy, and `bun run music:eval` measures agreement with stored rekordbox grids, not truth. Before claiming professional analysis/sync: known-tempo and variable-tempo corpus, silent intros, human timing, unpitched percussion, ambiguous/modulating keys and every supported rate/transpose. Listen for transient/stereo-phase/bypass quality, loop fades on real material and limiter pumping; measure total memory during preparation/cancel/mixing under load. Music probes measure no DAC/perceived quality.
 
 Process RSS alone is not Tauri's total memory: WebKit/GPU have separate processes. CPU percentage does not prove glitch freedom. Callback budget = frames/sample_rate, 256/48000 ≈5.33 ms. Compare P50/P95/P99/max under load. Measure end-to-end latency by loopback/timestamps: buffer + OS + hardware + scheduling.
 

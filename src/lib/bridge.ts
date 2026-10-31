@@ -5,7 +5,6 @@ import type { Action, AppSnapshot } from './types';
 import { tr } from './language';
 export const native = isTauri();
 let snapshot: AppSnapshot = {
-  tuningError: null,
   mode: 'player',
   persistenceError: null,
   queue: { count: 0, index: 0, active: false, repeat: 'off', error: null },

@@ -62,20 +62,15 @@ pub fn analyze(samples: &[[f32; 2]], sample_rate: u32) -> MusicAnalysis {
     });
     // Avoid treating antiphase stereo as silence.
     let use_left = energy[0] < energy[1] * 0.01;
-    let mono: Vec<f64> = samples
+    // Single precision: this buffer is over 150 MiB on an hour-long track.
+    let mono: Vec<f32> = samples
         .chunks(stride)
         .map(|chunk| {
             chunk
                 .iter()
-                .map(|f| {
-                    if use_left {
-                        f[0] as f64
-                    } else {
-                        (f[0] as f64 + f[1] as f64) * 0.5
-                    }
-                })
-                .sum::<f64>()
-                / chunk.len() as f64
+                .map(|f| if use_left { f[0] } else { (f[0] + f[1]) * 0.5 })
+                .sum::<f32>()
+                / chunk.len() as f32
         })
         .collect();
     let first_sound = beat::first_sound(samples, sample_rate);
@@ -94,7 +89,7 @@ pub fn analyze(samples: &[[f32; 2]], sample_rate: u32) -> MusicAnalysis {
     }
 }
 
-fn key(mono: &[f64], rate: f64) -> (Option<MusicalKey>, f32) {
+fn key(mono: &[f32], rate: f64) -> (Option<MusicalKey>, f32) {
     const N: usize = 8192;
     if mono.len() < N {
         return (None, 0.);
@@ -110,7 +105,8 @@ fn key(mono: &[f64], rate: f64) -> (Option<MusicalKey>, f32) {
     };
     for window in mono.windows(N).step_by(hop) {
         for i in 0..N {
-            re[i] = window[i] * (0.5 - 0.5 * (std::f64::consts::TAU * i as f64 / N as f64).cos());
+            re[i] = window[i] as f64
+                * (0.5 - 0.5 * (std::f64::consts::TAU * i as f64 / N as f64).cos());
             im[i] = 0.;
         }
         fft(&mut re, &mut im);

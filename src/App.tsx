@@ -131,7 +131,7 @@ export default function App() {
     async (slot: number, id: number) => {
       setLoading((prev) => [...prev, slot]);
       try {
-        await call('load_track', { slot, id });
+        if (!(await call<boolean>('load_track', { slot, id }))) return;
         setLibrary(await call<LibraryData>('get_library'));
         void refreshWaveform(id);
         const destination = slot < 2 ? `deck ${slot ? 'B' : 'A'}` : `sample ${slot - 1}`;
@@ -139,7 +139,8 @@ export default function App() {
       } catch (e) {
         onError(e);
       } finally {
-        setLoading((prev) => prev.filter((i) => i !== slot));
+        // One entry per load: a slot stays busy while a newer load is still running.
+        setLoading((prev) => prev.filter((value, i) => i !== prev.indexOf(slot) || value !== slot));
       }
     },
     [notify, onError],

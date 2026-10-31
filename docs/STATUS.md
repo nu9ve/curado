@@ -1,5 +1,35 @@
 # curado status
 
+## Long tracks and real-time key lock · 2026-10-30
+
+Long tracks now load and key lock works in real time; see [ADR-019](DECISIONS.md) and [Architecture](ARCHITECTURE.md).
+
+**Long tracks, in RAM rather than streaming.** The 96 MiB per-track cap became 2 GiB, about 90 minutes at 48 kHz, under a 3 GiB limit shared by all live clips. Streaming was planned, but measurements did not justify it: 0.15 % of the maintainer's 31,477 tracks exceed an hour, and a real 60-minute MP3 decoded and analyzed in 5.1 s. Allocation failures are now errors instead of aborts. A newer load for a slot cancels the older one within a packet (0.1 ms in the probe), and imports release the decode gate per file.
+
+A 60-minute MP3 at 44.1 kHz, 192 kbps, end to end in a release build: 1,211 MiB of PCM, peak process memory 1,495 MiB, 200 seeks across the track on both decks, a loop near the end and key lock on A, with no clipping and a slowest callback of 1,441 µs against 5,333 µs. The probe is not a real audio thread or a listening test.
+
+**Key lock, in the callback rather than prepared.** Tempo and key now apply in the block they arrive, so sync no longer waits about 3 s or keeps the old rate meanwhile, and a moving tempo fader is followed. Up to 384 MiB of source and prepared clips and the `curado-tuning` worker are gone.
+
+| Measured on tones and synthetic kicks                     | Result                                              |
+| --------------------------------------------------------- | --------------------------------------------------- |
+| Key lock at 0.8–1.25× on 440 Hz; a 44.1 kHz file at 1.06× | Within 0.5 Hz, applied in the same block            |
+| Key lock at +6 % from 55 Hz to 3.5 kHz                    | 0 cents                                             |
+| Transposing, 440 Hz and up                                | Sharp by 5 cents or less                            |
+| Transposing, 110–220 Hz                                   | Sharp by up to 15–20 cents                          |
+| Transposing, pure 55 Hz tone                              | Sharp by up to 41 cents, 73 at −12 semitones        |
+| Kick energy, first 5 ms, under key lock at ±6 %           | −0.14 to −0.42 dB                                   |
+| Hot cue onto a kick with key lock, first 5 ms             | Within 1.5 dB                                       |
+| Attack timing against position                            | −0.5 ms at 0.94×, −0.9 ms at 1.06×, −2.5 ms at 1.2× |
+| Sample steps entering, leaving, looping and pausing       | Within 3× a 55 Hz tone's own slope                  |
+
+Callback cost, offline, 256 frames at 48 kHz, 60 s: six sources with FX and no key lock measured P50 44 µs, P99 58–105 µs, max 135–254 µs, the same as before. With both decks key-locked and looping every second, six interleaved runs measured P50 177 µs and P99 750 µs. Five peaked at about 1.5 ms; one reached 5,465 µs, over the budget, and did not recur. The probe is not a real-time thread, but that outlier is unexplained. Peaks come from starting a voice, about 1 ms each. On this Mac two simultaneous starts fit buffers of about 128 frames or more; 64 frames could overrun. Not a hardware measurement.
+
+**A crash found and fixed.** The echo could compute a read position equal to the buffer length from `f32` rounding, panicking inside the callback. The new key-lock tests hit it at 0.8×; it predates this work and could have closed the app during a set.
+
+Limits: no listening test of key lock, which is the main unknown, and transposition of bass notes may be audible. Files over about 90 minutes are refused with an explanation, and 7 tracks in this library exceed that. Loading a very long track takes seconds, with only the existing loading state to show for it. Hour-long waveforms in the UI have not been seen, and their tiles take about 70 MiB per deck by calculation. Import has no progress or cancel yet. Corrupt-file and decode time limits remain pending. Linux and Windows behavior of the C++ allocation audit, which uses a macOS hook, is unverified. x86 denormals inside Signalsmith are unreviewed; Apple Silicon has no such penalty.
+
+Verification: `bun run check` passed (36 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace` (86 tests) and `cargo clippy --workspace --all-targets -- -D warnings` passed, including the allocator audit, which now covers C++ with key lock, transposition, loops, cues, pause and a load over pitched audio, and proves its hook fires. The macOS `.app` built (13.55 MiB), passed ad hoc signature verification and was installed and registered without launching; executable SHA-256 `1d7044df9fbe421d306c0963ecee1e482db6d032ffbebdff5f82bb2ea0d31094`. **No listening, visual, playback-device or hardware test was performed.** Next: the maintainer should try a long track, move the tempo with key lock on, sync two decks and transpose bass-heavy music; then decide between DSP quality and rekordbox import.
+
 ## Whole-track beat analysis · 2026-10-30
 
 A new analysis in `beat.rs` replaces the 90-second estimate; see [Architecture](ARCHITECTURE.md) and [ADR-018](DECISIONS.md). It measures onsets in three bands, finds tempo over the whole track by epoch folding, places the grid 1 ms before the real attack, and adds bars and first-sound detection. Waveforms show bars, the grid editor has **compás aquí**, and an unsaved cue now starts at the first sound. Estimates from the old analysis update when a track loads; manual corrections stay.
@@ -195,7 +225,7 @@ Limits: no real-music/controller/listening verification. Heuristics do not detec
 | Stack            | Bun/React/TS/Vite/Tauri 2; independent Rust engine                                                 |
 | Playback         | CPAL/Symphonia, mono/stereo, two decks/four one-shots, seek/EOF                                    |
 | Mixer            | Equal-power, master, basic EQ, LP/HP, beat echo, tempo/nudge/IN-OUT loops                          |
-| Musical control  | Estimated BPM/key, editable grid, beat loops, native sync, prepared pitch/key lock                 |
+| Musical control  | Estimated BPM/key, editable grid, beat loops, native sync, real-time pitch/key lock                |
 | Waveforms        | Decode-time offline 3-band 50 bins/s, schema-v3 BLOB/binary IPC, overview/detail 8 s               |
 | Cues             | Three per track, shared atomics, SQLite autosave/restore                                           |
 | Library          | Referenced files/folders, metadata/search/favorites/playlists; peak-free listings                  |
@@ -248,8 +278,8 @@ Unverified: alternate four styles/light mode, real waveform readability, mini be
 
 ## Important limits
 
-- Preloaded PCM ≤96 MiB/file (~4:22 at 48 kHz stereo); prefetch adds another clip; tuning adds source/result memory.
-- Linear playback interpolation and basic EQ; offline pitch is not continuous low-latency streaming DSP.
+- Tracks load fully into RAM: about 90 minutes per track and 3 GiB in total, including prefetch.
+- Linear playback interpolation and basic EQ; transposition can sit sharp on very low notes.
 - UI position/detail/platters at 20 Hz, 50 ms steps (S2).
 - MIDI feedback not mirrored in UI (S7); manual MIDI connect, no Clock/relative encoders/LEDs/physical controller verification.
 - One stereo output, no independent headphone cue, ASIO/JACK/native PipeWire.

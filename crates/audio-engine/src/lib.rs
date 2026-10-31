@@ -6,18 +6,20 @@ mod dsp;
 pub mod limiter;
 pub mod music;
 pub mod output;
+mod pitch;
 pub mod tuning;
 use crossbeam_queue::ArrayQueue;
 use decode::Clip;
 use dsp::{Effects, Params};
 use limiter::Limiter;
 use music::MusicAnalysis;
+use pitch::PitchVoice;
 use serde::{Deserialize, Serialize};
 use std::sync::{
     atomic::{AtomicBool, AtomicU32, AtomicU64, AtomicUsize, Ordering::Relaxed},
     Arc,
 };
-use tuning::{MusicMeter, TunedClip, Tuning, TuningMeter};
+use tuning::{MusicMeter, Tuning, TuningMeter};
 
 pub const SLOTS: usize = 6;
 /// One bounded, on-demand master capture for the visual worker.
@@ -25,6 +27,8 @@ pub const VISUAL_SAMPLES: usize = 2048;
 /// Fade of a transport change. A cue or play reaches its target at full gain when it ends,
 /// so this is also the delay between the command and an attack at that target.
 pub const JUMP_FADE_SECONDS: f64 = 0.003;
+/// A tempo this close to the original is not worth processing: it shifts pitch under a cent.
+const KEY_LOCK_MIN_RATE_CHANGE: f32 = 0.0005;
 /// Both voices meet exactly at a loop boundary, so its fade adds no delay and can be long
 /// enough for sustained bass.
 const LOOP_FADE_SECONDS: f64 = 0.008;
@@ -61,7 +65,6 @@ pub enum Control {
     TransposeStep(i8),
     KeyLock(bool),
     KeySync,
-    RetryTuning,
     HighPass(f32),
     EchoBeats(f32),
     Gain(f32),
@@ -128,7 +131,6 @@ impl Action {
                 Control::KeyLock(self.value == 1.)
             }
             "keySync" if self.slot < 2 => Control::KeySync,
-            "retryTuning" if self.slot < 2 => Control::RetryTuning,
             "gain" if (0.0..=1.5).contains(&v) => Control::Gain(v),
             "rate" if (0.5..=1.5).contains(&v) => Control::Rate(v),
             "low" if (0.0..=2.0).contains(&v) => Control::Low(v),
@@ -148,7 +150,6 @@ impl Action {
 pub enum Command {
     Load(usize, Arc<Clip>, u64, bool),
     Control(usize, Control),
-    TuneBatch(u64, [Option<TunedClip>; 2]),
     Music(u64, MusicAnalysis),
 }
 #[derive(Default)]
@@ -174,9 +175,6 @@ struct Meter {
     loop_out: AtomicU64,
     music: MusicMeter,
     tuning: TuningMeter,
-    applied_tuning: TuningMeter,
-    tune_revision: AtomicU64,
-    tuned_revision: AtomicU64,
     quantize: AtomicBool,
     sync: AtomicBool,
     loop_beats: AtomicU64,
@@ -203,8 +201,6 @@ pub struct Shared {
     crossfader: AtomicU32,
     master: AtomicU32,
     master_deck: AtomicUsize,
-    next_tuning: AtomicU64,
-    tuning_ack: AtomicU64,
 }
 #[derive(Clone)]
 pub struct EngineHandle(Arc<Shared>);
@@ -232,9 +228,6 @@ pub struct SlotSnapshot {
     pub load_ticket: u64,
     pub music: MusicAnalysis,
     pub tuning: Tuning,
-    pub applied_tuning: Tuning,
-    pub tune_revision: u64,
-    pub tuned_revision: u64,
     pub quantize: bool,
     pub sync: bool,
     pub loop_beats: f64,
@@ -355,41 +348,6 @@ impl EngineHandle {
             .push(Command::Music(id, music))
             .map_err(|_| "Cola de audio llena".into())
     }
-    pub fn tuning_acknowledged(&self, ticket: u64) -> bool {
-        self.0.tuning_ack.load(std::sync::atomic::Ordering::Acquire) >= ticket
-    }
-    pub fn apply_tuning(&self, batch: [Option<TunedClip>; 2]) -> Result<u64, String> {
-        let count = batch.iter().flatten().count();
-        if count == 0 {
-            return Ok(0);
-        }
-        let mut pending = self.0.pending_loads.load(Relaxed);
-        loop {
-            if pending + count > 2 {
-                return Err("El motor todavía prepara otra carga".into());
-            }
-            match self.0.pending_loads.compare_exchange_weak(
-                pending,
-                pending + count,
-                Relaxed,
-                Relaxed,
-            ) {
-                Ok(_) => break,
-                Err(p) => pending = p,
-            }
-        }
-        let ticket = self.0.next_tuning.fetch_add(1, Relaxed) + 1;
-        if self
-            .0
-            .commands
-            .push(Command::TuneBatch(ticket, batch))
-            .is_err()
-        {
-            self.0.pending_loads.fetch_sub(count, Relaxed);
-            return Err("Cola de audio llena".into());
-        }
-        Ok(ticket)
-    }
     pub fn control(&self, slot: usize, control: Control) -> Result<(), String> {
         if slot >= SLOTS
             || matches!(control, Control::Cue(i)|Control::SetCue(i)|Control::CueBoth(i) if i>=3)
@@ -403,7 +361,6 @@ impl EngineHandle {
                         | Control::TransposeStep(_)
                         | Control::KeyLock(_)
                         | Control::KeySync
-                        | Control::RetryTuning
                 ))
         {
             return Err("Deck o cue inválido".into());
@@ -412,13 +369,6 @@ impl EngineHandle {
             .commands
             .push(Command::Control(slot, control))
             .map_err(|_| "Cola de audio llena; vuelve a intentar".into())
-    }
-    pub fn tuning_current(&self, slot: usize, ticket: u64, revision: u64, tuning: Tuning) -> bool {
-        let m = &self.0.meters[slot];
-        !self.0.stream_error.load(Relaxed)
-            && m.load_ticket.load(std::sync::atomic::Ordering::Acquire) == ticket
-            && m.tune_revision.load(Relaxed) == revision
-            && m.tuning.read() == tuning
     }
     pub fn load(&self, slot: usize, clip: Arc<Clip>) -> Result<u64, String> {
         self.queue_load(slot, clip, false)
@@ -500,9 +450,6 @@ impl EngineHandle {
                     load_ticket: m.load_ticket.load(std::sync::atomic::Ordering::Acquire),
                     music: m.music.read(),
                     tuning: m.tuning.read(),
-                    applied_tuning: m.applied_tuning.read(),
-                    tune_revision: m.tune_revision.load(Relaxed),
-                    tuned_revision: m.tuned_revision.load(Relaxed),
                     quantize: m.quantize.load(Relaxed),
                     sync: m.sync.load(Relaxed),
                     loop_beats: f64::from_bits(m.loop_beats.load(Relaxed)),
@@ -551,9 +498,13 @@ struct Deck {
     loop_frames: u32,
     music: MusicAnalysis,
     tuning: Tuning,
-    applied_tuning: Tuning,
-    tune_revision: u64,
-    tuned_revision: u64,
+    /// Two voices let a jump fade between old and new audio while both stay pitched. Music
+    /// decks only; a sample never needs one.
+    pitch: Option<Box<[PitchVoice; 2]>>,
+    main_pitch: usize,
+    main_pitched: bool,
+    tail_pitched: bool,
+    restart_pitch: bool,
     quantize: bool,
     sync: bool,
     loop_beats: f64,
@@ -615,9 +566,14 @@ impl Deck {
             self.tail_step = step;
             self.tail_gain = main;
             self.tail_reads_clip = false;
+            self.tail_pitched = self.main_pitched;
+            if self.main_pitched {
+                self.main_pitch = 1 - self.main_pitch;
+            }
         } else {
             self.tail_gain = tail;
         }
+        self.restart_pitch = true;
         self.fade_left = frames;
         self.fade_total = frames.max(1);
         self.fade_main = fade_main;
@@ -678,16 +634,33 @@ impl Deck {
             self.position = self.loop_in - lead + overshoot;
         }
     }
-    fn request_tuning(&mut self, tuning: Tuning) {
-        if self.tuning != tuning {
-            self.tuning = tuning;
-            self.tune_revision = self.tune_revision.wrapping_add(1);
+    fn wants_pitch(&self) -> bool {
+        self.pitch.is_some()
+            && (self.tuning.semitones != 0
+                || (self.tuning.key_lock
+                    && (self.params.rate - 1.).abs() >= KEY_LOCK_MIN_RATE_CHANGE))
+    }
+    /// Takes effect at once. Moving between plain playback and pitched audio crossfades, with
+    /// both voices at the same position.
+    fn apply_tuning(&mut self, tuning: Tuning, sr: u32) {
+        if self.tuning == tuning && self.params.rate == tuning.rate {
+            return;
         }
-        // Reuse the current PCM whenever the required pitch factor is unchanged.
-        if (tuning.factor() - self.applied_tuning.factor()).abs() < 1e-6 {
-            self.applied_tuning = tuning;
-            self.params.rate = tuning.rate;
-            self.tuned_revision = self.tune_revision;
+        let outgoing_step = self.step(sr);
+        let was_pitched = self.main_pitched;
+        self.tuning = tuning;
+        self.params.rate = tuning.rate;
+        let pitched = self.wants_pitch();
+        if pitched != was_pitched {
+            if self.playing {
+                self.release_voice(self.jump_frames, true, outgoing_step);
+            }
+            self.main_pitched = pitched;
+            self.restart_pitch = true;
+        } else if pitched {
+            if let Some(voices) = &mut self.pitch {
+                voices[self.main_pitch].set_transpose(tuning.pitch_ratio());
+            }
         }
     }
     /// Explicit jumps may leave a loop. Do not snap a cue back into the old range.
@@ -731,7 +704,7 @@ impl Deck {
             self.playing = false;
         }
     }
-    fn new(sr: u32) -> Self {
+    fn new(sr: u32, can_pitch: bool) -> Self {
         Self {
             clip: None,
             load_ticket: 0,
@@ -755,9 +728,11 @@ impl Deck {
             loop_frames: (sr as f64 * LOOP_FADE_SECONDS).round() as u32,
             music: Default::default(),
             tuning: Default::default(),
-            applied_tuning: Default::default(),
-            tune_revision: 0,
-            tuned_revision: 0,
+            pitch: can_pitch.then(|| Box::new([PitchVoice::new(sr), PitchVoice::new(sr)])),
+            main_pitch: 0,
+            main_pitched: false,
+            tail_pitched: false,
+            restart_pitch: false,
             quantize: true,
             sync: false,
             loop_beats: 4.,
@@ -774,7 +749,22 @@ impl Deck {
         let mut input = [0.; 2];
         if self.playing {
             if self.position < len {
-                input = read(&clip.samples, self.position);
+                input = match &mut self.pitch {
+                    Some(voices) if self.main_pitched => {
+                        let voice = &mut voices[self.main_pitch];
+                        if std::mem::take(&mut self.restart_pitch) {
+                            voice.start(
+                                &clip.samples,
+                                self.position,
+                                step,
+                                clip.sample_rate as f64 / sr as f64,
+                                self.tuning.pitch_ratio(),
+                            );
+                        }
+                        voice.next(&clip.samples, self.position, step)
+                    }
+                    _ => read(&clip.samples, self.position),
+                };
                 self.position += step;
                 self.wrap_loop(step);
                 if self.position >= len {
@@ -797,7 +787,14 @@ impl Deck {
                 &self.clip
             };
             if let (true, Some(source)) = (tail > 0., source) {
-                let old = read(&source.samples, self.tail_position);
+                let old = match &mut self.pitch {
+                    Some(voices) if self.tail_pitched => voices[1 - self.main_pitch].next(
+                        &source.samples,
+                        self.tail_position,
+                        self.tail_step,
+                    ),
+                    _ => read(&source.samples, self.tail_position),
+                };
                 input = [input[0] + old[0] * tail, input[1] + old[1] * tail];
             }
             self.tail_position += self.tail_step;
@@ -805,6 +802,7 @@ impl Deck {
             if self.fade_left == 0 {
                 self.tail_gain = 0.;
                 self.tail_reads_clip = false;
+                self.tail_pitched = false;
                 self.fade_main = true;
             }
         }
@@ -956,14 +954,12 @@ pub fn engine(sample_rate: u32) -> (EngineHandle, Renderer) {
         crossfader: AtomicU32::new(0.5_f32.to_bits()),
         master: AtomicU32::new(0.75_f32.to_bits()),
         master_deck: AtomicUsize::new(0),
-        next_tuning: AtomicU64::new(0),
-        tuning_ack: AtomicU64::new(0),
     });
     (
         EngineHandle(shared.clone()),
         Renderer {
             shared,
-            decks: std::array::from_fn(|_| Deck::new(sample_rate)),
+            decks: std::array::from_fn(|slot| Deck::new(sample_rate, slot < 2)),
             sample_rate,
             crossfader: 0.5,
             mix: dsp::crossfade(0.5),
@@ -1002,7 +998,7 @@ impl Renderer {
             rate,
             ..self.decks[other].tuning
         };
-        self.decks[other].request_tuning(tuning);
+        self.decks[other].apply_tuning(tuning, self.sample_rate);
     }
     fn align_sync(&mut self) {
         let master = self.master_deck;
@@ -1043,7 +1039,6 @@ impl Renderer {
     ) {
         // Bounded work: at most 64 control events per callback. Do not pop a Load if reclamation is full.
         let mut align = false;
-        let mut tuning_ack = 0;
         for _ in 0..64 {
             if self.shared.retired.capacity() - self.shared.retired.len() < 2 {
                 break;
@@ -1066,10 +1061,8 @@ impl Renderer {
                     d.load_ticket = ticket;
                     d.music = d.clip.as_ref().unwrap().music;
                     d.tuning = Default::default();
-                    d.applied_tuning = Default::default();
                     d.params.rate = 1.;
-                    d.tune_revision = d.tune_revision.wrapping_add(1);
-                    d.tuned_revision = d.tune_revision;
+                    d.main_pitched = false;
                     d.sync = false;
                     d.scheduled = None;
                     d.position = 0.;
@@ -1078,36 +1071,6 @@ impl Renderer {
                     d.looping = false;
                     d.loop_in = 0.;
                     d.loop_out = 0.;
-                }
-                Command::TuneBatch(ticket, batch) => {
-                    tuning_ack = ticket;
-                    let valid = batch.iter().enumerate().all(|(i, job)| {
-                        job.as_ref().is_none_or(|j| {
-                            self.decks[i].load_ticket == j.load_ticket
-                                && self.decks[i].tune_revision == j.revision
-                                && self.decks[i].tuning == j.tuning
-                                && self.decks[i].clip.as_ref().is_some_and(|c| {
-                                    c.id == j.clip.id
-                                        && c.sample_rate == j.clip.sample_rate
-                                        && c.samples.len() == j.clip.samples.len()
-                                })
-                        })
-                    });
-                    for (i, job) in batch.into_iter().enumerate() {
-                        if let Some(job) = job {
-                            self.shared.pending_loads.fetch_sub(1, Relaxed);
-                            if valid {
-                                let d = &mut self.decks[i];
-                                d.install_clip(job.clip, &self.shared.retired, self.sample_rate);
-                                d.applied_tuning = job.tuning;
-                                d.params.rate = job.tuning.rate;
-                                d.tuned_revision = job.revision;
-                                align = true;
-                            } else {
-                                let _ = self.shared.retired.push(job.clip);
-                            }
-                        }
-                    }
                 }
                 Command::Music(id, music) => {
                     align = true;
@@ -1139,7 +1102,7 @@ impl Renderer {
                                 rate,
                                 ..self.decks[slot].tuning
                             };
-                            self.decks[slot].request_tuning(t);
+                            self.decks[slot].apply_tuning(t, self.sample_rate);
                         }
                     }
                 }
@@ -1150,33 +1113,28 @@ impl Renderer {
                         ..self.decks[slot].tuning
                     };
                     self.decks[slot].sync = false;
-                    self.decks[slot].request_tuning(t);
+                    self.decks[slot].apply_tuning(t, self.sample_rate);
                 }
                 Command::Control(slot, Control::TransposeStep(step)) => {
                     let t = Tuning {
                         semitones: (self.decks[slot].tuning.semitones + step).clamp(-12, 12),
                         ..self.decks[slot].tuning
                     };
-                    self.decks[slot].request_tuning(t);
-                }
-                Command::Control(slot, Control::RetryTuning) => {
-                    self.decks[slot].tune_revision = self.decks[slot].tune_revision.wrapping_add(1);
-                    let tuning = self.decks[slot].tuning;
-                    self.decks[slot].request_tuning(tuning);
+                    self.decks[slot].apply_tuning(t, self.sample_rate);
                 }
                 Command::Control(slot, Control::Transpose(semitones)) => {
                     let t = Tuning {
                         semitones,
                         ..self.decks[slot].tuning
                     };
-                    self.decks[slot].request_tuning(t);
+                    self.decks[slot].apply_tuning(t, self.sample_rate);
                 }
                 Command::Control(slot, Control::KeyLock(key_lock)) => {
                     let t = Tuning {
                         key_lock,
                         ..self.decks[slot].tuning
                     };
-                    self.decks[slot].request_tuning(t);
+                    self.decks[slot].apply_tuning(t, self.sample_rate);
                 }
                 Command::Control(slot, Control::KeySync) => {
                     let master = &self.decks[self.master_deck];
@@ -1203,7 +1161,7 @@ impl Renderer {
                         key_lock: true,
                         ..self.decks[slot].tuning
                     };
-                    self.decks[slot].request_tuning(t);
+                    self.decks[slot].apply_tuning(t, self.sample_rate);
                 }
                 Command::Control(_, Control::Crossfader(v)) => {
                     self.crossfader = v;
@@ -1291,11 +1249,7 @@ impl Renderer {
             }
         }
         self.refresh_sync();
-        if align
-            && self.decks[..2]
-                .iter()
-                .all(|d| d.tune_revision == d.tuned_revision)
-        {
+        if align {
             self.align_sync();
         }
         let target_mix = dsp::crossfade(self.crossfader);
@@ -1442,9 +1396,6 @@ impl Renderer {
             m.loop_out.store((d.loop_out / sr).to_bits(), Relaxed);
             m.music.store(d.music);
             m.tuning.store(d.tuning);
-            m.applied_tuning.store(d.applied_tuning);
-            m.tune_revision.store(d.tune_revision, Relaxed);
-            m.tuned_revision.store(d.tuned_revision, Relaxed);
             m.quantize.store(d.quantize, Relaxed);
             m.sync.store(d.sync, Relaxed);
             m.loop_beats.store(d.loop_beats.to_bits(), Relaxed);
@@ -1468,11 +1419,6 @@ impl Renderer {
                 .store(self.scope[(self.scope_head + i) % 64].to_bits(), Relaxed);
         }
         self.shared.callbacks.fetch_add(1, Relaxed);
-        if tuning_ack != 0 {
-            self.shared
-                .tuning_ack
-                .store(tuning_ack, std::sync::atomic::Ordering::Release);
-        }
         self.shared.master_deck.store(self.master_deck, Relaxed);
         self.shared.clipped.fetch_add(clipped, Relaxed);
         self.shared.limited.fetch_add(limited, Relaxed);

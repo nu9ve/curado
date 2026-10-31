@@ -75,7 +75,7 @@ struct Onsets {
     energy: [Vec<f32>; 3],
 }
 impl Onsets {
-    fn new(mono: &[f64], rate: f64) -> Self {
+    fn new(mono: &[f32], rate: f64) -> Self {
         let hop = (rate / TICKS_PER_SECOND).round().max(1.) as usize;
         let mut low_pass = Biquad::new(180., rate, false);
         let mut mid_high = Biquad::new(180., rate, true);
@@ -90,6 +90,7 @@ impl Onsets {
         for chunk in mono.chunks_exact(hop) {
             let mut sum = [0_f64; 3];
             for &x in chunk {
+                let x = x as f64;
                 let low = low_pass.process(x);
                 let mid = mid_low.process(mid_high.process(x));
                 let high = high_pass.process(x);
@@ -605,7 +606,7 @@ pub fn estimate(
     samples: &[[f32; 2]],
     sample_rate: u32,
     use_left: bool,
-    mono: &[f64],
+    mono: &[f32],
     rate: f64,
     first_sound: f64,
 ) -> Option<Grid> {

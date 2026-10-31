@@ -51,7 +51,7 @@ Overview canvas repaints only for data, size or theme changes. Position, played 
 
 ## Engine
 
-Slots 0/1 are A/B; 2–5 are one-shots. Each deck uses immutable stereo PCM, fractional position and linear sample-rate interpolation. Rate multiplies the step. A/B pitch and key lock use equal-duration PCM prepared by a worker. Mono outputs downmix L/R; extra output channels are silent. Files with more than two channels are explicitly rejected.
+Slots 0/1 are A/B; 2–5 are one-shots. Each deck uses immutable stereo PCM, fractional position and linear sample-rate interpolation. Rate multiplies the step. A/B key lock and transposition run in real time, described below. Mono outputs downmix L/R; extra output channels are silent. Files with more than two channels are explicitly rejected.
 
 Signal chain: source → one-pole split EQ at 220/2600 Hz → LP/HP → gain → beat echo using output BPM (feedback ≤.55) → A/B crossfader or .5 sample gain → master → limiter. Gains, crossfader, EQ, wet and filters are smoothed.
 
@@ -62,7 +62,7 @@ Transport changes never step the audio or fade the destination's attack. Each de
 - **Pre-roll (`preroll_to`):** cues, play and sample retriggers start 3 ms early and reach their target at exact unity gain, so a kick on a cue is intact. This delays that attack by 3 ms relative to the command. Nothing precedes the start of a file, so a target within the first 3 ms plays immediately at full level.
 - **Loop boundaries (`wrap_loop`):** the two voices meet exactly at the boundary over 8 ms. The old voice ends at OUT, never reaching the next beat's attack, as the new one reaches IN at unity. This adds no delay. The fade shortens to half of very short loops; a loop with no audio before IN starts there directly while the old voice fades past OUT.
 - **Other changes:** seek, nudge and sync alignment land exactly on their target and crossfade over 3 ms. Pause and panic stop the position immediately while real audio fades out. A retrigger during a fade keeps the louder of the two voices.
-- **Replaced PCM:** a load or prepared-pitch swap moves the old clip to `tail_clip` while the outgoing voice reads it, then returns it through `retired` at a later block, or at once if nothing reads it. Each command retires at most one clip per deck, within the two free slots the callback reserves. Fade lengths and master/crossfader smoothing derive from the sample rate.
+- **Replaced PCM:** a load moves the old clip to `tail_clip` while the outgoing voice reads it, then returns it through `retired` at a later block, or at once if nothing reads it. Each command retires at most one clip per deck, within the two free slots the callback reserves. Fade lengths and master/crossfader smoothing derive from the sample rate.
 
 Loading retains each slot's FX. A/B reset tempo to 1×, transpose to 0, key lock on and sync off. Loading the master disables follower sync. Device reconfiguration creates a new engine and unloads every slot; failure to create the new output preserves the previous one. Stream errors support manual recovery, not automatic reconnection.
 
@@ -87,24 +87,30 @@ Versioned analysis with a manual flag lives in `settings["music:<id>"]`, without
 
 `bun run music:eval` compares the analysis with the grids rekordbox stored on this machine, reading `ANLZ0000.DAT` and never `master.db`, and prints aggregates without titles or paths. A hash splits tracks into `dev` for tuning and `holdout` for reporting. rekordbox is a reference, not ground truth; its local files carry no cues and only a file name, so audio is found by unique name.
 
-Each deck starts with Q enabled and has beat-loop length and sync state. Master guides tempo/phase; follower derives rate from both BPMs. Key-locked tempo changes await preparation, and the follower keeps its old rate until then; if both need new PCM, one entry applies the whole batch before a block. Sync never starts transport.
+Each deck starts with Q enabled and has beat-loop length and sync state. Master guides tempo/phase; follower derives rate from both BPMs. Tempo changes apply in the block they arrive, with or without key lock. Sync never starts transport.
 
 Phase alignment moves a playing follower to the nearest matching beat. It happens once per triggering event, with no continuous correction, so a grid error still drifts. Nudges and pauses do not trigger it, so a nudge on either deck changes the relative phase until the next realignment. A paused follower keeps the position it was given and aligns when it starts. With SYNC+Q, follower cues start their pre-roll per sample so they land on the next master beat, on the nearest grid line of the follower so phase holds; the saved cue is unchanged. Follower pause, panic, linked transport, mode/master/metadata/load changes cancel pending cues. Master EOF also cancels waiting cues. There is no JS musical clock.
 
-`curado-tuning` retains up to two original sources and prepares up to two results with **signalsmith-stretch =0.1.3 (MIT)**. Factor is `2^(semitones/12) / rate` with key lock, otherwise `2^(semitones/12)`. Output keeps sample rate/frame count, discarding both halves of processor latency. C++/FFT/allocations stay in this worker. Rapid controls coalesce for 100 ms before PCM allocation; processing checks cancellation per block. Previous audio continues until replacement is ready.
+## Real-time key lock
 
-Batches carry load tickets and tuning revisions: reloading even the same ID invalidates old jobs. Callback validates the whole batch and retires replaced/rejected clips, reserving at least two free `retired` slots and never freeing PCM. Block-end acknowledgement includes discarded batches so a still-current request can retry. Preparation errors are visible and explicitly retryable. Output changes invalidate jobs by generation. PCM installation preserves position, playing state, cues and FX.
+`pitch.rs` runs **signalsmith-stretch =0.1.3 (MIT)** inside the callback for A and B. This reverses ADR-014 because the measurements allow it: `process`, `seek`, `reset` and the transpose setters allocate nothing after creation, confirmed for C++ on macOS with the system allocator's logging hook. A deck uses it only with key lock and a tempo at least 0.05 % from the original, or with a transposition; otherwise it plays PCM directly, and moving between the two crossfades at the same position. Samples never use it.
 
-Additional cost: up to **192 MiB** cached original sources plus **192 MiB** prepared results, beyond existing/retired clips. This is neither streaming nor a global memory budget. Echo preallocates 8 s per slot (~18 MiB for six slots at 48 kHz), covering up to two beats across the tempo range. HP/LP, wet and delay time are smoothed; changing echo time may sweep pitch. HP adds no buffering. Transient/spectral quality and the loop and limiter fades need real listening/corpus validation.
+- **No added delay:** the processor needs about 85 ms of audio ahead of its output. PCM is in memory, so a voice reads that far ahead of the deck's position. Position stays the engine's, and attacks stay within about 1 ms of it at ±6 %, 2.5 ms at +20 %.
+- **Exact key lock:** the file is resampled to the output rate before processing, so a file at another sample rate needs no transposition, which is the less exact operation. Key lock alone measured 0 cents on tones from 55 Hz to 3.5 kHz at +6 %.
+- **Transposition:** sharp by up to about 15 cents at 110–220 Hz, 73 cents on a pure 55 Hz tone at −12 semitones and under 5 cents from 440 Hz. The window is 4096 at 48 kHz, scaled with the sample rate: 2048 kept no more of the attack and doubled this error.
+- **Jumps:** each deck has two voices, so a cue or loop fades between old and new while both stay pitched. Starting a voice resets it, seeks and renders half a window silently, because overlap needs that long to be complete; the first audible sample is then within 0.2 dB. Loops use the same mechanism as direct playback, and several jumps in one block cost one start.
+- **Cost, offline at 48 kHz/256 frames:** 70–140 µs per callback per pitched deck, peaks of 0.25 ms per chunk and about 1 ms per start. Two simultaneous starts need buffers of about 128 frames or more on this Mac.
+
+Echo preallocates 8 s per slot (~18 MiB for six slots at 48 kHz), covering up to two beats across the tempo range. HP/LP, wet and delay time are smoothed; changing echo time may sweep pitch. HP adds no buffering. Transient/spectral quality and the loop and limiter fades need real listening/corpus validation.
 
 ## Memory and real time
 
-- PCM ≤96 MiB per clip; six resident clips can total 576 MiB, excluding UI, temporary and retired memory.
-- At most two pending loads. Import/load serialize; a large import can delay new loads without blocking existing playback.
+- Tracks stay fully in RAM by design: nothing in the callback depends on a disk or USB stick, so a slow or unplugged drive cannot cause a dropout, and a seek is always instant. An hour-long MP3 took 5.1 s to decode and analyze on this Mac.
+- `memory.rs` limits decoded PCM to **3 GiB** across all live clips, including queue prefetch and clips awaiting reclamation, and to 2 GiB per track, about 90 minutes at 48 kHz. Each minute takes about 21 MiB. Decoding stops with an explanation when a track would not fit, and allocation failures are errors rather than aborts. Analysis adds about 215 MiB temporarily on an hour-long track. UI and WebKit memory are separate.
+- At most two pending loads. Decoding serializes, but imports release the gate per file, so a load waits for one track at most. A newer load for a slot cancels the older one at its next packet, and `load_track` reports that it was replaced.
 - Loads create PCM outside callback. Replacement moves the old reference into `retired` (capacity 256), after its fade if it was still audible; a worker reclaims every 50 ms.
 - A full reclamation queue pauses command consumption until space returns; queues do not grow.
-- A strict global memory/byte reclamation budget and streaming remain P0.
-- No DB, filesystem, locks, logging, Tauri events or buffer allocation in callback. DSP/delay buffers are prepared at engine creation.
+- No DB, filesystem, locks, logging, Tauri events or buffer allocation in callback. DSP, delay and pitch buffers are prepared at engine creation.
 - Atomic snapshots are best effort; 20 Hz telemetry is not a musical sync clock.
 
 ## Queue and modes
@@ -139,7 +145,7 @@ HTTPS exact-host policy includes widgets; incognito, popups/downloads denied. No
 
 Clips share track `CueState`: three values plus atomic revision. Saving a cue allocates nothing and performs no IO; callback updates seconds. Both decks share cues for the same track. Independent `curado-autosave` worker (50 ms) saves changed `settings["cues:<id>"]`, marks saved revision only after success, retries failures and publishes `persistenceError`. Normal shutdown flushes. Loops/session positions remain temporary.
 
-Within 15 s of EOF, prefetch worker decodes next track under `decode_gate` without holding queue/output, storing `Queue::prefetched`. `advance` uses it if ID matches. Repeat-one seeks to 0. Stopping queue releases the clip on the worker. Gap becomes roughly one tick (≤50 ms) plus callback acknowledgement, still not gapless; at most one extra ≤96 MiB clip.
+Within 15 s of EOF, prefetch worker decodes next track under `decode_gate` without holding queue/output, storing `Queue::prefetched`. `advance` uses it if ID matches. Repeat-one seeks to 0. Stopping queue releases the clip on the worker. Gap becomes roughly one tick (≤50 ms) plus callback acknowledgement, still not gapless; at most one extra clip, inside the same limit.
 
 `load_track` waits for callback ticket acknowledgement before reporting ready, with a two-second timeout/recoverable error if output is not processing. Enqueueing PCM alone is not success; demo pads cannot appear ready under backpressure prematurely.
 

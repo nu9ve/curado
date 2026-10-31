@@ -22,7 +22,6 @@ const audio = (): Audio => ({
   limiterDb: 0,
 });
 const snapshot = (): AppSnapshot => ({
-  tuningError: null,
   mode: 'mix',
   audio: audio(),
   output: null,

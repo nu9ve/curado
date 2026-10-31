@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-019 · Long tracks in RAM and key lock in the callback — accepted (2026-10-30)
+
+The maintainer asked for long tracks and real-time key lock. Both decisions came from measuring first, and the first replaces the streaming plan in S1 and ADR-003.
+
+**In RAM, with a global limit, instead of streaming.** In the maintainer's library of 31,477 tracks, 25–32 % exceeded the old 96 MiB cap, but only 1.5 % exceed 10 minutes, 0.15 % an hour and 0.02 % 90 minutes. Decoding is far faster than expected: an hour-long MP3 took 5.1 s including analysis, using 1.2 GiB. Streaming would save memory on a tiny fraction of tracks in exchange for the failure a DJ can least accept: a callback waiting on a disk or USB stick. In RAM, playback cannot underrun from storage, a pulled drive does not stop the set, seeks and cues are instant and the callback's rules stay simple. Accepted costs: about 21 MiB per minute, a 3 GiB total, and a wait of seconds on very long files. Reconsider for tracks beyond about 90 minutes or machines without the memory.
+
+**Key lock inside the callback, reversing ADR-014.** Preparing a whole clip made sync wait about 3 s on a four-minute track, kept up to 384 MiB extra and could not follow a moving tempo. Running on a worker with a ring buffer was rejected: jumps would have to flush and refill it, a non-real-time thread can miss deadlines, and timing would depend on scheduling. The callback is viable because Signalsmith allocates nothing after creation and costs 70–140 µs per deck per 256-frame block, and because PCM in RAM lets a voice read ahead so its latency is not heard.
+
+- **Window 4096 at 48 kHz:** it kept kicks within 0.42 dB, against 0.56 dB for 2048 and about 1 dB for 3072 or the library's default preset window, and halved transposition errors. Accepted cost: about 1 ms per start.
+- **Resample before processing:** correcting a sample-rate difference by transposing added pitch error to almost every track, because most of the library is 44.1 kHz.
+- **Hidden warm-up of half a window** instead of a longer pre-roll, so hot cues keep their 3 ms and their attack. Accepted cost: the start spike. Decks at 64 frames could overrun on two simultaneous starts.
+- **No stored crossfade for the mode switch beyond the existing voices:** two voices per deck cover every jump.
+
 ## ADR-018 · Whole-track grid, folding and an untrimmed timeline — accepted (2026-10-30)
 
 The maintainer asked for accurate tempo, kick and bar detection compatible with rekordbox libraries. Choices were made against stored rekordbox grids, on a tuning set separate from the reported one.
@@ -30,7 +43,7 @@ Reuse the user-provided mixer capture, labeled as a development session rather t
 
 The maintainer prefers maximum freedom, including commercial forks, and is considering free downloads, donations and paid editions. LICENSING recommends MIT and compares Apache/MPL/GPL and commercial implications; **no project license is applied**. Holder/year, explicit license selection, contribution/brand/asset terms and complete dependency notices/source obligations remain separate decisions. Do not treat a recommendation as a license grant.
 
-## ADR-014 · Editable musical analysis, native sync and prepared pitch — accepted (2026-10-26)
+## ADR-014 · Editable musical analysis, native sync and prepared pitch — pitch superseded by ADR-019 (2026-10-26)
 
 Requested: BPM, letter/Camelot key, transposition, key lock/sync, default quantize and synchronized loops. Offline analysis is bounded to 90 s, using attack autocorrelation/refinement and chroma/[Krumhansl-Kessler profiles documented by Humdrum](https://extras.humdrum.org/man/keycor/). Synthetic success is not product accuracy. Offset/BPM/key are editable and stored by ID in settings, without migration or original-tag changes. Camelot follows its [creator's reference](https://mixedinkey.com/camelot-wheel/0/); letter/Camelot represent the same key.
 
@@ -70,7 +83,7 @@ Symphonia `all` enables included codecs, not every codec. App validates mono/ste
 
 Update after fixture/API/latency/OS tests. [CPAL 0.16](https://docs.rs/cpal/0.16.0/cpal/), [Symphonia 0.5.5](https://github.com/pdeljanov/Symphonia/tree/v0.5.5).
 
-## ADR-003 · Bounded preloaded PCM — temporary
+## ADR-003 · Bounded preloaded PCM — superseded by ADR-019
 
 Simple cue/seek/loops, no callback IO. 96 MiB prevents unbounded reads; about 262 s at 48 kHz stereo float32, half at 96 kHz. Costs: rejecting long files and no strict total budget. Streaming/windowed buffers around cues are next; keep preload for short samples.
 

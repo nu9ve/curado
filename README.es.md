@@ -35,7 +35,7 @@ _Apariencia e idioma en la vista previa del navegador. La traducción al inglés
 
 La interfaz comienza en español; la opción de inglés está en desarrollo y algunos mensajes nativos permanecen en español. BPM, tonalidad y beatgrid son estimaciones que puedes corregir; SYNC sigue al deck master elegido y no inicia la reproducción. El audio de servicios web funciona separado de los decks locales.
 
-> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas locales en Apple Silicon. Faltan validación de hardware en Windows/Linux, streaming de pistas largas y distribución firmada. Revisa el [estado](docs/STATUS.md) y los límites de abajo antes de depender de curado para una sesión.
+> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas locales en Apple Silicon. Faltan validación de hardware en Windows/Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y los límites de abajo antes de depender de curado para una sesión.
 
 ## Qué puedes hacer
 
@@ -101,8 +101,8 @@ Samples: `Z X C V`. Crossfader: `← ↓ →`. Pánico de audio nativo: `Esc` (n
 
 ## Límites actuales
 
-- Máximo **96 MiB de PCM decodificado por archivo**, unos 4:22 a 48 kHz estéreo. Las pistas de una hora todavía no están soportadas.
-- El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Cambiar tempo/tono con preparación puede tardar y consumir memoria adicional.
+- Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
+- El BPM y el grid son estimaciones medidas contra los de rekordbox y pueden fallar; revísalos antes de mezclar, sobre todo con periodicidad baja. La tonalidad aún no se ha medido con música real. Tempo y tono cambian al instante; al transponer, las notas muy graves pueden quedar algo altas.
 - Playhead a 20 Hz; remuestreo y EQ todavía básicos. Los fundidos de loop y el limitador de salida pasan mediciones automáticas, pero aún falta probarlos de oído.
 - Una salida estéreo, sin preescucha independiente por auriculares; recuperación de dispositivos manual.
 - El navegador integrado necesita validación real de reproducción/login y layout. Su audio no responde a master, FX, sync ni pánico locales.

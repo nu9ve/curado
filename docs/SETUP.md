@@ -89,16 +89,16 @@ Windows/Linux: use `bun run desktop` for development and `bun tauri build` for n
 
 ## Troubleshooting
 
-| Symptom                                       | Next step                                                                                                                  |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Missing GTK/WebKit/ALSA, SDK or C++ toolchain | Install the OS prerequisites in Platforms; keep dependency versions unchanged                                              |
-| bindgen cannot find libclang                  | Install the appropriate LLVM/Xcode components; point `LIBCLANG_PATH` at their real library directory if needed             |
-| Build succeeds, app is absent in launcher     | Check `~/Applications/curado.app` and installer registration output; indexing and launch remain separate manual checks     |
-| Installer reports curado is running           | Quit it normally, then rerun; do not force-kill an audio session                                                           |
-| Browser preview has no audio                  | Use the desktop runtime; do not add a WebAudio fallback                                                                    |
-| Long file is rejected                         | The current 96 MiB decoded-PCM limit is real; streaming is pending                                                         |
-| Output fails after disconnect                 | Select an available device and recover manually in Configuración → Audio; successful reconfiguration unloads slots         |
-| Remote player/login does not work             | WebView compatibility remains unverified; external login popups/hosts are restricted. Do not relax local CSP/IPC to fix it |
+| Symptom                                       | Next step                                                                                                                      |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Missing GTK/WebKit/ALSA, SDK or C++ toolchain | Install the OS prerequisites in Platforms; keep dependency versions unchanged                                                  |
+| bindgen cannot find libclang                  | Install the appropriate LLVM/Xcode components; point `LIBCLANG_PATH` at their real library directory if needed                 |
+| Build succeeds, app is absent in launcher     | Check `~/Applications/curado.app` and installer registration output; indexing and launch remain separate manual checks         |
+| Installer reports curado is running           | Quit it normally, then rerun; do not force-kill an audio session                                                               |
+| Browser preview has no audio                  | Use the desktop runtime; do not add a WebAudio fallback                                                                        |
+| Long file is rejected                         | Limits are about 90 minutes per track and 3 GiB of decoded audio in total; load a shorter track on the deck holding a long one |
+| Output fails after disconnect                 | Select an available device and recover manually in Configuración → Audio; successful reconfiguration unloads slots             |
+| Remote player/login does not work             | WebView compatibility remains unverified; external login popups/hosts are restricted. Do not relax local CSP/IPC to fix it     |
 
 ## Maintainer handoff
 

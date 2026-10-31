@@ -4,6 +4,45 @@ use std::{
     sync::Arc,
 };
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; static COUNTS: Cell<(u64,u64)> = const { Cell::new((0,0)) }; }
+// Rust's allocator never sees C++. On macOS the system allocator's logging hook does, so this
+// also covers Signalsmith Stretch inside the callback.
+#[cfg(target_os = "macos")]
+mod system_allocator {
+    use std::sync::atomic::{
+        AtomicU64, AtomicUsize,
+        Ordering::{Relaxed, SeqCst},
+    };
+    type Logger = unsafe extern "C" fn(u32, usize, usize, usize, usize, u32);
+    extern "C" {
+        static mut malloc_logger: Option<Logger>;
+        fn pthread_self() -> usize;
+    }
+    static WATCHED_THREAD: AtomicUsize = AtomicUsize::new(0);
+    static EVENTS: AtomicU64 = AtomicU64::new(0);
+    // No thread-local in here: first touching one allocates, which would call this again.
+    unsafe extern "C" fn count(kind: u32, _: usize, _: usize, _: usize, _: usize, _: u32) {
+        if kind != 0 && WATCHED_THREAD.load(Relaxed) == pthread_self() {
+            EVENTS.fetch_add(1, Relaxed);
+        }
+    }
+    pub fn install() {
+        unsafe { malloc_logger = Some(count) };
+    }
+    pub fn uninstall() {
+        unsafe { malloc_logger = None };
+    }
+    pub fn set_watching(watching: bool) {
+        let thread = if watching {
+            unsafe { pthread_self() }
+        } else {
+            0
+        };
+        WATCHED_THREAD.store(thread, SeqCst);
+    }
+    pub fn events() -> u64 {
+        EVENTS.load(SeqCst)
+    }
+}
 struct Audit;
 unsafe impl GlobalAlloc for Audit {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
@@ -101,21 +140,6 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     ACTIVE.with(|a| a.set(true));
     renderer.render(&mut output, 2);
     ACTIVE.with(|a| a.set(false));
-    let slot = handle.snapshot().slots[0].clone();
-    let batch = [
-        Some(crate::tuning::TunedClip {
-            clip: clip(),
-            load_ticket: slot.load_ticket,
-            revision: slot.tune_revision,
-            tuning: slot.tuning,
-        }),
-        None,
-    ];
-    handle.apply_tuning(batch).unwrap();
-    ACTIVE.with(|a| a.set(true));
-    renderer.render(&mut output, 2);
-    ACTIVE.with(|a| a.set(false));
-    assert_eq!(COUNTS.with(Cell::get), (0, 0));
     // Loop fades, a pause fade, PCM replaced under a fading voice and its later return.
     handle.control(0, crate::Control::Quantize(false)).unwrap();
     handle.control(0, crate::Control::Seek(0.01)).unwrap();
@@ -143,5 +167,77 @@ fn callback_does_not_allocate_or_free_even_when_replacing_clips() {
     }
     ACTIVE.with(|a| a.set(false));
     assert_eq!(COUNTS.with(Cell::get), (0, 0));
+    handle.collect();
+    // Key lock, transposition, loops, cues, pause and a load over pitched audio.
+    let long = || {
+        Arc::new(crate::decode::Clip {
+            id: 2,
+            sample_rate: 44100,
+            samples: vec![[0.2, -0.2]; 44100],
+            waveform: vec![],
+            title: None,
+            artist: None,
+            music: Default::default(),
+            cues: Arc::new(crate::annotations::CueState::default()),
+        })
+    };
+    handle.control(0, crate::Control::Master(0.75)).unwrap();
+    handle.load_and_play(0, long()).unwrap();
+    handle.load_and_play(1, long()).unwrap();
+    #[cfg(target_os = "macos")]
+    {
+        // A hook that never fires would pass everything below, so prove it sees allocations.
+        system_allocator::install();
+        system_allocator::set_watching(true);
+        std::hint::black_box(Vec::<u8>::with_capacity(1 << 16));
+        system_allocator::set_watching(false);
+        assert!(
+            system_allocator::events() >= 2,
+            "the hook sees the system allocator"
+        );
+    }
+    #[cfg(target_os = "macos")]
+    let baseline = system_allocator::events();
+    let mut render = |blocks: usize| {
+        ACTIVE.with(|a| a.set(true));
+        #[cfg(target_os = "macos")]
+        system_allocator::set_watching(true);
+        for _ in 0..blocks {
+            renderer.render(&mut output, 2);
+        }
+        #[cfg(target_os = "macos")]
+        system_allocator::set_watching(false);
+        ACTIVE.with(|a| a.set(false));
+    };
+    render(1);
+    handle.control(0, crate::Control::Rate(1.1)).unwrap();
+    handle.control(1, crate::Control::Transpose(3)).unwrap();
+    render(40);
+    handle.control(0, crate::Control::Quantize(false)).unwrap();
+    handle.control(0, crate::Control::Seek(0.2)).unwrap();
+    handle.control(0, crate::Control::LoopIn).unwrap();
+    handle.control(0, crate::Control::Seek(0.25)).unwrap();
+    handle.control(0, crate::Control::LoopOut).unwrap();
+    render(60);
+    for _ in 0..20 {
+        handle.control(0, crate::Control::Cue(0)).unwrap();
+        handle.control(1, crate::Control::Seek(0.3)).unwrap();
+        render(3);
+    }
+    handle.control(1, crate::Control::TransposeStep(1)).unwrap();
+    handle.control(0, crate::Control::KeyLock(false)).unwrap();
+    handle.control(1, crate::Control::Pause).unwrap();
+    render(10);
+    handle.control(0, crate::Control::KeyLock(true)).unwrap();
+    handle.control(1, crate::Control::Play).unwrap();
+    render(10);
+    handle.load_and_play(1, long()).unwrap();
+    render(20);
+    assert_eq!(COUNTS.with(Cell::get), (0, 0));
+    #[cfg(target_os = "macos")]
+    {
+        system_allocator::uninstall();
+        assert_eq!(system_allocator::events(), baseline, "system allocator");
+    }
     handle.collect();
 }

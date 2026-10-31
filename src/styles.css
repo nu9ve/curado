@@ -3019,7 +3019,6 @@ input[type='color'] {
   color: var(--tone);
 }
 .musical-key small,
-.tuning-pending,
 .musical-controls > small {
   color: var(--text-muted);
   font-size: 10px;

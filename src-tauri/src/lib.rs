@@ -1,15 +1,15 @@
 mod annotations;
 mod demo;
 mod library;
+mod memory;
 mod midi;
 mod playback;
 mod preferences;
 mod session;
-mod tuning;
 mod visuals;
 mod web;
 use curado_audio::{
-    decode::decode,
+    decode::decode_with_limit,
     output::{self, Output, OutputInfo},
     Action, Control, Snapshot,
 };
@@ -42,10 +42,19 @@ pub struct AppState {
     persistence_error: Mutex<Option<String>>,
     generation: AtomicU64,
     running: AtomicBool,
-    tuning_error: Mutex<Option<String>>,
+    pcm: memory::PcmBudget,
+    /// Latest load per slot: an older one still decoding stops and lets the newer one run.
+    load_requests: [AtomicU64; curado_audio::SLOTS],
 }
 impl AppState {
     fn decode_track(&self, id: u64) -> Result<Arc<curado_audio::decode::Clip>, String> {
+        self.decode_track_unless(id, &|| false)
+    }
+    fn decode_track_unless(
+        &self,
+        id: u64,
+        replaced: &dyn Fn() -> bool,
+    ) -> Result<Arc<curado_audio::decode::Clip>, String> {
         let (path, initial, music) = {
             let db = self.db.lock().unwrap();
             (
@@ -56,7 +65,15 @@ impl AppState {
                 db.music(id).filter(|music| music.is_current()),
             )
         };
-        let mut clip = curado_audio::decode::decode_with_music(&path, id, music)?;
+        let room = self.pcm.available();
+        let mut clip = curado_audio::decode::decode_bounded(
+            &path,
+            id,
+            music,
+            room.min(curado_audio::decode::MAX_CLIP_BYTES),
+            &|| replaced() || !self.running.load(Ordering::Relaxed),
+        )
+        .map_err(|error| memory::explain(error, room))?;
         if music.is_none() {
             self.db
                 .lock()
@@ -66,7 +83,9 @@ impl AppState {
         clip.cues = self.annotations.lock().unwrap().state(id, initial);
         // Tracks imported before schema v3 gain their band waveform on first load.
         let _ = self.db.lock().unwrap().fill_waveform(id, &clip);
-        Ok(Arc::new(clip))
+        let clip = Arc::new(clip);
+        self.pcm.track(&clip);
+        Ok(clip)
     }
     fn flush_cues(&self) {
         let result = {
@@ -110,7 +129,6 @@ impl AppState {
         let queue = self.queue.lock().unwrap().status();
         let persistence_error = self.persistence_error.lock().unwrap().clone();
         let mode = *self.mode.lock().unwrap();
-        let tuning_error = self.tuning_error.lock().unwrap().clone();
         AppSnapshot {
             audio,
             output,
@@ -119,7 +137,6 @@ impl AppState {
             queue,
             persistence_error,
             mode,
-            tuning_error,
         }
     }
 }
@@ -133,8 +150,6 @@ struct AppSnapshot {
     #[serde(rename = "persistenceError")]
     persistence_error: Option<String>,
     mode: session::Mode,
-    #[serde(rename = "tuningError")]
-    tuning_error: Option<String>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -256,7 +271,14 @@ async fn analyze_track(id: u64, state: tauri::State<'_, Arc<AppState>>) -> Resul
     work(move || {
         let _decode = s.decode_gate.lock().unwrap();
         let path = s.db.lock().unwrap().path(id)?;
-        let clip = decode(&path, id)?;
+        let room = s.pcm.available();
+        let clip = decode_with_limit(
+            &path,
+            id,
+            None,
+            room.min(curado_audio::decode::MAX_CLIP_BYTES),
+        )
+        .map_err(|error| memory::explain(error, room))?;
         let db = s.db.lock().unwrap();
         db.save(&format!("music:{id}"), &clip.music)?;
         let library = db.library()?;
@@ -282,10 +304,19 @@ async fn edit_library(
     .await
 }
 fn import_paths(s: &AppState, files: Vec<PathBuf>) -> ImportReport {
-    let _guard = s.decode_gate.lock().unwrap();
     let mut report = ImportReport::default();
     for file in files {
-        match decode(&file, 0).and_then(|c| s.db.lock().unwrap().insert(&file, &c)) {
+        // Per file, so that a load in the middle of a large import waits for one track at most.
+        let _guard = s.decode_gate.lock().unwrap();
+        let room = s.pcm.available();
+        let decoded = decode_with_limit(
+            &file,
+            0,
+            None,
+            room.min(curado_audio::decode::MAX_CLIP_BYTES),
+        )
+        .map_err(|error| memory::explain(error, room));
+        match decoded.and_then(|c| s.db.lock().unwrap().insert(&file, &c)) {
             Ok(true) => report.added += 1,
             Ok(false) => report.skipped += 1,
             Err(e) => {
@@ -351,12 +382,13 @@ async fn create_demo(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, 
     })
     .await
 }
+/// Returns false when a newer load for this slot replaced this one.
 #[tauri::command]
 async fn load_track(
     slot: usize,
     id: u64,
     state: tauri::State<'_, Arc<AppState>>,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     if slot >= curado_audio::SLOTS {
         return Err("Slot inválido".into());
     }
@@ -364,10 +396,18 @@ async fn load_track(
     if slot == 0 {
         s.queue.lock().unwrap().enabled = false;
     }
+    let request = s.load_requests[slot].fetch_add(1, Ordering::SeqCst) + 1;
     work(move || {
+        let replaced = || s.load_requests[slot].load(Ordering::SeqCst) != request;
         let _guard = s.decode_gate.lock().unwrap();
+        if replaced() {
+            return Ok(false);
+        }
         let generation = s.generation.load(Ordering::Acquire);
-        let clip = s.decode_track(id)?;
+        let clip = match s.decode_track_unless(id, &replaced) {
+            Err(error) if error == curado_audio::decode::CANCELLED => return Ok(false),
+            other => other?,
+        };
         let output = s.output.lock().unwrap();
         if s.generation.load(Ordering::Acquire) != generation {
             return Err("El dispositivo cambió durante la carga; vuelve a cargar la pista".into());
@@ -380,7 +420,7 @@ async fn load_track(
             if started.elapsed() > Duration::from_secs(2) { return Err("El dispositivo no confirmó la carga. Recupera la salida de audio y vuelve a intentar.".into()); }
             std::thread::sleep(Duration::from_millis(2));
         }
-        Ok(())
+        Ok(true)
     })
     .await
 }
@@ -619,13 +659,10 @@ pub fn run() {
                 persistence_error: Mutex::new(None),
                 generation: AtomicU64::new(0),
                 running: AtomicBool::new(true),
-                tuning_error: Mutex::new(None),
+                pcm: Default::default(),
+                load_requests: Default::default(),
             });
             app.manage(state.clone());
-            let pitch = state.clone();
-            std::thread::Builder::new()
-                .name("curado-tuning".into())
-                .spawn(move || tuning::run(pitch))?;
             if let Err(error) = tray(app) {
                 eprintln!("curado tray unavailable: {error}");
             }

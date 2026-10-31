@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-10-30 · Long tracks and real-time key lock
+
+Raised the per-track limit from 96 MiB to about 90 minutes under a shared 3 GiB limit, kept in RAM rather than streamed after measuring track lengths and decode speed. Moved key lock into the callback, so tempo and key apply at once and the offline preparation worker is gone. Fixed a crash in the echo that predates this work. See [Status](STATUS.md) and ADR-019. Lessons: a plan is a hypothesis, because streaming looked necessary until decoding an hour took five seconds; and a test double can hide what it tests, because the first allocator hook crashed from its own thread-local access and could have passed without measuring anything.
+
 ## 2026-10-30 · Whole-track beat analysis
 
 Replaced the 90-second estimate with three-band onsets, epoch-folded tempo over the whole track, a grid placed just before the real attack, bars and first-sound detection. Added bar lines, **compás aquí** and `bun run music:eval`, which compares with stored rekordbox grids. On tracks not used for tuning, BPM within ±0.02 went from 14.1 % to 61.0 % and phase within 5 ms from 4.4 % to 40.4 %. Bars barely changed. See [Status](STATUS.md) and ADR-018. Lessons: measure the premise before fixing it, because trimming MP3 delay looked like the correction and moved grids away from rekordbox; and a test tolerance is not evidence, because synthetic kicks passed while real tracks did not.

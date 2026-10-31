@@ -1,9 +1,5 @@
-//! Synthetic offline analysis/preparation probe. Does not measure DAC latency or quality.
-use curado_audio::{
-    decode::Clip,
-    music,
-    tuning::{self, Tuning},
-};
+//! Synthetic analysis and real-time key lock probe. Does not measure DAC latency or quality.
+use curado_audio::{decode::Clip, engine, music, Control};
 use std::{sync::Arc, time::Instant};
 fn main() {
     let sr = 48000;
@@ -32,16 +28,20 @@ fn main() {
         artist: None,
         music: analysis,
     });
-    let started = Instant::now();
-    let prepared = tuning::prepare(
-        &source,
-        Tuning {
-            rate: 1.25,
-            semitones: 2,
-            key_lock: true,
-        },
-        || false,
-    )
-    .unwrap();
-    println!("{{\"kind\":\"synthetic offline analysis and pitch preparation\",\"sampleRate\":{sr},\"seconds\":30,\"analysisMs\":{analysis_ms:.2},\"prepareMs\":{:.2},\"detectedBpm\":{:.3},\"sourceAndPreparedPcmBytes\":{},\"preparedFrames\":{}}}",started.elapsed().as_secs_f64()*1000.,analysis.bpm.unwrap_or(0.),(source.samples.len()+prepared.samples.len())*8,prepared.samples.len());
+    let (handle, mut renderer) = engine(sr as u32);
+    handle.load_and_play(0, source.clone()).unwrap();
+    handle.load_and_play(1, source).unwrap();
+    handle.control(0, Control::Rate(1.25)).unwrap();
+    handle.control(0, Control::Transpose(2)).unwrap();
+    handle.control(1, Control::Rate(0.94)).unwrap();
+    let mut output = [0.0_f32; 512];
+    let blocks = sr * 20 / 256;
+    let mut timings = Vec::with_capacity(blocks);
+    for _ in 0..blocks {
+        let started = Instant::now();
+        renderer.render(&mut output, 2);
+        timings.push(started.elapsed().as_secs_f64() * 1_000_000.);
+    }
+    timings.sort_by(f64::total_cmp);
+    println!("{{\"kind\":\"synthetic analysis and two key-locked decks, not hardware latency\",\"sampleRate\":{sr},\"seconds\":30,\"analysisMs\":{analysis_ms:.2},\"detectedBpm\":{:.3},\"p50Us\":{:.2},\"p99Us\":{:.2},\"maxUs\":{:.2},\"budgetUs\":5333.33}}",analysis.bpm.unwrap_or(0.),timings[blocks/2],timings[blocks*99/100],timings[blocks-1]);
 }

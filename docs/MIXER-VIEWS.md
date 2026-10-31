@@ -32,7 +32,7 @@ The linked CDJ is the **3000X**, distinct from the CDJ-3000. These references ar
 ## Suggested implementation order
 
 1. Review the new two-deck surface and its proportions, readability, scrolling, themes, keyboard, screen-reader and focus behavior; check switching during playback. Visual app testing requires explicit authorization. Iterate on a closer model-specific arrangement only after the reference and tradeoffs are agreed; do not add fake capabilities.
-2. Complete the existing streaming/global memory and smooth native position clock priorities in [Roadmap](ROADMAP.md). A console cannot solve the current PCM limit or 20 Hz transport presentation itself.
+2. Complete the smooth native position clock priority in [Roadmap](ROADMAP.md). A console cannot solve 20 Hz transport presentation itself.
 3. Design multichannel device routing and an independent headphone bus, then verify with real hardware. Specify cue/master mix, device/channel selection, failure recovery and platform support before adding Touch Preview or A9-style dual monitoring.
 4. Extend deck interaction and pads incrementally: continuous jog/nudge, explicit scratch behavior, configurable cue count and migration, and independently specified pad modes. Preserve engine transport ownership and MIDI/keyboard contracts.
 5. Design an effects architecture by signal path and capability: channel versus master selection, beat division, dry/wet, bypass, tails, parameter automation and frequency selection. Add individual effects only with bounded preallocated processing, smoothing, latency and denormal review, callback-budget measurements and listening tests. An echo or filter with a familiar name does not establish sonic equivalence.

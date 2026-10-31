@@ -14,7 +14,7 @@ pub struct Queue {
     pub enabled: bool,
     armed: bool,
     pub error: Option<String>,
-    /// At most one decoded clip waiting for the transition (≤96 MiB of PCM).
+    /// At most one decoded clip waiting for the transition, inside the shared memory limit.
     prefetched: Option<(u64, Arc<Clip>)>,
     revision: u64,
     failed_prefetch: Option<u64>,

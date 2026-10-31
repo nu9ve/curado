@@ -5,8 +5,12 @@ use symphonia::core::{
     io::MediaSourceStream, meta::MetadataOptions, probe::Hint,
 };
 
-/// Deliberate first-release limit: decoded stereo PCM, never an unbounded file read.
-pub const MAX_CLIP_BYTES: usize = 96 * 1024 * 1024;
+/// Decoded stereo PCM per track: about 90 minutes at 48 kHz, never an unbounded file read.
+pub const MAX_CLIP_BYTES: usize = 2 * 1024 * 1024 * 1024;
+/// Decoding stopped because the audio would not fit in `max_bytes`.
+pub const TOO_LARGE: &str = "El audio decodificado no cabe en la memoria disponible para audio.";
+/// Decoding stopped because `cancelled` said so.
+pub const CANCELLED: &str = "Carga cancelada";
 #[derive(Debug)]
 pub struct Clip {
     pub id: u64,
@@ -41,6 +45,16 @@ pub fn decode_with_limit(
     id: u64,
     cached: Option<crate::music::MusicAnalysis>,
     max_bytes: usize,
+) -> Result<Clip, String> {
+    decode_bounded(path, id, cached, max_bytes, &|| false)
+}
+/// `cancelled` is checked per packet, so a newer load never waits for a long one to finish.
+pub fn decode_bounded(
+    path: &Path,
+    id: u64,
+    cached: Option<crate::music::MusicAnalysis>,
+    max_bytes: usize,
+    cancelled: &dyn Fn() -> bool,
 ) -> Result<Clip, String> {
     let file = File::open(path).map_err(|e| format!("No se pudo abrir el archivo: {e}"))?;
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
@@ -83,10 +97,23 @@ pub fn decode_with_limit(
     let mut decoder = symphonia::default::get_codecs()
         .make(&params, &DecoderOptions::default())
         .map_err(|e| format!("Códec no compatible: {e}"))?;
-    let mut samples = Vec::new();
+    let frame_size = std::mem::size_of::<[f32; 2]>();
+    let max_frames = max_bytes / frame_size;
+    let mut samples: Vec<[f32; 2]> = Vec::new();
+    // An allocation failure here is an error message; pushing into a Vec would abort the app.
+    let memory_error = |_| String::from(TOO_LARGE);
+    if let Some(expected) = params.n_frames {
+        // Doubling would need twice the memory of a long track just to copy it.
+        samples
+            .try_reserve_exact((expected as usize).min(max_frames))
+            .map_err(memory_error)?;
+    }
     let mut sample_rate = params.sample_rate.unwrap_or(44100);
     let mut analysis: Option<WaveformBuilder> = None;
     loop {
+        if cancelled() {
+            return Err(CANCELLED.into());
+        }
         let packet = match format.next_packet() {
             Ok(p) => p,
             Err(Error::IoError(e)) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
@@ -107,8 +134,14 @@ pub fn decode_with_limit(
         let mut buffer = SampleBuffer::<f32>::new(decoded.capacity() as u64, *decoded.spec());
         buffer.copy_interleaved_ref(decoded);
         let frames = buffer.samples().len() / channels;
-        if (samples.len() + frames) * std::mem::size_of::<[f32; 2]>() > max_bytes {
-            return Err("El audio decodificado supera 96 MiB por pista (aprox. 4 min a 48 kHz). Recorta el archivo; streaming está planificado.".into());
+        if samples.len() + frames > max_frames {
+            return Err(TOO_LARGE.into());
+        }
+        if samples.capacity() - samples.len() < frames {
+            let room = frames
+                .max(samples.len() / 8)
+                .min(max_frames - samples.len());
+            samples.try_reserve_exact(room).map_err(memory_error)?;
         }
         for frame in buffer.samples().chunks_exact(channels) {
             let clean = |x: f32| {
@@ -125,6 +158,10 @@ pub fn decode_with_limit(
     }
     if samples.is_empty() {
         return Err("El archivo no contiene muestras decodificables".into());
+    }
+    samples.shrink_to_fit();
+    if cancelled() {
+        return Err(CANCELLED.into());
     }
     let waveform = analysis.map(WaveformBuilder::finish).unwrap_or_default();
     let music = cached
@@ -176,6 +213,41 @@ mod tests {
         let path = std::env::temp_dir().join(format!("curado-invalid-{}.wav", std::process::id()));
         std::fs::write(&path, b"not an audio file").unwrap();
         assert!(decode(&path, 1).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
+    #[test]
+    fn long_files_respect_the_limit_and_can_be_cancelled() {
+        let path = std::env::temp_dir().join(format!("curado-limit-{}.wav", std::process::id()));
+        let spec = hound::WavSpec {
+            channels: 2,
+            sample_rate: 8000,
+            bits_per_sample: 16,
+            sample_format: hound::SampleFormat::Int,
+        };
+        let mut writer = hound::WavWriter::create(&path, spec).unwrap();
+        for _ in 0..8000 * 10 * 2 {
+            writer.write_sample(1000_i16).unwrap();
+        }
+        writer.finalize().unwrap();
+        let frame = std::mem::size_of::<[f32; 2]>();
+        let fits = decode_with_limit(&path, 1, None, 8000 * 10 * frame).unwrap();
+        assert_eq!(fits.samples.len(), 80000);
+        assert_eq!(
+            fits.samples.capacity(),
+            80000,
+            "holds exactly what it needs"
+        );
+        assert_eq!(
+            decode_with_limit(&path, 1, None, 8000 * 5 * frame).unwrap_err(),
+            TOO_LARGE
+        );
+        let calls = std::cell::Cell::new(0);
+        let cancelled = decode_bounded(&path, 1, None, MAX_CLIP_BYTES, &|| {
+            calls.set(calls.get() + 1);
+            calls.get() > 3
+        });
+        assert_eq!(cancelled.unwrap_err(), CANCELLED);
+        assert_eq!(calls.get(), 4, "stops at the next packet");
         std::fs::remove_file(path).unwrap();
     }
 }

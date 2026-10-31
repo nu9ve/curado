@@ -6,19 +6,19 @@ Large work topics have dedicated briefs in [Sessions](SESSIONS.md), S1…S10.
 
 Footer help and A/B transport fixed a concrete problem but did not complete musical synchronization. The subsequent musical session adds the sync/grid/key-lock foundation recorded in STATUS. No delivery replaces QUALITY gates.
 
-| Delivery                         | Dependencies                     | Remaining verifiable completion                                                                                 |
-| -------------------------------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 1 · Long tracks and import       | S1                               | 60-minute seek/loop playback with bounded global memory; progress/cancel and imports yielding to priority loads |
-| 2 · Smooth transport and session | S2 native clock; session storage | Smooth playhead without drift; action acknowledgement; coherent paused deck/loop restoration                    |
-| 3 · Quality and recovery         | S3; device lifecycle             | Aliasing/discontinuity/limiter/RT measurements; hotplug, sleep/wake, deterministic shutdown                     |
-| 4 · Everyday player              | Robust library/queue             | Editable queue, shuffle, reorderable playlists, media keys, albums/artwork and moved-file repair                |
-| 5 · Advanced mixing              | Clock/streaming/DSP; S4/routing  | Editable BPM/grid, beat loops and sync; then validated key lock and hardware headphone cue                      |
+| Delivery                         | Dependencies                     | Remaining verifiable completion                                                                  |
+| -------------------------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 1 · Long tracks and import       | S1                               | Done in RAM with a global limit; remaining: import progress and cancellation                     |
+| 2 · Smooth transport and session | S2 native clock; session storage | Smooth playhead without drift; action acknowledgement; coherent paused deck/loop restoration     |
+| 3 · Quality and recovery         | S3; device lifecycle             | Aliasing/discontinuity/limiter/RT measurements; hotplug, sleep/wake, deterministic shutdown      |
+| 4 · Everyday player              | Robust library/queue             | Editable queue, shuffle, reorderable playlists, media keys, albums/artwork and moved-file repair |
+| 5 · Advanced mixing              | Clock/DSP; S4/routing            | Editable BPM/grid, beat loops and sync; then validated key lock and hardware headphone cue       |
 
 Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and signed distribution must accompany progress. S1 remains the structural priority; raising the PCM limit is not a replacement for a memory budget.
 
 ## P0 · Before production stability
 
-1. **Streaming/global memory budget (S1):** incremental decode, preallocated deck rings, cue prefetch, bounded seek, cancellation/time limits. Keep sample preload; add long-track/slow-disk corpus. Affects waveform, queue, loops, cue/cache.
+1. **Long tracks (S1):** resolved in RAM with a global limit, see ADR-019. Remaining: import progress and cancellation, a corrupt-file corpus and decode time limits. Reconsider streaming only for tracks over about 90 minutes or machines without the memory.
 2. **Native session contracts and smooth position clock (S2):** mode/track cues already persist. Finish deck loops/session, transactional transport acknowledgements and paused restoration. Do not persist incoherent snapshot positions.
 3. **Audio quality (S3):** loop/jump crossfades and the true-peak limiter exist, pending listening. Remaining: bandlimited resampler, biquad EQ, gain staging. Measure aliasing, denormals and callback cost before adding effects.
 4. **OS/device resilience:** hotplug/sleep-wake, controlled reconnect without surprise volume; deterministic thread teardown/join; recoverable DB errors. Measure UI/input/DAC/callback under load.
@@ -26,7 +26,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 
 ## P1 · Complete player
 
-- Editable queue/shuffle; next-track prefetch exists. Real gapless depends on streaming/native clock.
+- Editable queue/shuffle; next-track prefetch exists. Real gapless depends on the native clock.
 - Reorderable playlists, real tags, artwork/albums, file relocation and cancellable incremental scans.
 - Theme/style/mode persist; finish navigation state and validated startup output.
 - Alternate views (S6): mini exists; compact/focus/stage/floating visual and per-view size persistence remain.
@@ -37,7 +37,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 ## P1 · Deeper mixing
 
 - S4 foundation exists: whole-track BPM/key, editable grid and bars, beat loops, native sync/deferred cues and a benchmark against stored rekordbox grids. Need listening, ground truth for phase and bars, a variable-tempo strategy and uncertain-grid handling.
-- Initial Signalsmith pitch/key lock prepares offline clips. Need listening quality, incremental streaming integration and global memory budget; preserve latency compensation/transport contracts.
+- Real-time key lock and transposition exist. Need listening quality and better transposition of low notes; preserve position and transport contracts.
 - Multichannel cue/master output and pair selection; ASIO/JACK/PipeWire per platform require configuration/routing/UI/hardware tests.
 - Continuous jog/nudge by dragging platter, timestamped actions, relative MIDI, hotplug, LEDs/UI MIDI feedback (S7).
 - Native keyboard capture only if measurements justify it; global shortcuts opt-in with conflict/permission review.

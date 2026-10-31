@@ -256,36 +256,6 @@ fn replaced_pcm_fades_out_and_returns_only_after_its_voice_ends() {
 }
 
 #[test]
-fn tuning_swap_crossfades_at_the_same_position() {
-    let (h, mut r) = settled();
-    let old = clip_of(1, vec![[0.5; 2]; SR as usize * 2], false);
-    h.load_and_play(0, old.clone()).unwrap();
-    h.control(0, Control::TransposeStep(1)).unwrap();
-    render(&mut r, 4096);
-    let s = h.snapshot().slots[0].clone();
-    let position = s.position;
-    let ticket = h
-        .apply_tuning([
-            Some(TunedClip {
-                clip: clip_of(1, vec![[0.25; 2]; SR as usize * 2], false),
-                load_ticket: s.load_ticket,
-                revision: s.tune_revision,
-                tuning: s.tuning,
-            }),
-            None,
-        ])
-        .unwrap();
-    let output = render(&mut r, 2048);
-    assert!(h.tuning_acknowledged(ticket));
-    assert!((h.snapshot().slots[0].position - position - 2048. / SR as f64).abs() < 1e-7);
-    let fade_slope = 0.25 * GAIN * std::f32::consts::PI / (2. * jump_frames() as f32);
-    assert!(largest_step(&output) <= fade_slope * 1.1);
-    assert!((output.last().unwrap() - 0.25 * GAIN).abs() < 1e-3);
-    h.collect();
-    assert_eq!(Arc::strong_count(&old), 1);
-}
-
-#[test]
 fn set_cue_and_loop_edges_use_the_nearest_beat() {
     let (h, mut r) = engine(SR);
     h.load(0, clip_of(1, vec![[0.1; 2]; SR as usize * 20], true))

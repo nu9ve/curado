@@ -101,7 +101,8 @@ impl Effects {
         self.hp_mix += (self.hp_enabled - self.hp_mix) * self.smoothing;
         self.delay_frames += (self.delay_target - self.delay_frames) * self.smoothing * 0.1;
         let read = (self.head as f32 - self.delay_frames).rem_euclid(self.delay.len() as f32);
-        let index = read as usize;
+        // A tiny negative position rounds up to exactly the buffer length in f32.
+        let index = read as usize % self.delay.len();
         let next = (index + 1) % self.delay.len();
         let frac = read.fract();
         let mut out = [0.; 2];
@@ -168,6 +169,23 @@ mod tests {
         }
         assert!((first_echo.0 - 6000).abs() <= 2, "{first_echo:?}");
         assert!(first_echo.1 > 0.1);
+    }
+    #[test]
+    fn echo_read_position_never_leaves_the_buffer() {
+        // A delay equal to the write position, an exact wrap, and values around both.
+        let sr = 4000;
+        for seconds in [0.25_f32, 1.0, 1.999, 2., 2.001, 3.999, 7.9] {
+            let mut fx = Effects::new(sr);
+            fx.set_echo_time(seconds, sr);
+            let p = Params {
+                gain: 1.,
+                echo: 1.,
+                ..Default::default()
+            };
+            for _ in 0..sr * 18 {
+                assert!(fx.process([0.1; 2], p).iter().all(|v| v.is_finite()));
+            }
+        }
     }
     #[test]
     fn high_pass_attenuates_bass_and_bypass_preserves_it() {

@@ -151,8 +151,8 @@ function RxDeck({
             disabled={empty}
             aria-pressed={slot.tuning.keyLock}
             title={tr(
-              'Key lock de curado; preparación de audio en segundo plano',
-              'curado key lock; audio is prepared in the background',
+              'Key lock de curado: el tono se conserva al cambiar el tempo',
+              'curado key lock: pitch holds when the tempo changes',
             )}
             data-action={act(index, 'keyLock', slot.tuning.keyLock ? 0 : 1)}
             onClick={() => send('keyLock', slot.tuning.keyLock ? 0 : 1)}

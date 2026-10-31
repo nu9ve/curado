@@ -17,17 +17,15 @@ export function MusicalControls({
   onError: (e: unknown) => void;
   onLibrary: (data: Library) => void;
 }) {
-  const { audio, tuningError } = useSnapshot();
+  const { audio } = useSnapshot();
   const master = audio?.masterDeck ?? 0;
-  const pending = slot.tuneRevision !== slot.tunedRevision;
   const bpm = slot.music.bpm;
   const [draft, setDraft] = useState('');
   const [editing, setEditing] = useState(false);
   useEffect(() => {
     if (!editing) setDraft(bpm ? (bpm * slot.tuning.rate).toFixed(1) : '');
   }, [bpm, slot.tuning.rate, editing]);
-  const shift =
-    slot.appliedTuning.semitones + (slot.appliedTuning.keyLock ? 0 : 12 * Math.log2(slot.rate));
+  const shift = slot.tuning.semitones + (slot.tuning.keyLock ? 0 : 12 * Math.log2(slot.rate));
   const key = transposeKey(slot.music.key, shift);
   const cents = Math.round((shift - Math.round(shift)) * 100);
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
@@ -162,26 +160,12 @@ export function MusicalControls({
           key sync
         </button>
       </div>
-      {pending && (
-        <small className="tuning-pending" role="status">
-          {tr(
-            'Preparando ajuste de audio… el tempo anterior continúa hasta estar listo.',
-            'Preparing audio adjustment… the previous tempo continues until ready.',
-          )}{' '}
-        </small>
-      )}
       {slot.queued && (
         <small role="status">
           {tr(
             'Cue preparado · espera al siguiente beat del master.',
             "Cue queued · waiting for the master's next beat.",
           )}
-        </small>
-      )}
-      {tuningError && pending && (
-        <small className="error-text">
-          {tuningError}{' '}
-          <button onClick={() => send('retryTuning')}>{tr('reintentar', 'retry')}</button>
         </small>
       )}
       {!bpm && !disabled && (
