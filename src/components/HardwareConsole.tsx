@@ -43,7 +43,7 @@ import { PerformancePads, useJog } from './Performance';
 import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
-import { bindingLabel, keyLabel as keyLabel_, TOGGLE_KINDS } from '../lib/keyboard';
+import { altSymbol, bindingLabel, keyLabel as keyLabel_, TOGGLE_KINDS } from '../lib/keyboard';
 import { mixerTargetFor } from '../lib/mixer-keys';
 import {
   inView,
@@ -1051,7 +1051,7 @@ function MixKey({ slot, kind }: { slot: number; kind: string }) {
   if (!target) return null;
   return (
     <kbd className="rx-badge rx-mix-key" data-code={target.code}>
-      ⌥ {keyLabel_(target.code)}
+      {altSymbol()} {keyLabel_(target.code)}
     </kbd>
   );
 }

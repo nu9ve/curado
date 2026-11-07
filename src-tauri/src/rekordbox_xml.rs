@@ -530,7 +530,15 @@ mod tests {
             encoded,
             "file://localhost/M%C3%BAsica/AC%26DC%20%231/100%25%20%28mix%29%3F.mp3"
         );
-        assert_eq!(location("/a:b.mp3"), "file://localhost/a%3Ab.mp3");
+        // On Windows a colon right after the first letter is a drive, as rekordbox writes it.
+        if cfg!(windows) {
+            assert_eq!(
+                location(r"C:\Música\a:b.mp3"),
+                "file://localhost/C:/M%C3%BAsica/a%3Ab.mp3"
+            );
+        } else {
+            assert_eq!(location("/a:b.mp3"), "file://localhost/a%3Ab.mp3");
+        }
         // The bytes stay as they are on disk: a decomposed accent is not silently composed.
         assert!(location("/Mu\u{301}sica").contains("Mu%CC%81sica"));
     }

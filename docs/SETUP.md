@@ -85,7 +85,7 @@ For development, `bun run desktop` starts the native app and dev server. `bun ru
 
 After source changes have passed checks, run `bun run desktop:install` again. Use `--no-build` only for a bundle just built from the intended source. Do not claim an update installed when the installer reports an open app or permission failure. Documentation-only changes do not change the installed binary.
 
-Windows/Linux: use `bun run desktop` for development and `bun tauri build` for native packaging on that OS. The Mac install/signing scripts are not cross-platform installers. See [Platforms](PLATFORMS.md).
+Windows/Linux: use `bun run desktop` for development and `bun tauri build` for native packaging on that OS. The Mac install/signing scripts are not cross-platform installers. See [Platforms](PLATFORMS.md). On Windows, [curado on Windows](WINDOWS.md) has the exact prerequisites, the installer to use and a debugging table.
 
 ## Troubleshooting
 
@@ -93,6 +93,7 @@ Windows/Linux: use `bun run desktop` for development and `bun tauri build` for n
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Missing GTK/WebKit/ALSA, SDK or C++ toolchain | Install the OS prerequisites in Platforms; keep dependency versions unchanged                                                  |
 | bindgen cannot find libclang                  | Install the appropriate LLVM/Xcode components; point `LIBCLANG_PATH` at their real library directory if needed                 |
+| Windows: format check fails on every file     | CRLF checkout from before `.gitattributes`; see [curado on Windows](WINDOWS.md#2-get-the-source)                               |
 | Build succeeds, app is absent in launcher     | Check `~/Applications/curado.app` and installer registration output; indexing and launch remain separate manual checks         |
 | Installer reports curado is running           | Quit it normally, then rerun; do not force-kill an audio session                                                               |
 | Browser preview has no audio                  | Use the desktop runtime; do not add a WebAudio fallback                                                                        |

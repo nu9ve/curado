@@ -1553,11 +1553,13 @@ function ConnectionStatus() {
       title={s.error ?? s.output?.device ?? tr('Iniciando motor', 'Starting engine')}
     >
       <span className={`status-dot ${!failed && s.output ? 'active' : ''}`} />
-      {failed
-        ? tr('revisar audio', 'check audio')
-        : s.output
-          ? `${s.output.backend} · ${s.output.sampleRate / 1000} kHz`
-          : tr('audio nativo', 'native audio')}
+      {failed && !s.output
+        ? tr('sin salida de audio', 'no audio output')
+        : failed
+          ? tr('revisar audio', 'check audio')
+          : s.output
+            ? `${s.output.backend} · ${s.output.sampleRate / 1000} kHz`
+            : tr('audio nativo', 'native audio')}
     </span>
   );
 }

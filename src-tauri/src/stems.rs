@@ -162,12 +162,21 @@ fn candidates(db: &Database, data_dir: &Path) -> Vec<PathBuf> {
         .map(PathBuf::from)
         .into_iter()
         .collect();
-    list.push(data_dir.join("separation/bin/python"));
-    if let Some(home) = std::env::var_os("HOME") {
-        list.push(Path::new(&home).join("code/ai/soundshop/.venv-separation/bin/python"));
+    list.push(data_dir.join(VENV_PYTHON));
+    if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+        list.push(
+            Path::new(&home)
+                .join("code/ai/soundshop/.venv-separation")
+                .join(VENV_PYTHON),
+        );
     }
     list
 }
+/// Where a virtual environment keeps its interpreter on this system.
+#[cfg(not(windows))]
+const VENV_PYTHON: &str = "bin/python";
+#[cfg(windows)]
+const VENV_PYTHON: &str = r"Scripts\python.exe";
 fn probe(python: &Path, worker: &Path) -> Option<Runtime> {
     let output = Command::new(python)
         .arg(worker)
@@ -767,6 +776,7 @@ pub fn wait_until_idle(stems: &Stems, max: Duration) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     fn folder(name: &str) -> PathBuf {
         let path = std::env::temp_dir().join(format!("curado-stems-{name}"));
@@ -966,13 +976,16 @@ mod tests {
         assert!(store_results(&job, &store, &request(2.), &decode, &mut |_| {}).is_err());
         assert_eq!(fs::read_dir(&store).unwrap().count(), 0);
     }
-    /// A stand-in for Python, to test the process around the separation.
+    /// A stand-in for Python, to test the process around the separation. It is a `#!/bin/sh`
+    /// script, so it and the tests that run it exist on Unix only.
+    #[cfg(unix)]
     fn fake_python(name: &str, body: &str) -> PathBuf {
         let path = folder(name).join("python");
         fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
         fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
         path
     }
+    #[cfg(unix)]
     fn runtime(python: &Path) -> Runtime {
         Runtime {
             python: python.to_string_lossy().into(),
@@ -981,6 +994,7 @@ mod tests {
         }
     }
     #[test]
+    #[cfg(unix)]
     fn the_temporary_folder_goes_whatever_happens() {
         for (name, body, expected) in [
             (
@@ -1011,6 +1025,7 @@ mod tests {
         }
     }
     #[test]
+    #[cfg(unix)]
     fn cancelling_ends_the_process_and_cleans_up() {
         let (store, cache) = (folder("cancel"), folder("cancel-cache"));
         let python = fake_python("cancel-py", r#"echo '{"stage":"loading"}'; exec sleep 30"#);

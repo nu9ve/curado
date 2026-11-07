@@ -185,8 +185,27 @@ export function keyLabel(code: string) {
     )[code] ?? code.replace('Key', '').replace('Digit', '')
   );
 }
-export function bindingLabel(binding: KeyBinding) {
-  const modifier = `${binding.ctrl ? '⌃' : ''}${binding.alt ? '⌥' : ''}${binding.shift ? '⇧' : ''}`;
+/**
+ * macOS draws modifiers as symbols and calls Alt "Option"; Windows and Linux keyboards print Ctrl
+ * and Alt. ⇧ is on both. Without a document, as in tests, the macOS form is the default.
+ */
+export function isMacPlatform() {
+  return typeof document === 'undefined' || document.documentElement.dataset.platform === 'macos';
+}
+/** The Alt key's name in sentences: "Mantén Option" on a Mac, "Mantén Alt" elsewhere. */
+export function altName(mac = isMacPlatform()) {
+  return mac ? 'Option' : 'Alt';
+}
+/** The Alt key on a badge. */
+export function altSymbol(mac = isMacPlatform()) {
+  return mac ? '⌥' : 'Alt';
+}
+export function bindingLabel(binding: KeyBinding, mac = isMacPlatform()) {
+  const modifier = mac
+    ? `${binding.ctrl ? '⌃' : ''}${binding.alt ? '⌥' : ''}${binding.shift ? '⇧' : ''}`
+    : [binding.ctrl && 'Ctrl', binding.alt && 'Alt', binding.shift && '⇧']
+        .filter(Boolean)
+        .join('+');
   return `${modifier ? `${modifier} ` : ''}${keyLabel(binding.code)}`;
 }
 export function actionLabel(kind: string) {

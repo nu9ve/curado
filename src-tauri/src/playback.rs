@@ -173,7 +173,7 @@ pub fn tick(app: &AppState) {
                 return Ok(());
             }
             let output = app.output.lock().unwrap();
-            let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
+            let handle = &output.as_ref().ok_or(crate::NO_ENGINE)?.handle;
             handle.control(0, Control::Trigger)
         })(),
         Some(Step::Next(id)) => advance(app, revision, id),
@@ -234,7 +234,7 @@ fn advance(app: &AppState, revision: u64, id: u64) -> Result<(), String> {
         return Ok(());
     }
     let output = app.output.lock().unwrap();
-    let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
+    let handle = &output.as_ref().ok_or(crate::NO_ENGINE)?.handle;
     handle.load_and_play(0, clip)?;
     Ok(())
 }

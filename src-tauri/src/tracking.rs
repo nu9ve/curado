@@ -260,7 +260,9 @@ pub fn helper(_cache: &Path) -> Result<std::path::PathBuf, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::sync::mpsc;
+    #[cfg(unix)]
     use std::time::Instant;
 
     #[test]
@@ -287,6 +289,8 @@ mod tests {
     }
 
     /// A stand-in helper: a script, so these prove the lifecycle without touching a camera.
+    /// It is `#!/bin/sh` and checked with `/bin/kill`, so the lifecycle tests are Unix only.
+    #[cfg(unix)]
     fn helper_script(name: &str, body: &str) -> std::path::PathBuf {
         use std::os::unix::fs::PermissionsExt;
         let path = std::env::temp_dir().join(format!("curado-{name}-{}", std::process::id()));
@@ -294,6 +298,7 @@ mod tests {
         std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o700)).unwrap();
         path
     }
+    #[cfg(unix)]
     fn collect(rx: &mpsc::Receiver<Frame>, want: &str, timeout: Duration) -> bool {
         let started = Instant::now();
         while started.elapsed() < timeout {
@@ -305,6 +310,7 @@ mod tests {
         }
         false
     }
+    #[cfg(unix)]
     fn alive(pid: u32) -> bool {
         std::process::Command::new("/bin/kill")
             .args(["-0", &pid.to_string()])
@@ -314,6 +320,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn stopping_ends_the_process_at_once() {
         let script = helper_script(
             "stop",
@@ -341,6 +348,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn a_helper_that_dies_comes_back_and_a_denied_one_does_not() {
         let dies = helper_script("dies", r#"echo '{"status":"running"}'; exit 1"#);
         let tracking = Arc::new(Tracking::default());
@@ -372,6 +380,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn a_new_start_replaces_the_old_helper() {
         let script = helper_script(
             "again",
@@ -402,6 +411,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn preview_requests_reach_a_helper_on_its_input() {
         let out = std::env::temp_dir().join(format!("curado-preview-out-{}", std::process::id()));
         let script = helper_script(

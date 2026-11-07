@@ -78,5 +78,5 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S10 · Distribution and executed CI (P0)
 
-- **Context:** CI configured but execution unverified; local ad hoc bundle.
+- **Context:** no CI workflow exists yet (earlier notes said otherwise); local ad hoc bundle. macOS and Windows 11 have been built and tested by hand.
 - **Scope:** run all three OS jobs, signed in-bundle Metal helper, notarization, licenses/notices including font OFL, and repository license. See [Licensing](LICENSING.md); recommendation is not an applied license.
