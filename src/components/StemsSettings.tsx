@@ -3,6 +3,12 @@ import { call, native } from '../lib/bridge';
 import { tr } from '../lib/language';
 import type { StemsStatus } from '../lib/types';
 
+/** The setup script for this system: zsh with MLX on a Mac, PowerShell with PyTorch on Windows. */
+const SETUP_SCRIPT =
+  typeof document !== 'undefined' && document.documentElement.dataset.platform === 'windows'
+    ? 'scripts\\setup-separation.ps1'
+    : 'scripts/setup-separation.sh';
+
 const gigabytes = (bytes: number) => `${(bytes / 1e9).toFixed(1)} GB`;
 
 /** Where stems live, how much room they may take and which engine makes them. */
@@ -44,8 +50,8 @@ export function StemsSettings({ onError }: { onError: (e: unknown) => void }) {
       {!status.runtime && (
         <p className="small-print">
           {tr(
-            'Opcional. Instálalo con scripts/setup-separation.sh, o elige un Python que ya tenga Demucs. Nada de esto va dentro de la app.',
-            'Optional. Install it with scripts/setup-separation.sh, or choose a Python that already has Demucs. None of this goes inside the app.',
+            `Opcional. Instálalo con ${SETUP_SCRIPT}, o elige un Python que ya tenga Demucs. Nada de esto va dentro de la app.`,
+            `Optional. Install it with ${SETUP_SCRIPT}, or choose a Python that already has Demucs. None of this goes inside the app.`,
           )}
         </p>
       )}

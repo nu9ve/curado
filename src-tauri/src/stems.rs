@@ -23,6 +23,20 @@ use std::{
 };
 
 const WORKER: &str = include_str!("../native/separate.py");
+
+/// Python, started quietly. On Windows a console program started from a GUI app gets a console
+/// window of its own; `CREATE_NO_WINDOW` keeps the probe and each separation out of sight.
+fn python(path: impl AsRef<std::ffi::OsStr>) -> Command {
+    #[allow(unused_mut)]
+    let mut command = Command::new(path);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    command
+}
 const MANIFEST: &str = "manifest.json";
 const JOB_PREFIX: &str = ".job-";
 pub const DEFAULT_LIMIT_GB: u64 = 20;
@@ -178,7 +192,7 @@ const VENV_PYTHON: &str = "bin/python";
 #[cfg(windows)]
 const VENV_PYTHON: &str = r"Scripts\python.exe";
 fn probe(python: &Path, worker: &Path) -> Option<Runtime> {
-    let output = Command::new(python)
+    let output = self::python(python)
         .arg(worker)
         .arg("--probe")
         .stdin(Stdio::null())
@@ -261,7 +275,7 @@ fn run_worker(
     cancelled: &AtomicBool,
     mut stage: impl FnMut(&str),
 ) -> Result<(), String> {
-    let mut child = Command::new(&runtime.python)
+    let mut child = python(&runtime.python)
         .arg(worker)
         .args(["--engine", &runtime.engine, "--model", model])
         .arg("--input")
@@ -270,6 +284,7 @@ fn run_worker(
         .arg(output)
         .arg("--cache")
         .arg(cache)
+        .args(["--parent", &std::process::id().to_string()])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -1219,5 +1234,51 @@ mod tests {
             1,
             "only the source's folder stays"
         );
+    }
+    /// The real engine, cancelled while it separates. On Windows a venv's `python.exe` is a
+    /// launcher with the interpreter as its child; ending the launcher has to end both, or the
+    /// child would keep the output pipe open until it finished.
+    /// `CURADO_TEST_PYTHON=… cargo test -p curado --lib real_cancel -- --ignored --nocapture`
+    #[test]
+    #[ignore = "needs an installed Demucs and its model"]
+    fn real_cancel() {
+        let python = PathBuf::from(std::env::var("CURADO_TEST_PYTHON").unwrap());
+        let (store, cache) = (folder("real-cancel"), folder("real-cancel-cache"));
+        let worker = worker_path(&cache).unwrap();
+        let found = probe(&python, &worker).expect("an engine");
+        let stems = Arc::new(Stems::default());
+        let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+        let (other, watched) = (stems.clone(), seen.clone());
+        let canceller = std::thread::spawn(move || {
+            // Inside the model: a minute of audio takes far longer than this on a CPU.
+            while !watched.lock().unwrap().iter().any(|s| s == "separating") {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            std::thread::sleep(Duration::from_secs(2));
+            let at = Instant::now();
+            other.cancel();
+            at
+        });
+        let error = separate(
+            &stems,
+            &found,
+            &cache,
+            &store,
+            &request(60.),
+            &|input| write_float_wav(input, &sine(60., 0.3), 44100),
+            &decode,
+            &mut |stage| seen.lock().unwrap().push(stage.to_string()),
+        )
+        .err()
+        .unwrap();
+        let cancelled_at = canceller.join().unwrap();
+        println!(
+            "{:?}, ended {:?} after cancel",
+            seen.lock().unwrap(),
+            cancelled_at.elapsed()
+        );
+        assert_eq!(error, CANCELLED);
+        assert!(cancelled_at.elapsed() < Duration::from_secs(10));
+        assert_eq!(fs::read_dir(&store).unwrap().count(), 0);
     }
 }

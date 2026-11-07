@@ -119,7 +119,7 @@ Copy the SQLite file only with curado closed. Uninstalling does not remove these
 | Drives and rekordbox USB | Letters `D:` to `Z:` are listed as drives. rekordbox XML writes `file://localhost/C:/…` locations.                                                                                              |
 | Moved files and drives   | Size and fingerprint as everywhere; the drive's id is the **volume serial number** (`GetVolumeInformationW`), so a USB that comes back under another letter heals.                              |
 | Free space for stems     | `GetDiskFreeSpaceExW`, space available to the user.                                                                                                                                             |
-| Stems                    | Works with a Python you choose; see [Stems on Windows](#stems-on-windows).                                                                                                                      |
+| Stems                    | Demucs on PyTorch through `scripts\setup-separation.ps1`, verified end to end; see [Stems on Windows](#stems-on-windows).                                                                       |
 | Integrated web explorer  | WebView2 child WebView, same isolation and CSP as on macOS.                                                                                                                                     |
 | Metal soundscape         | **macOS only.** The button is absent; the player's reactive visual works.                                                                                                                       |
 | Camera hands and face    | **macOS only** (Vision). The XY pads work by pointer and finger.                                                                                                                                |
@@ -127,15 +127,25 @@ Copy the SQLite file only with curado closed. Uninstalling does not remove these
 
 ## Stems on Windows
 
-`scripts/setup-separation.sh` is zsh and Apple Silicon only. On Windows, make an environment with the regular Demucs (PyTorch) and point curado at it:
+Optional, and outside the app: Demucs 4 on PyTorch, on the CPU. With [uv](https://docs.astral.sh/uv/), which brings its own Python, from your own terminal in the checkout:
 
 ```powershell
-winget install --id Python.Python.3.12 -e
-py -3.12 -m venv "$env:APPDATA\studio.curado.player\separation"
-& "$env:APPDATA\studio.curado.player\separation\Scripts\python.exe" -m pip install demucs==4.0.1 soundfile
+winget install --id astral-sh.uv -e
+# open a new terminal, then:
+powershell -ExecutionPolicy Bypass -File scripts\setup-separation.ps1
 ```
 
-curado looks for `separation\Scripts\python.exe` in its data folder by itself; any other Python with Demucs can be chosen in **Configuración → Audio**. The model, about 80 MB, downloads on first use. macOS compresses stems to FLAC with `afconvert`; Windows has no such tool, so stems stay as WAV, about three times larger, and count that way against the space limit. **Not tried on Windows yet**, including the exact Demucs, torch and torchaudio versions.
+It makes `%APPDATA%\studio.curado.player\separation` with the versions pinned in `scripts\requirements-separation-windows.txt` (Demucs 4.0.1, torch 2.15.0 CPU, torchaudio 2.11.1, numpy 2.5.4), about 700 MB, and touches no global Python. curado finds it by itself; any other Python with Demucs can be chosen in **Configuración → Audio**. The model, about 80 MB, downloads into curado's cache (`%LOCALAPPDATA%\studio.curado.player\separation\torch`) on the first separation, not into `~\.cache\torch`.
+
+**Verified 2026-11-06 on Windows 11, through curado's real process path (`real_stems`, `real_cancel`):** an 8 s signal became four stems in 49 s including the model download; cancelling during the separation ended the worker in 14 ms with no process left behind and the job folder gone. A real track, its time and memory on a CPU, and a separation started from the app's interface are not tried.
+
+How it differs from macOS:
+
+- **Stems stay WAV.** macOS compresses them to FLAC with `afconvert`; Windows has no such tool, so stems take about three times the space and count that way against the limit.
+- **CPU unless CUDA.** PyPI's torch for Windows is CPU only. A CUDA build of torch on an NVIDIA GPU is used automatically when present; that is untried.
+- **The worker watches curado's process, not its standard input.** A thread blocked reading a synchronous pipe made numpy's DLL load wait forever (its C runtime asks Windows about standard input), so the worker hung before loading the model. On Windows it now waits on curado's process handle instead, which also works through a venv's launcher `python.exe`.
+- **No console windows.** Python starts with `CREATE_NO_WINDOW`.
+- **Run the setup script yourself.** From an agent app packaged as MSIX, `uv` fails with "Missing expected target directory for Python minor version link", because Windows redirects its `AppData` writes into the package.
 
 ## Debugging
 
@@ -172,4 +182,4 @@ Automated checks and packaging pass; the following needs a person at a Windows m
 7. The integrated web explorer in WebView2: fractos radio, SoundCloud and login.
 8. Display scaling at 125 %, 150 % and 200 %, and the always-on-top mini player.
 9. C++ allocations in the callback on Windows: the audit sees every Rust allocation here and passes, but its hook on the system allocator, which also sees Signalsmith's C++, is macOS only. x86 denormals inside Signalsmith are unreviewed.
-10. Stems with Demucs on PyTorch, end to end.
+10. Stems from the interface on a real track: time and memory on a CPU, and a CUDA build of torch.
