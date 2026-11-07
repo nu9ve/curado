@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-06 · Stems on Windows
+
+Tracks separate into stems on Windows with Demucs on PyTorch, set up by `scripts/setup-separation.ps1`. The worker no longer hangs on Windows, needs no torchcodec, keeps its model in curado's cache and opens no console window; cancelling ends it at once. Lesson: a thread blocked reading a synchronous pipe can freeze an unrelated DLL load on Windows. See [Status](STATUS.md) and [ADR-033](DECISIONS.md).
+
 ## 2026-11-06 · No output at launch, and Alt on Windows
 
 Without any audio output at launch, curado now starts its engine by itself once one appears, refuses loads before decoding, and says what to do. Keyboard badges and help say Alt and Ctrl on Windows and Linux. Lesson: an installer started from an MSIX-packaged agent app is installed inside that app's package. See [Status](STATUS.md) and [ADR-033](DECISIONS.md).

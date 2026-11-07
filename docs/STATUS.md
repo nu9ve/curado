@@ -1,5 +1,25 @@
 # curado status
 
+## Stems on Windows with Demucs on PyTorch · 2026-11-06
+
+The maintainer asked for stems on Windows. See [curado on Windows](WINDOWS.md#stems-on-windows) and [ADR-033](DECISIONS.md).
+
+**Found by running the real path, in order:**
+
+- **The worker hung before loading the model**, only when started by curado. `py-spy dump` showed the main thread inside numpy's extension import. The thread that watches for curado to quit was blocked reading standard input, a synchronous pipe, and a DLL's C runtime asking Windows about that same handle waited behind it. On Windows the worker now waits on curado's process handle (`--parent`), which also covers a venv's launcher `python.exe`.
+- **`torchaudio.load` needs torchcodec** since torchaudio 2.9. The input is always curado's own float WAV, so the worker reads it with numpy.
+- **The model went to `~\.cache\torch`.** `TORCH_HOME` now points at curado's cache.
+- **Python would open a console window** from the GUI app; it starts with `CREATE_NO_WINDOW`.
+- Added `scripts/setup-separation.ps1` and `scripts/requirements-separation-windows.txt`, and the stems settings name the script for the platform.
+
+**Real engine on Windows 11, CPU, through `separate` (`CURADO_TEST_PYTHON=… cargo test -p curado --lib real_stems real_cancel -- --ignored`):** an 8 s signal into four 8 s stems of 2.8 MB WAV in 49 s and 59 s, each including the 80 MB model download into a fresh cache; only the source's folder left. **New `real_cancel`:** a 60 s signal cancelled 2 s into separating ended in 14 ms, with no worker process left and the job folder gone, so ending the venv launcher ends the interpreter too. The setup script, run into a test folder, installed the pinned versions and curado's probe found Demucs 4.0.1.
+
+**Not tried:** a real track, its time and memory on this CPU, a separation started from the app's interface, the setup script into the real `%APPDATA%`, and CUDA. Stems stay WAV on Windows.
+
+**Verification:** `bun run check` passed (120 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace --locked` (72 and 142, 7 ignored that need real data or an engine) and `cargo clippy --workspace --all-targets --locked -- -D warnings`.
+
+**Installation blocked:** curado was open, so the new installer (`bun tauri build`, NSIS SHA-256 `a2fe68b9…`) was built and not run. Close curado, run `target\release\bundle\nsis\curado_0.1.0_x64-setup.exe` from Explorer, then `scripts\setup-separation.ps1` from your own terminal.
+
 ## No output at launch, and Alt on Windows · 2026-11-06
 
 The maintainer opened the installed app on Windows, ran **sesión de prueba**, and nothing loaded onto the decks. See [ADR-033](DECISIONS.md).

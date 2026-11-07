@@ -114,3 +114,11 @@ zsh scripts/setup-separation.sh
 ```
 
 It creates an environment of about 270 MB in the app's data folder, with versions pinned in `scripts/requirements-separation.txt`, and touches no global Python. The model, about 225 MB per family, downloads on first use. curado also finds a SoundShop environment if there is one, or you can choose any Python with Demucs in **Configuración → Audio**.
+
+On Windows, Demucs runs on PyTorch instead, with `uv` too:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-separation.ps1
+```
+
+Versions are pinned in `scripts/requirements-separation-windows.txt`. Details and differences are in [curado on Windows](WINDOWS.md#stems-on-windows).
