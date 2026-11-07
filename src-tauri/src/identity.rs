@@ -1,12 +1,13 @@
 //! What a file is, apart from where it is. A path breaks when a file or a drive moves; size, a
 //! fingerprint and the drive's own id let curado find it again and tell two copies apart.
 use sha2::{Digest, Sha256};
+#[cfg(not(windows))]
+use std::process::Command;
 use std::{
     collections::HashMap,
     fs::File,
     io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
-    process::Command,
     sync::Mutex,
 };
 
@@ -71,9 +72,30 @@ pub fn identify(path: &Path) -> Result<Identity, String> {
     })
 }
 /// The drive a path is on, when it is not the startup disk.
+#[cfg(not(windows))]
 pub fn volume_root(path: &Path) -> Option<PathBuf> {
     let inner = path.strip_prefix("/Volumes").ok()?;
     Some(Path::new("/Volumes").join(inner.components().next()?))
+}
+/// On Windows, a drive letter from D to Z, the same ones `devices::mount_points` lists. The
+/// root keeps the letter as the path spells it, so `strip_prefix` matches it.
+#[cfg(windows)]
+pub fn volume_root(path: &Path) -> Option<PathBuf> {
+    use std::path::{Component, Prefix};
+    let mut parts = path.components();
+    let letter = match parts.next()? {
+        Component::Prefix(prefix) => match prefix.kind() {
+            Prefix::Disk(letter) | Prefix::VerbatimDisk(letter) => letter,
+            _ => return None,
+        },
+        _ => return None,
+    };
+    if !matches!(parts.next()?, Component::RootDir)
+        || !(b'D'..=b'Z').contains(&letter.to_ascii_uppercase())
+    {
+        return None;
+    }
+    Some(path.components().take(2).collect())
 }
 static VOLUME_IDS: Mutex<Option<HashMap<PathBuf, Option<String>>>> = Mutex::new(None);
 /// Asked of the system once per mount: it takes a moment and does not change.
@@ -89,6 +111,7 @@ pub fn volume_id(root: &Path) -> Option<String> {
 pub fn forget_volumes() {
     *VOLUME_IDS.lock().unwrap() = None;
 }
+#[cfg(not(windows))]
 fn read_volume_id(root: &Path) -> Option<String> {
     let output = Command::new("/usr/sbin/diskutil")
         .args(["info", "-plist"])
@@ -97,16 +120,19 @@ fn read_volume_id(root: &Path) -> Option<String> {
         .ok()?;
     parse_volume_id(&String::from_utf8_lossy(&output.stdout))
 }
+#[cfg(not(windows))]
 fn parse_volume_id(plist: &str) -> Option<String> {
     let after = plist.split("<key>VolumeUUID</key>").nth(1)?;
     let value = after.split("<string>").nth(1)?.split("</string>").next()?;
     (!value.is_empty()).then(|| value.to_string())
 }
 /// Free space where a path lives, when the system says.
+#[cfg(not(windows))]
 pub fn free_bytes(path: &Path) -> Option<u64> {
     let output = Command::new("/bin/df").arg("-k").arg(path).output().ok()?;
     parse_free(&String::from_utf8_lossy(&output.stdout))
 }
+#[cfg(not(windows))]
 fn parse_free(table: &str) -> Option<u64> {
     let kib: u64 = table
         .lines()
@@ -116,6 +142,51 @@ fn parse_free(table: &str) -> Option<u64> {
         .parse()
         .ok()?;
     Some(kib * 1024)
+}
+
+/// Windows answers both questions through kernel32 directly: there is no `df` or `diskutil`.
+#[cfg(windows)]
+fn wide(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
+    path.as_os_str().encode_wide().chain(Some(0)).collect()
+}
+/// The volume serial number, which changes when a drive is formatted, like a macOS VolumeUUID.
+#[cfg(windows)]
+fn read_volume_id(root: &Path) -> Option<String> {
+    use windows_sys::Win32::Storage::FileSystem::GetVolumeInformationW;
+    let root = wide(root);
+    let mut serial = 0_u32;
+    // SAFETY: `root` is NUL-terminated and outlives the call; the only out pointer is `serial`.
+    let ok = unsafe {
+        GetVolumeInformationW(
+            root.as_ptr(),
+            std::ptr::null_mut(),
+            0,
+            &mut serial,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (ok != 0).then(|| format!("{serial:08X}"))
+}
+/// Space available to this user, which respects quotas, as `df` reports it on Unix.
+#[cfg(windows)]
+pub fn free_bytes(path: &Path) -> Option<u64> {
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    let path = wide(path);
+    let mut available = 0_u64;
+    // SAFETY: `path` is NUL-terminated and outlives the call; null out pointers are allowed.
+    let ok = unsafe {
+        GetDiskFreeSpaceExW(
+            path.as_ptr(),
+            &mut available,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    };
+    (ok != 0).then_some(available)
 }
 
 #[cfg(test)]
@@ -160,6 +231,7 @@ mod tests {
         assert!(fingerprint(Path::new("/nowhere/at/all")).is_err());
     }
     #[test]
+    #[cfg(not(windows))]
     fn only_outside_drives_have_a_volume() {
         assert_eq!(
             volume_root(Path::new("/Volumes/SETS/music/a.mp3")),
@@ -169,6 +241,35 @@ mod tests {
         assert_eq!(volume_root(Path::new("/Volumes")), None);
     }
     #[test]
+    #[cfg(windows)]
+    fn only_outside_drives_have_a_volume() {
+        let path = Path::new(r"E:\SETS\music\a.mp3");
+        let root = volume_root(path).unwrap();
+        assert_eq!(root, PathBuf::from(r"E:\"));
+        assert_eq!(
+            path.strip_prefix(&root).unwrap(),
+            Path::new(r"SETS\music\a.mp3")
+        );
+        // The letter keeps its spelling, or `strip_prefix` would not match.
+        let lower = Path::new(r"e:\a.mp3");
+        assert!(lower.strip_prefix(volume_root(lower).unwrap()).is_ok());
+        assert_eq!(volume_root(Path::new(r"C:\Users\me\a.mp3")), None);
+        assert_eq!(volume_root(Path::new(r"\\server\share\a.mp3")), None);
+        assert_eq!(volume_root(Path::new(r"E:relative.mp3")), None);
+        assert_eq!(volume_root(Path::new("relative.mp3")), None);
+    }
+    #[test]
+    #[cfg(windows)]
+    fn windows_answers_come_from_the_system() {
+        let system = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".into());
+        let root = PathBuf::from(format!(r"{system}\"));
+        let id = read_volume_id(&root).unwrap();
+        assert_eq!(id.len(), 8, "{id}");
+        assert!(free_bytes(&std::env::temp_dir()).is_some_and(|free| free > 0));
+        assert_eq!(read_volume_id(Path::new(r"Q:\nowhere\")), None);
+    }
+    #[test]
+    #[cfg(not(windows))]
     fn the_system_answers_are_read_carefully() {
         let plist = "<key>VolumeName</key><string>X</string>\n<key>VolumeUUID</key>\n\t<string>AB-CD</string>";
         assert_eq!(parse_volume_id(plist).as_deref(), Some("AB-CD"));

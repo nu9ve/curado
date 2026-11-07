@@ -608,7 +608,7 @@ export function describeHint(target: HintTarget, keys: KeyBinding[], snapshot: A
           (target.slider || a.value === k.action.value),
       ),
     )
-    .map(bindingLabel);
+    .map((binding) => bindingLabel(binding));
   let status = target.disabled
     ? tr('Control no disponible en este momento.', 'Control currently unavailable.')
     : undefined;

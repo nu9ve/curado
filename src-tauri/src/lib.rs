@@ -34,6 +34,12 @@ use std::{
 use tauri::{Emitter, Manager};
 use web::{close_web_services, open_web_service};
 
+/// Said whenever something needs the engine and there is no output. It tells what to do: the
+/// engine starts by itself once the system has an output (see `start_when_output_appears`).
+pub(crate) const NO_ENGINE: &str = "Sin salida de audio. Conecta audífonos o altavoces y curado arrancará el motor solo, o elige una salida en Configuración → Audio.";
+/// How often curado looks for an output while it has none. Never while an engine runs.
+const OUTPUT_RETRY: Duration = Duration::from_secs(2);
+
 pub struct AppState {
     db: Mutex<Database>,
     output: Mutex<Option<Output>>,
@@ -141,7 +147,7 @@ impl AppState {
             .lock()
             .unwrap()
             .as_ref()
-            .ok_or("Motor de audio no disponible")?
+            .ok_or(NO_ENGINE)?
             .handle
             .action(action)
     }
@@ -522,13 +528,7 @@ async fn save_loop(slot: usize, state: tauri::State<'_, Arc<AppState>>) -> Resul
         }
         let deck = {
             let output = s.output.lock().unwrap();
-            output
-                .as_ref()
-                .ok_or("Motor de audio no disponible")?
-                .handle
-                .snapshot()
-                .slots[slot]
-                .clone()
+            output.as_ref().ok_or(NO_ENGINE)?.handle.snapshot().slots[slot].clone()
         };
         if deck.id == 0 || deck.loop_out <= deck.loop_in {
             return Err("Este deck no tiene un loop que guardar".into());
@@ -789,6 +789,10 @@ fn load_into_slot(
     if replaced() {
         return Ok(None);
     }
+    // Before decoding: a whole track would be read only to be refused.
+    if s.output.lock().unwrap().is_none() {
+        return Err(NO_ENGINE.into());
+    }
     let generation = s.generation.load(Ordering::Acquire);
     let id = resolve()?;
     let clip = match s.decode_track_unless(id, &replaced) {
@@ -799,7 +803,7 @@ fn load_into_slot(
     if s.generation.load(Ordering::Acquire) != generation {
         return Err("El dispositivo cambió durante la carga; vuelve a cargar la pista".into());
     }
-    let handle = output.as_ref().ok_or("Motor no disponible")?.handle.clone();
+    let handle = output.as_ref().ok_or(NO_ENGINE)?.handle.clone();
     let ticket = handle.load(slot, clip)?;
     drop(output);
     let started = std::time::Instant::now();
@@ -1030,22 +1034,46 @@ async fn configure_audio(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     let s = state.inner().clone();
-    work(move || {
-        let _decode = s.decode_gate.lock().unwrap();
-        s.queue.lock().unwrap().enabled = false;
-        // Create first: a failed configuration leaves the previous output alive.
-        let output = output::start(device, frames)?;
-        let mode = s.mode.lock().unwrap();
-        output
-            .handle
-            .control(0, Control::SetMode(*mode == session::Mode::Mix))?;
-        let mut current = s.output.lock().unwrap();
-        *current = Some(output);
-        s.generation.fetch_add(1, Ordering::Release);
-        *s.audio_error.lock().unwrap() = None;
-        Ok(())
-    })
-    .await
+    work(move || open_output(&s, device, frames, false).map(|_| ())).await
+}
+/// Starts an output and puts it in place. With `only_if_silent`, it does nothing when an engine
+/// already exists, checked under the decode gate so it cannot race a configuration by hand.
+fn open_output(
+    s: &AppState,
+    device: Option<String>,
+    frames: Option<u32>,
+    only_if_silent: bool,
+) -> Result<bool, String> {
+    let _decode = s.decode_gate.lock().unwrap();
+    if only_if_silent && s.output.lock().unwrap().is_some() {
+        return Ok(false);
+    }
+    s.queue.lock().unwrap().enabled = false;
+    // Create first: a failed configuration leaves the previous output alive.
+    let output = output::start(device, frames)?;
+    let mode = s.mode.lock().unwrap();
+    output
+        .handle
+        .control(0, Control::SetMode(*mode == session::Mode::Mix))?;
+    let mut current = s.output.lock().unwrap();
+    *current = Some(output);
+    s.generation.fetch_add(1, Ordering::Release);
+    *s.audio_error.lock().unwrap() = None;
+    Ok(true)
+}
+/// With no engine at all, for example when the system had no output at launch, keeps trying the
+/// default output so plugging in headphones is enough. It never replaces a running engine: a
+/// device lost during a set stays a manual recovery, since reconfiguring unloads the decks.
+fn start_when_output_appears(s: &AppState) {
+    while s.running.load(Ordering::Relaxed) {
+        std::thread::sleep(OUTPUT_RETRY);
+        if s.output.lock().unwrap().is_some() {
+            continue;
+        }
+        if let Err(error) = open_output(s, None, None, true) {
+            *s.audio_error.lock().unwrap() = Some(error);
+        }
+    }
 }
 #[tauri::command]
 async fn get_keyboard(
@@ -1152,7 +1180,7 @@ async fn play_queue(
         }
         let mut q = s.queue.lock().unwrap();
         let output = s.output.lock().unwrap();
-        let handle = &output.as_ref().ok_or("Motor no disponible")?.handle;
+        let handle = &output.as_ref().ok_or(NO_ENGINE)?.handle;
         // Player mode already owns crossfader=0. Loading and playing must be indivisible.
         handle.load_and_play(0, clip)?;
         q.set(ids, repeat);
@@ -1293,6 +1321,10 @@ pub fn run() {
                         std::thread::sleep(Duration::from_secs(2));
                     }
                 })?;
+            let silent = state.clone();
+            std::thread::Builder::new()
+                .name("curado-output-watch".into())
+                .spawn(move || start_when_output_appears(&silent))?;
             if let Err(error) = tray(app) {
                 eprintln!("curado tray unavailable: {error}");
             }

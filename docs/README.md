@@ -14,6 +14,7 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 | [THEMES](THEMES.md)             | Visual language, styles, fonts and native header                   |
 | [MIXER-VIEWS](MIXER-VIEWS.md)   | Hardware-inspired console proposals and capability gaps            |
 | [PLATFORMS](PLATFORMS.md)       | Dependencies, distribution and OS differences                      |
+| [WINDOWS](WINDOWS.md)           | Windows install, build, feature table and debugging                |
 | [QUALITY](QUALITY.md)           | Release gates and missing evidence                                 |
 | [ROADMAP](ROADMAP.md)           | Priorities and dependencies                                        |
 | [SESSIONS](SESSIONS.md)         | Dedicated work topics and completion criteria                      |

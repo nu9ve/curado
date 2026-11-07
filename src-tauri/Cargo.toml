@@ -22,3 +22,7 @@ rfd = "0.15"
 sha2 = "0.10"
 midir = "0.10"
 crossbeam-queue = "0.3"
+
+# Free space and volume serials (identity.rs). Already in Cargo.lock through Tauri/CPAL.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

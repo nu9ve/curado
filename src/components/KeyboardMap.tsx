@@ -2,7 +2,14 @@ import { tr, useLanguage } from '../lib/language';
 import { MIXER_TARGETS } from '../lib/mixer-keys';
 import { memo } from 'react';
 import type { KeyBinding } from '../lib/types';
-import { actionLabel, allowedInMode, bindingLabel, keyLabel } from '../lib/keyboard';
+import {
+  actionLabel,
+  allowedInMode,
+  altName,
+  altSymbol,
+  bindingLabel,
+  keyLabel,
+} from '../lib/keyboard';
 import { useHud } from '../lib/feedback';
 import { actionKey } from '../lib/feedback';
 
@@ -71,7 +78,7 @@ export const KeyboardMap = memo(function KeyboardMap({
         <span className="eyebrow">{tr('TECLADO', 'KEYBOARD')}</span>
         <span className="z-a">{tr('A · izquierda', 'A · left')}</span>
         <span className="z-b">{tr('B · derecha', 'B · right')}</span>
-        <span className="z-sample">samples ⌥</span>
+        <span className="z-sample">samples {altSymbol()}</span>
         <span className="z-mixer">mixer</span>
       </div>
       {ROWS.map((row, r) => (
@@ -105,11 +112,11 @@ export const KeyboardMap = memo(function KeyboardMap({
         </div>
       ))}
       <div className="mixer-keys-guide">
-        <strong>{tr('Mixer con Option', 'Mixer with Option')}</strong>
+        <strong>{tr(`Mixer con ${altName()}`, `Mixer with ${altName()}`)}</strong>
         <p>
           {tr(
-            'Mantén Option, toca un control y usa flechas: ↑ arriba, ↓ silencio, ← → centro, Shift ↑ ↓ en pasos. En efectos, ← → eligen y ↑ ↓ encienden o apagan.',
-            'Hold Option, tap a control and use arrows: ↑ top, ↓ silent, ← → center, Shift ↑ ↓ in steps. On effects, ← → choose and ↑ ↓ switch on or off.',
+            `Mantén ${altName()}, toca un control y usa flechas: ↑ arriba, ↓ silencio, ← → centro, Shift ↑ ↓ en pasos. En efectos, ← → eligen y ↑ ↓ encienden o apagan.`,
+            `Hold ${altName()}, tap a control and use arrows: ↑ top, ↓ silent, ← → center, Shift ↑ ↓ in steps. On effects, ← → choose and ↑ ↓ switch on or off.`,
           )}
         </p>
         <ul>

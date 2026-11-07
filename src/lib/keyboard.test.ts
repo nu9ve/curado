@@ -4,6 +4,8 @@ import {
   LOCAL_KINDS,
   TOGGLE_KINDS,
   allowedInMode,
+  altName,
+  altSymbol,
   bindingLabel,
   keyIsForTheMix,
   matchKey,
@@ -163,5 +165,22 @@ describe('keyboard performance contract', () => {
         action: { slot: 2, kind: 'trigger', value: 0 },
       }),
     ).toBe('⌥ 1');
+  });
+  test('Windows and Linux name Ctrl and Alt as their keys print them', () => {
+    const action = { slot: 0, kind: 'cue', value: 0 };
+    const windows = (ctrl: boolean, alt: boolean, shift: boolean) =>
+      bindingLabel({ code: 'Digit1', ctrl, alt, shift, action }, false);
+    expect(windows(false, false, false)).toBe('1');
+    expect(windows(false, false, true)).toBe('⇧ 1');
+    expect(windows(true, false, false)).toBe('Ctrl 1');
+    expect(windows(false, true, false)).toBe('Alt 1');
+    expect(windows(true, true, true)).toBe('Ctrl+Alt+⇧ 1');
+    expect(bindingLabel({ code: 'Digit1', ctrl: true, alt: true, shift: true, action }, true)).toBe(
+      '⌃⌥⇧ 1',
+    );
+    expect([altName(false), altSymbol(false)]).toEqual(['Alt', 'Alt']);
+    expect([altName(true), altSymbol(true)]).toEqual(['Option', '⌥']);
+    // Without a document the Mac form stays, so earlier pictures and tests keep their labels.
+    expect(altName()).toBe('Option');
   });
 });

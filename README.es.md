@@ -56,7 +56,7 @@ Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí neces
 
 La interfaz comienza en español; el inglés está en Configuración y aún tiene algunos mensajes nativos en español. BPM, tonalidad y grid son estimaciones que puedes corregir.
 
-> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas en Apple Silicon. Faltan validación de hardware en Windows y Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y [lo que conviene saber](#antes-de-empezar).
+> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas en Apple Silicon, y en Windows 11 x64 con sus instaladores generados. Faltan usar la app en Windows, validación de hardware en Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y [lo que conviene saber](#antes-de-empezar).
 
 ## Dáselo a tu agente
 
@@ -85,7 +85,7 @@ bun run desktop:install
 
 El instalador es **solo para macOS**. Deja `~/Applications/curado.app`, verifica la firma local y la registra para Spotlight/Raycast. No la abre ni cierra una instancia existente. Sal de curado antes de actualizar; el índice del launcher puede tardar. La firma es ad hoc, no una notarización para distribución.
 
-Para desarrollo: `bun run desktop`. `bun run dev` solo muestra la interfaz en el navegador, sin audio nativo. [Windows y Linux](docs/PLATFORMS.md) tienen otros requisitos y aún necesitan validación física.
+Para desarrollo: `bun run desktop`. `bun run dev` solo muestra la interfaz en el navegador, sin audio nativo. En **Windows**, sigue [curado en Windows](docs/WINDOWS.md) (en inglés): requisitos con winget, `bun tauri build` para un instalador por usuario, qué es solo de macOS y cómo depurar. Linux tiene sus requisitos en [Plataformas](docs/PLATFORMS.md) y aún necesita validación física.
 
 Después de cambiar código, `bun run desktop:install` recompila y actualiza tu Mac. `--no-build` solo reutiliza un bundle que acabas de compilar y verificar.
 
@@ -118,7 +118,7 @@ Cada mano toca su deck, con el mismo dedo para la misma función:
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
 - Los efectos están medidos. La reproducción y la mezcla se escucharon en el sistema del mantenedor, pero nada se comparó lado a lado con el hardware en el que se inspira.
-- El bus de cue no se ha probado en una interfaz real de 4 canales, ni la cámara con una cámara real, ni los toques y la presión en un trackpad. Sin cuatro canales de salida no hay cue aparte en audífonos. La recuperación de dispositivos es manual.
+- El bus de cue no se ha probado en una interfaz real de 4 canales, ni la cámara con una cámara real, ni los toques y la presión en un trackpad. Sin cuatro canales de salida no hay cue aparte en audífonos. Un dispositivo perdido durante una sesión se recupera a mano; si no hay salida al abrir, el motor arranca en cuanto aparece una.
 - Los USB de rekordbox son de solo lectura, y los que solo tienen la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
 - BPM, grid y tonalidad son estimaciones medidas contra las de rekordbox y pueden fallar: revísalos antes de mezclar. Seguir el tempo es opcional por pista porque se activa en algunas estables. En una pista transpuesta, las notas muy graves pueden quedar algo altas.
 - La reproducción y el login web dentro de la app aún necesitan validación real. El audio web no responde al master, los efectos, el sync ni el pánico locales.

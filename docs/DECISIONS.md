@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-033 · Windows as a build target: thin native adapters, Unix-only tests stay Unix-only — accepted (2026-11-06)
+
+The maintainer asked to install curado on Windows and to find which native layers were missing. The shared code already compiled; what was missing were the places that call macOS tools by path, plus tests and checkout settings that assumed Unix.
+
+- **Adapters, not a platform layer.** `identity.rs` gets Windows versions of the three functions that shell out on macOS: `volume_root` (a drive letter `D:` to `Z:`, the same letters `devices::mount_points` lists, spelled as the path spells it so `strip_prefix` matches), `read_volume_id` (the volume serial number from `GetVolumeInformationW`, which, like a VolumeUUID, changes on reformat and not on a new letter) and `free_bytes` (`GetDiskFreeSpaceExW`, space available to the user). Before this, Windows returned nothing: the room check for stems always passed and a returning drive could not heal by id. Added dependency, Windows only: **windows-sys 0.61.2** with `Win32_Storage_FileSystem`, already in `Cargo.lock` through Tauri and CPAL with that feature, so no new crate is built.
+- **Stems find a Windows venv** at `Scripts\python.exe`, and `USERPROFILE` stands in for `HOME`. FLAC compression stays macOS only (`afconvert`); Windows keeps WAV, which the existing fallback already did.
+- **Tests that need Unix say so.** Tests that drive a `#!/bin/sh` stand-in process (stems, camera helper) are `#[cfg(unix)]`, following `devices.rs`. The rekordbox location test checks Windows drive syntax on Windows instead of a Unix path, which Windows reads as drive `a:`. Windows gains tests for its own volume root, serial and free space.
+- **LF everywhere.** `.gitattributes` pins LF, because Git for Windows defaults to `core.autocrlf=true` and every Prettier check then failed. `.prettierrc.json` records the style the code already follows (single quotes, width 100), which had lived outside the repository.
+- **No output at launch starts by itself; a lost one does not.** Found on a Windows machine with nothing in the jack. With no engine at all there is nothing to interrupt, so a watch tries the default output every 2 s. With an engine, even a failed one, recovery stays manual, because reconfiguring unloads decks and samples mid-set.
+- **Modifier names follow the platform.** `⌥`, `⌃` and Option on macOS; `Alt` and `Ctrl` elsewhere, as the keys print them. `⇧` everywhere. Without a document the macOS form stays, so tests and documentation pictures are unchanged.
+- **No Windows installer script yet.** `bun tauri build` already produces a per-user NSIS installer. A `desktop:install` equivalent with running-instance checks is worth it only once the app has been used on Windows.
+- **Reconsider** when Windows needs more than these calls (device change notifications, power events, ASIO): then a `platform` module per OS is clearer than `cfg` in each file.
+
 ## ADR-032 · One library of pieces, identity apart from location, stems as a cache — accepted (2026-10-31)
 
 The maintainer wanted to collect samples, loops and stems, tag and find them quickly, keep them relinkable when files move, and later coordinate with nüün, with no duplicates or files nobody needs.

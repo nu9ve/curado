@@ -58,7 +58,7 @@ Local listening and mixing work offline. Web services need internet. There is no
 
 The interface starts in Spanish; English is in Settings and still has some native messages in Spanish. BPM, key and grid are estimates you can correct.
 
-> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon. Windows and Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [what to know first](#before-you-start).
+> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon, and on Windows 11 x64 with its installers built. Using the app on Windows, Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [what to know first](#before-you-start).
 
 ## Install with your agent
 
@@ -97,7 +97,7 @@ For a development session on a supported build environment:
 bun run desktop
 ```
 
-`bun run dev` previews the interface in a browser **without native audio**. Windows and Linux setup/build instructions are in [Platforms](docs/PLATFORMS.md). To update a local Mac build after changing code, run `bun run desktop:install`; use `--no-build` only immediately after a verified build.
+`bun run dev` previews the interface in a browser **without native audio**. On **Windows**, follow [curado on Windows](docs/WINDOWS.md): prerequisites with winget, `bun tauri build` for a per-user installer, what is macOS only and how to debug. Linux instructions are in [Platforms](docs/PLATFORMS.md). To update a local Mac build after changing code, run `bun run desktop:install`; use `--no-build` only immediately after a verified build.
 
 ## Your first mix
 
@@ -128,7 +128,7 @@ Each hand plays its own deck, with the same finger for the same job:
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
 - Effects are measured. Playback and mixing have been heard on the maintainer's system, but nothing was compared side by side with the hardware it takes after.
-- The cue bus has not been tried on a real 4-channel interface, nor the camera with a real camera, nor touch and pressure on a trackpad. Without four output channels there is no separate headphone cue. Device recovery is manual.
+- The cue bus has not been tried on a real 4-channel interface, nor the camera with a real camera, nor touch and pressure on a trackpad. Without four output channels there is no separate headphone cue. A device lost during a set is recovered by hand; with no output at launch, the engine starts once one appears.
 - rekordbox USBs are read only, and USBs with only the newer OneLibrary database show as plain files. Cues reach rekordbox through an XML export that has not been tried in rekordbox yet, so back up its library first. USB tracks with no certain original on the computer arrive there as other tracks.
 - BPM, grid and key estimates are measured against rekordbox's and can be wrong: check them before mixing. Tempo-following is opt-in per track because it fires on some steady ones. On a transposed track, very low notes can sit slightly sharp.
 - Web playback and login inside the app still need real validation. Web audio bypasses the local master, effects, sync and panic.

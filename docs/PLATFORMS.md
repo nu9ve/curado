@@ -30,9 +30,11 @@ Destination: `~/Applications/curado.app`. Script validates signature/identifier,
 
 ## Windows
 
-Bun, Rust MSVC, Microsoft C++ Build Tools, Windows SDK and WebView2. CPAL uses WASAPI; ASIO is not enabled. midir uses WinMM; Tauri provides tray. Run `bun tauri build` on Windows for packaging; `desktop:build` uses Mac-only `--bundles app` and signing. Local installer is Mac-only.
+Full guide: [curado on Windows](WINDOWS.md), with winget commands, data paths, the feature table and debugging.
 
-Signalsmith needs LLVM/libclang for bindgen and C++; its Windows configuration/execution still needs CI/hardware verification. Pending physical checks: shared USB/Bluetooth/interface audio, suspend, device changes, DPI and keyboard layouts. CPAL alone does not establish ASIO support; feature/SDK/build and separate evidence are required.
+Bun, Rust MSVC, Microsoft C++ Build Tools, Windows SDK, LLVM and WebView2. CPAL uses WASAPI; ASIO is not enabled. midir uses WinMM; Tauri provides tray. Run `bun tauri build` on Windows for packaging, which produces an NSIS per-user installer and an MSI; `desktop:build` uses Mac-only `--bundles app` and signing, and `desktop:install` is Mac-only.
+
+Signalsmith needs LLVM/libclang for bindgen and C++. Verified 2026-11-06 on Windows 11 x64: it builds with MSVC and LLVM 23, and the engine tests pass. Windows adapters in `identity.rs` read the volume serial number and free space through kernel32 (`windows-sys`), drives are letters `D:` to `Z:`, and stems find a venv's `Scripts\python.exe`. Metal, the camera tracker and haptics are macOS only and report that cleanly. Launching, listening and hardware remain unverified. Pending physical checks: shared USB/Bluetooth/interface audio, suspend, device changes, DPI and keyboard layouts. CPAL alone does not establish ASIO support; feature/SDK/build and separate evidence are required.
 
 ## Linux
 
@@ -51,7 +53,7 @@ Integrated visuals use shared UI. Metal button is macOS-only; a cross-platform n
 
 ## Cross-platform validation
 
-CI is configured for macOS, Windows and Ubuntu. A workflow file does not prove execution; a CI build does not validate drivers, hotplug, hardware or tray. Record runs/hardware matrix in STATUS/QUALITY.
+No CI workflow exists in the repository (checked 2026-11-06: no `.github` in the tree or its history), although earlier notes said one was configured. When one is added, remember that a workflow file does not prove execution; a CI build does not validate drivers, hotplug, hardware or tray. Record runs/hardware matrix in STATUS/QUALITY.
 
 General requirements: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). App does not install drivers/system services. Tauri's integrated child WebView currently requires its `unstable` feature; see ADR-012 before upgrades.
 

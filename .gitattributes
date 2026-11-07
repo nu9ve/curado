@@ -1,0 +1,14 @@
+# Keep LF in every checkout, including Windows with core.autocrlf=true.
+# Prettier, rustfmt and the shell scripts expect LF; the index already stores LF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.wav binary
+*.flac binary
+*.mp3 binary

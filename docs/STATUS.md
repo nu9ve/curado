@@ -1,5 +1,44 @@
 # curado status
 
+## No output at launch, and Alt on Windows · 2026-11-06
+
+The maintainer opened the installed app on Windows, ran **sesión de prueba**, and nothing loaded onto the decks. See [ADR-033](DECISIONS.md).
+
+- **Cause:** this machine had no audio output. `Get-PnpDevice -Class AudioEndpoint` listed only Headphones (Senary Audio) as `Unknown`, nothing in the jack, and no speakers; `IMMDeviceEnumerator::GetDefaultAudioEndpoint` returned `E_NOTFOUND`. curado started without an engine, by design, but said only "Motor de audio no disponible", decoded a whole track before refusing it, and needed **Configuración → Audio** after plugging something in.
+- **Fixed:** with no engine at all, `curado-output-watch` tries the default output every 2 s and starts the engine when one appears. It never replaces a running engine, and checks that under the decode gate, so a device lost during a set stays a manual recovery. Loading refuses before decoding. Every "no engine" error now says what to do, and the footer says **sin salida de audio**.
+- **Alt on Windows and Linux:** badges, the keyboard map and its guide say `Alt` and `Ctrl` where macOS says `⌥`, `⌃` and Option. Found on the way: the footer hints passed `bindingLabel` straight to `map`, which would have handed it the index as its new second argument; TypeScript caught it.
+- **The first installation was virtualized.** The process ran from `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Local\curado`: the Claude desktop app is an MSIX package, and Windows redirected the silent installer's writes into it. [curado on Windows](WINDOWS.md) now says to install by hand.
+
+**Automatically tested on Windows:** `bun run check` passed (120 tests, one new for Windows labels), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace --locked` (72 and 142, 6 ignored) and `cargo clippy --workspace --all-targets --locked -- -D warnings`. The output watch has no automated test: it needs a system with no output and then one.
+
+**Not tried:** the engine starting once headphones are plugged in, any sound on this machine, and the new labels on screen.
+
+**Installation blocked:** curado was open (process 11464), so the new installer (`bun tauri build`, NSIS SHA-256 `a7b089fa…`) was built and not run. Close curado and run `target\release\bundle\nsis\curado_0.1.0_x64-setup.exe` from Explorer.
+
+## First Windows build · 2026-11-06
+
+The maintainer asked to install curado on Windows and find what was missing. See [curado on Windows](WINDOWS.md) and [ADR-033](DECISIONS.md).
+
+**Machine:** Windows 11 Pro 26200, x64; Rust 1.99.1 `x86_64-pc-windows-msvc`, Visual Studio Build Tools 2022 17.14 with Windows SDK 10.0.26100, WebView2 156. Installed for this through winget: Bun 1.4.4 and LLVM 23.1.5. The Build Tools' own LLVM folder had no `libclang.dll`.
+
+**What was missing:**
+
+- **Checkout:** Git for Windows' `core.autocrlf=true` gave CRLF files and Prettier failed on all of them. `.gitattributes` now pins LF. The repository had no Prettier config, and the code follows single quotes and width 100, so `.prettierrc.json` records that.
+- **Tests:** four `stems` and `tracking` tests would not compile, driving `#!/bin/sh` stand-ins through `PermissionsExt`; they are Unix only now. A rekordbox location test used a Unix path that Windows correctly reads as drive `a:`; it checks `C:/` syntax on Windows instead.
+- **Native adapters that returned nothing:** free space (`/bin/df`) and a drive's id (`diskutil`, `/Volumes` only). On Windows the room check for stems always passed and a drive under a new letter could not heal by id. Both now go through kernel32 with `windows-sys` 0.61.2, already in the lockfile. Stems also find a venv's `Scripts\python.exe`.
+
+**Automatically tested on Windows:** `bun run check` passed (119 tests), `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace --locked` (72 in `curado`, 142 in `curado-audio`, 6 ignored that need real data) and `cargo clippy --workspace --all-targets --locked -- -D warnings`. New Windows tests: drive roots from letters, keeping the letter's spelling, refusing `C:`, UNC and relative paths; the system drive's serial; free space in the temp folder. Signalsmith's C++ and bindgen build with MSVC and LLVM 23.
+
+**`bun run format:check`:** passes on every file except `docs/CONTROLS.md`, `docs/QUALITY.md` and this file, which had drifted before this session (table alignment, list numbers). They were left as they were.
+
+**Packaging:** `bun tauri build` produced `curado_0.1.0_x64-setup.exe` (NSIS, 4.08 MiB, SHA-256 `a566fd50…`) and `curado_0.1.0_x64_en-US.msi` (5.64 MiB). The NSIS template installs per user to `%LOCALAPPDATA%\curado` and runs the app only from its finish page, which silent mode skips.
+
+**Installation:** curado was not running, so the NSIS installer ran with `/S`, installed `%LOCALAPPDATA%\curado\curado.exe` (SHA-256 `8cb166e0…`; it differs from `target\release\curado.exe` in 3 bytes, the bundle type Tauri writes into each package), registered curado 0.1.0 under the user's uninstall key and added a Start menu shortcut. It was not launched.
+
+**Not tried on Windows:** launching, any sound, WASAPI devices, MIDI, Alt combinations in WebView2, a rekordbox USB, the web explorer, display scaling and stems with PyTorch Demucs. The callback allocation audit passes here for Rust allocations; its hook for C++ allocations (Signalsmith) is macOS only. Keyboard labels still show `⌥` and "Option" where Windows says Alt. The list is in [curado on Windows](WINDOWS.md#what-is-still-unverified).
+
+**Next:** the maintainer opens the installed app and runs **sesión de prueba**; then the Windows list above, starting with WASAPI devices and Alt combinations.
+
 ## A library of pieces, relink and stems · 2026-10-31
 
 See [ADR-032](DECISIONS.md) and [Controls](CONTROLS.md). Done: phases 1 to 3 of the plan the maintainer agreed to. Later by design: nüün and stems live on a deck.

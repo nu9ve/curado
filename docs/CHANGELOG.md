@@ -1,5 +1,13 @@
 # Change history
 
+## 2026-11-06 · No output at launch, and Alt on Windows
+
+Without any audio output at launch, curado now starts its engine by itself once one appears, refuses loads before decoding, and says what to do. Keyboard badges and help say Alt and Ctrl on Windows and Linux. Lesson: an installer started from an MSIX-packaged agent app is installed inside that app's package. See [Status](STATUS.md) and [ADR-033](DECISIONS.md).
+
+## 2026-11-06 · First Windows build
+
+curado builds, passes every automated check and packages on Windows 11 x64. Added Windows adapters for a drive's id and free space, a venv's Python for stems, LF line endings and the project's Prettier style in the repository, and [curado on Windows](WINDOWS.md) with install, feature and debugging detail. Lesson: compiling was never the gap; macOS tools called by path quietly returned nothing on Windows. See [Status](STATUS.md) and [ADR-033](DECISIONS.md).
+
 ## 2026-10-31 · A library of pieces, relink and stems
 
 Tracks, loops and stems now share one library with tags and saved searches. Any piece can be marked as a sample, and the pads have a quick select with four banks. Files are recognized when moved, and duplicates are not added. Tracks separate into stems with Demucs, optionally, under a space limit. See [Status](STATUS.md) and [ADR-032](DECISIONS.md).
