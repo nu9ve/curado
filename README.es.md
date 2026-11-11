@@ -56,7 +56,7 @@ Tu biblioteca y mezcla local funcionan sin internet. Los servicios web sí neces
 
 La interfaz comienza en español; el inglés está en Configuración y aún tiene algunos mensajes nativos en español. BPM, tonalidad y grid son estimaciones que puedes corregir.
 
-> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas en Apple Silicon, y en Windows 11 x64 con sus instaladores generados. Faltan usar la app en Windows, validación de hardware en Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y [lo que conviene saber](#antes-de-empezar).
+> **0.1.0 · en desarrollo.** Compilación y pruebas automatizadas en Apple Silicon, y en Windows 11 x64 con [su propio instalador](docs/INSTALLER.md) generado. Faltan escucharla y probar hardware en Windows, validación de hardware en Linux y distribución firmada. Revisa el [estado](docs/STATUS.md) y [lo que conviene saber](#antes-de-empezar).
 
 ## Dáselo a tu agente
 
@@ -83,9 +83,9 @@ bun install --frozen-lockfile
 bun run desktop:install
 ```
 
-El instalador es **solo para macOS**. Deja `~/Applications/curado.app`, verifica la firma local y la registra para Spotlight/Raycast. No la abre ni cierra una instancia existente. Sal de curado antes de actualizar; el índice del launcher puede tardar. La firma es ad hoc, no una notarización para distribución.
+`desktop:install` es **solo para macOS**. Deja `~/Applications/curado.app`, verifica la firma local y la registra para Spotlight/Raycast. No la abre ni cierra una instancia existente. Sal de curado antes de actualizar; el índice del launcher puede tardar. La firma es ad hoc, no una notarización para distribución.
 
-Para desarrollo: `bun run desktop`. `bun run dev` solo muestra la interfaz en el navegador, sin audio nativo. En **Windows**, sigue [curado en Windows](docs/WINDOWS.md) (en inglés): requisitos con winget, `bun tauri build` para un instalador por usuario, qué es solo de macOS y cómo depurar. Linux tiene sus requisitos en [Plataformas](docs/PLATFORMS.md) y aún necesita validación física.
+Para desarrollo: `bun run desktop`. `bun run dev` solo muestra la interfaz en el navegador, sin audio nativo. En **Windows**, sigue [curado en Windows](docs/WINDOWS.md) (en inglés): requisitos con winget, `bun run windows:release` para [el instalador propio de curado](docs/INSTALLER.md) (por usuario, dos clics, y nunca cierra un curado que está sonando), qué es solo de macOS y cómo depurar. Linux tiene sus requisitos en [Plataformas](docs/PLATFORMS.md) y aún necesita validación física.
 
 Después de cambiar código, `bun run desktop:install` recompila y actualiza tu Mac. `--no-build` solo reutiliza un bundle que acabas de compilar y verificar.
 

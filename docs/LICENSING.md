@@ -63,7 +63,7 @@ This is a starting inventory, **not a completed compatibility audit**:
 
 Using an MPL dependency does not automatically require licensing every separate curado source file as MPL. It does create obligations for covered files when distributing them, including in executable form. Mozilla's [FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) explains source availability and notices. Do not label an entire bundle “MIT only” or assume dependency source obligations disappear because the app is sold or given away.
 
-Existing bundled notices do not yet cover the whole dependency/font inventory; the current build is not a licensing-complete public release.
+The five font families' license texts are bundled from `licenses/fonts` since 2026-11-11, copied from their Fontsource packages. Existing bundled notices do not yet cover the whole dependency inventory; the current build is not a licensing-complete public release.
 
 ## Applying the decision later
 

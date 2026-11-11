@@ -29,7 +29,7 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 
 Engine tests cover transport/seek/EOF/loops/panic/crossfader/bounds/rate conversion/backpressure/mode transitions/shared cues. Allocator audit covers zero alloc/dealloc in tested render operations, including clip replacement, seek/filter/cue. WAV tests include mono/stereo/garbage; waveform tests cover 50 bins/s and 60 Hz/9 kHz band separation. SQLite covers relationships, playlist dedup/cascades/settings/v1→v3 migration and non-overwriting waveform backfill. Queue covers advance/repeat/prefetch timing/stale IDs/release.
 
-TypeScript covers five-style palette, v1→v2 theme migration, waveform binary contract, Bayer/logo, window permissions, keyboard uniqueness/Shift/modifier/mode policy, hints, installation rollback and musical notation. Browser contracts scope ACL to the local WebView and check native child wiring; Rust checks URLs/bounds. Musical tests use synthetic clicks/triads and prepared audio. Latest actual counts/results are in STATUS.
+TypeScript covers five-style palette, v1→v2 theme migration, waveform binary contract, Bayer/logo, window permissions, keyboard uniqueness/Shift/modifier/mode policy, hints, installation rollback and musical notation. The Windows installer's contracts are tests too: generated art and colors, both languages complete, per-user mode, no force-close of a running app and `/DEMO` writing nothing; `bun run installer:check` compiles its template. None of that shows a page on screen. Browser contracts scope ACL to the local WebView and check native child wiring; Rust checks URLs/bounds. Musical tests use synthetic clicks/triads and prepared audio. Latest actual counts/results are in STATUS.
 
 ## Manual local test plan
 
