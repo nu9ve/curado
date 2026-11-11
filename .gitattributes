@@ -12,3 +12,6 @@
 *.wav binary
 *.flac binary
 *.mp3 binary
+
+*.bmp binary
+*.ttf binary

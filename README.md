@@ -58,7 +58,7 @@ Local listening and mixing work offline. Web services need internet. There is no
 
 The interface starts in Spanish; English is in Settings and still has some native messages in Spanish. BPM, key and grid are estimates you can correct.
 
-> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon, and on Windows 11 x64 with its installers built. Using the app on Windows, Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [what to know first](#before-you-start).
+> **Early development · 0.1.0.** Built and tested automatically on Apple Silicon, and on Windows 11 x64 with [its own installer](docs/INSTALLER.md) built. Listening and hardware on Windows, Linux hardware validation and release signing are still pending. See [current status](docs/STATUS.md) and [what to know first](#before-you-start).
 
 ## Install with your agent
 
@@ -89,7 +89,7 @@ bun install --frozen-lockfile
 bun run desktop:install
 ```
 
-The installer is **macOS only**. It builds and installs `~/Applications/curado.app`, verifies its local signature and registers it for Spotlight/Raycast. It does not launch the app. Quit an installed instance before updating; the installer will not stop it for you. Launcher indexing may take time. Local signing is ad hoc, not notarization.
+`desktop:install` is **macOS only**. It builds and installs `~/Applications/curado.app`, verifies its local signature and registers it for Spotlight/Raycast. It does not launch the app. Quit an installed instance before updating; the installer will not stop it for you. Launcher indexing may take time. Local signing is ad hoc, not notarization.
 
 For a development session on a supported build environment:
 
@@ -97,7 +97,7 @@ For a development session on a supported build environment:
 bun run desktop
 ```
 
-`bun run dev` previews the interface in a browser **without native audio**. On **Windows**, follow [curado on Windows](docs/WINDOWS.md): prerequisites with winget, `bun tauri build` for a per-user installer, what is macOS only and how to debug. Linux instructions are in [Platforms](docs/PLATFORMS.md). To update a local Mac build after changing code, run `bun run desktop:install`; use `--no-build` only immediately after a verified build.
+`bun run dev` previews the interface in a browser **without native audio**. On **Windows**, follow [curado on Windows](docs/WINDOWS.md): prerequisites with winget, `bun run windows:release` for [curado's own installer](docs/INSTALLER.md) (per user, two clicks, and it never closes a playing curado), what is macOS only and how to debug. Linux instructions are in [Platforms](docs/PLATFORMS.md). To update a local Mac build after changing code, run `bun run desktop:install`; use `--no-build` only immediately after a verified build.
 
 ## Your first mix
 

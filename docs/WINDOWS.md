@@ -2,7 +2,7 @@
 
 Install, build, run and debug curado on Windows 10/11 x64. Start with [Setup](SETUP.md) for the general workflow and [Platforms](PLATFORMS.md) for how each OS differs. This page is the Windows detail: exact prerequisites, commands for PowerShell, which features have a Windows adapter, which are macOS only, and how to debug.
 
-**First verified on 2026-11-06**, Windows 11 Pro 26200, x64, Rust 1.99.1 MSVC, Bun 1.4.4, LLVM 23.1.5, Visual Studio Build Tools 2022 17.14 and WebView2 156. On that machine every automated check passes and `bun tauri build` produces both installers. The app has **not been launched or listened to** on Windows yet; see [What is still unverified](#what-is-still-unverified).
+**First verified on 2026-11-06**, Windows 11 Pro 26200, x64, Rust 1.99.1 MSVC, Bun 1.4.4, LLVM 23.1.5, Visual Studio Build Tools 2022 17.14 and WebView2 156. On that machine every automated check passes and `bun tauri build` produces the installer. The app has **not been launched or listened to** on Windows yet; see [What is still unverified](#what-is-still-unverified).
 
 ## 1. Prerequisites
 
@@ -76,22 +76,30 @@ Starts Vite on `127.0.0.1:1420` and the native app in debug, with a console that
 ## 5. Build and install
 
 ```powershell
-bun tauri build
+bun run windows:release
 ```
 
-Do not use `bun run desktop:build` or `bun run desktop:install`: they are macOS only (`--bundles app`, codesign, LaunchServices). The first `bun tauri build` downloads NSIS and WiX from Tauri's official releases into its cache.
+It checks that the installer's art matches the theme, runs `bun tauri build`, and prints the installer's size, SHA-256 and whether it is signed; the hash is also written beside it. `bun tauri build` alone makes the same installer. Do not use `bun run desktop:build` or `bun run desktop:install`: they are macOS only (`--bundles app`, codesign, LaunchServices). The first build downloads NSIS from Tauri's official releases into its cache.
 
 Output, under `target\release\`:
 
 | File                                     | What it is                                                                       |
 | ---------------------------------------- | -------------------------------------------------------------------------------- |
 | `curado.exe`                             | The app itself, runnable in place for a quick try                                |
-| `bundle\nsis\curado_0.1.0_x64-setup.exe` | Per-user installer, no administrator needed, installs to `%LOCALAPPDATA%\curado` |
-| `bundle\msi\curado_0.1.0_x64_en-US.msi`  | Per-machine installer for `C:\Program Files\curado`, asks for administrator      |
+| `bundle\nsis\curado_0.1.0_x64-setup.exe` | curado's own installer: per user, no administrator, into `%LOCALAPPDATA%\curado` |
+| `bundle\nsis\SHA256SUMS.txt`             | Its SHA-256, to publish beside it                                                |
 
-Prefer the NSIS installer for a personal machine. It adds curado to the Start menu and to **Settings → Apps** for uninstalling. Neither installer is signed, so SmartScreen may warn on first run: **More info → Run anyway**. Signing is a release gate in [Quality](QUALITY.md).
+The installer has curado's own pages and words, in Spanish or English after the system; [The Windows installer](INSTALLER.md) describes them, its switches and what is verified. A first install is two clicks. It adds curado to the Start menu and to **Settings → Apps**, published by nu9ve, for uninstalling. It is not signed, so SmartScreen may warn on first run: **More info → Run anyway**. Signing is a release gate in [Quality](QUALITY.md).
 
-To update, close curado and run the new installer; it replaces the previous version and keeps the library. Do not end the process from Task Manager during a set.
+An MSI is no longer built by default: it installed per machine with administrator rights and without any of the above. `bun tauri build --bundles msi` still makes one.
+
+To update, run the new installer: it says from which version to which, installs over the old one and keeps the library. **If curado is open the installer waits for you to close it; it never closes it**, so a set is not cut. Do not end the process from Task Manager during a set either.
+
+To look at the installer without installing anything, add `/DEMO`:
+
+```powershell
+target\release\bundle\nsis\curado_0.1.0_x64-setup.exe /DEMO
+```
 
 **Run the installer yourself, from Explorer or your own terminal.** Some agent apps on Windows, including the Claude desktop app, are MSIX packages, and Windows redirects what their child processes write under `AppData` into the package's own folder. An installer started from there lands in `%LOCALAPPDATA%\Packages\<app>\LocalCache\Local\curado` instead of `%LOCALAPPDATA%\curado`; it still runs, but other programs may not see it and removing the agent app can remove it too. An agent can build the installer; installing is better done by hand.
 
@@ -164,6 +172,8 @@ How it differs from macOS:
 | A MIDI controller does not appear                                                                              | WinMM lets only one program open a MIDI port. Close other DJ software, then reconnect the controller.                                                                                                                                                                               |
 | Alt opens nothing but a key combination does nothing either                                                    | Report it with the exact keys: Alt combinations reaching WebView2 are not verified yet.                                                                                                                                                                                             |
 | SmartScreen blocks the installer                                                                               | Unsigned local build: **More info → Run anyway**.                                                                                                                                                                                                                                   |
+| The installer says curado is open                                                                              | Close curado yourself, from its window or its tray icon, then **Reintentar**. The installer never ends it. A silent run (`/S`) exits with code 2 instead.                                                                                                                           |
+| The installer looks plain: light buttons, gray page, system font                                               | Its theme leans on Windows 11; the text stays readable either way. Report the Windows version. In high contrast it uses Windows' colors on purpose.                                                                                                                                 |
 | Builds are very slow                                                                                           | Windows Defender scans every object file. Excluding the checkout's `target\` folder from real-time scanning speeds it up markedly; it is your security decision.                                                                                                                    |
 | The library looks empty after reinstalling                                                                     | Check `%APPDATA%\studio.curado.player\curado.sqlite` exists. The identifier is the same on every OS and version, so it is reused.                                                                                                                                                   |
 
@@ -183,3 +193,4 @@ Automated checks and packaging pass; the following needs a person at a Windows m
 8. Display scaling at 125 %, 150 % and 200 %, and the always-on-top mini player.
 9. C++ allocations in the callback on Windows: the audit sees every Rust allocation here and passes, but its hook on the system allocator, which also sees Signalsmith's C++, is macOS only. x86 denormals inside Signalsmith are unreviewed.
 10. Stems from the interface on a real track: time and memory on a CPU, and a CUDA build of torch.
+11. The installer of 2026-11-11: every page on screen, a first install, an update over 0.1.0, the same-version page, the folder picker, the prompt with curado open, uninstalling with and without the library, high contrast, 125 % to 200 % scaling and Narrator. Start with `/DEMO`, which writes nothing.

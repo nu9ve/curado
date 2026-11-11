@@ -32,7 +32,7 @@ Destination: `~/Applications/curado.app`. Script validates signature/identifier,
 
 Full guide: [curado on Windows](WINDOWS.md), with winget commands, data paths, the feature table and debugging.
 
-Bun, Rust MSVC, Microsoft C++ Build Tools, Windows SDK, LLVM and WebView2. CPAL uses WASAPI; ASIO is not enabled. midir uses WinMM; Tauri provides tray. Run `bun tauri build` on Windows for packaging, which produces an NSIS per-user installer and an MSI; `desktop:build` uses Mac-only `--bundles app` and signing, and `desktop:install` is Mac-only.
+Bun, Rust MSVC, Microsoft C++ Build Tools, Windows SDK, LLVM and WebView2. CPAL uses WASAPI; ASIO is not enabled. midir uses WinMM; Tauri provides tray. Run `bun run windows:release` (or `bun tauri build`) on Windows for packaging. It produces one per-user NSIS installer with curado's own pages, described in [The Windows installer](INSTALLER.md); an MSI is no longer built by default (`bun tauri build --bundles msi` still makes one). `desktop:build` uses Mac-only `--bundles app` and signing, and `desktop:install` is Mac-only.
 
 Signalsmith needs LLVM/libclang for bindgen and C++. Verified 2026-11-06 on Windows 11 x64: it builds with MSVC and LLVM 23, and the engine tests pass. Windows adapters in `identity.rs` read the volume serial number and free space through kernel32 (`windows-sys`), drives are letters `D:` to `Z:`, and stems run Demucs on PyTorch from a venv's `Scripts\python.exe`, set up by `scripts\setup-separation.ps1` and verified through the real worker. Metal, the camera tracker and haptics are macOS only and report that cleanly. Launching, listening and hardware remain unverified. Pending physical checks: shared USB/Bluetooth/interface audio, suspend, device changes, DPI and keyboard layouts. CPAL alone does not establish ASIO support; feature/SDK/build and separate evidence are required.
 
@@ -61,4 +61,4 @@ General requirements: [Tauri prerequisites](https://v2.tauri.app/start/prerequis
 
 `scripts/icon.py` generates 1024 px icon and `docs/assets/logo.svg` from the same geometry as `src/components/Logo.tsx`: pixel c-ring/axle, coral-to-amber dither, dark squircle. `bun tauri icon <png>` regenerates `src-tauri/icons` for supported targets, without external image-generation dependencies.
 
-Fonts are bundled (`@fontsource/*` 5.3.0, Latin, OFL 1.1), never fetched at runtime. Include each family's exact notices when distributing. Signalsmith notices already live in `licenses/`; this is not a complete dependency/font audit. See [Licensing](LICENSING.md).
+Fonts are bundled (`@fontsource/*` 5.3.0, Latin, OFL 1.1), never fetched at runtime. Include each family's exact notices when distributing. Signalsmith notices live in `licenses/` and the five font families' OFL texts in `licenses/fonts`; this is not a complete dependency audit. See [Licensing](LICENSING.md).

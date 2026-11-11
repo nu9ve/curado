@@ -1,5 +1,42 @@
 # curado status
 
+## A Windows installer with curado's identity · 2026-11-11
+
+The maintainer asked to review how curado installs on Windows and for an installer with its own look and voice, in the fewest steps, that could be the example for the other nu9ve apps. See [The Windows installer](INSTALLER.md) and [ADR-034](DECISIONS.md).
+
+**Found while reviewing:**
+
+- **Tauri's default installer force-closes a running app.** Its check calls Restart Manager's `RmShutdown` with `RmForceShutdown`, after one prompt with a window and with none in silent mode. The silent install of 2026-11-06 would have ended a playing curado. The installer now only waits for the user, and a silent run stops with exit code 2.
+- **"Uninstall" on the same version installed the app again** in the default flow. It now removes it and ends.
+- The default installer was five pages in formal Spanish or English, with no word on where the library lives or that music is not touched, and published by "curado".
+- **Stale claims in the docs:** [Setup](SETUP.md) said Windows and Linux had "CI configuration" (there is no workflow), and both READMEs called `desktop:install` "the installer" although it is macOS only.
+
+**Built:**
+
+- `src-tauri/windows/installer.nsi`: Tauri's NSIS template (tauri-cli 2.12.4) with curado's pages. Welcome, progress and finish: two clicks to install or update. The welcome page states what, where, your music and permissions; the folder can change there. Spanish, or English on an English system.
+- `src-tauri/windows/installer-kit.nsh`: the theme and three behaviours as app-agnostic macros (system colors in high contrast, never ending a running app, `/DEMO`).
+- `scripts/installer-art.ts`: sidebar and header bitmaps, `palette.nsh` and Jersey 15 as TrueType, all from `palette(DEFAULT_THEME)`, `dither.ts`, `LOGO_CELLS` and Fontsource. The nu9ve signature is the one image not generated.
+- `scripts/installer-check.ts` (compiles the template in seconds), `scripts/windows-release.ts` (`bun run windows:release`) and `scripts/installer.test.ts`.
+- Publisher `nu9ve` and homepage; Windows bundles NSIS only; the five font families' OFL texts in `licenses/fonts`.
+
+**Automatically tested on Windows 11 Pro 26200:**
+
+- `bun run check` passed (132 tests, 12 new for the installer), `bun run build`, and `bun run installer:check`: makensis 3.13 compiles the rendered template with no warning beyond one the upstream template already has.
+- `bun run windows:release` built `curado_0.1.0_x64-setup.exe`: 4.11 MiB, SHA-256 `8dad2397…f035ee`, **not signed**.
+- That installer run as `/S /DEMO` exited 0 and left the uninstall entry, the install folder and the shortcuts as they were. curado was not running.
+- `cargo fmt --all -- --check`, `cargo test --workspace --locked` (72 and 142, 7 ignored) and `cargo clippy --workspace --all-targets --locked -- -D warnings` passed; no Rust changed. `bun run format:check` still fails only on `docs/CONTROLS.md`, `docs/QUALITY.md` and this file, as before this session.
+
+**Not tried:**
+
+- **Any page on screen.** Layout, Jersey 15, the dark buttons, the block progress bar and the art beside the text have not been seen; the bitmaps were only checked as images. Visual checks wait for the maintainer's word.
+- A real install, an update over the installed 0.1.0, the same-version page, the folder picker, uninstalling with and without the library, and the prompt with curado open with its exit code 2.
+- High contrast, 125 % to 200 % scaling, Narrator, Windows 10 and signing.
+- The migration of the remembered install folder from `HKCU\Software\curado` to `HKCU\Software\nu9ve`, which the installed 0.1.0 on this machine will exercise.
+
+**Installation not done:** the installer was built, not run to install, because this session runs inside an agent app that redirects an installer's writes. `target\release\bundle\msi` still holds the MSI of 2026-11-06; Windows no longer builds one.
+
+**Next:** the maintainer runs `target\release\bundle\nsis\curado_0.1.0_x64-setup.exe /DEMO` and looks at the pages; then a real update over 0.1.0 from Explorer, with curado open once to see it wait.
+
 ## Stems on Windows with Demucs on PyTorch · 2026-11-06
 
 The maintainer asked for stems on Windows. See [curado on Windows](WINDOWS.md#stems-on-windows) and [ADR-033](DECISIONS.md).

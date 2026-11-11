@@ -30,6 +30,8 @@
     "active": true,
     "targets": "all",
     "category": "Music",
+    "publisher": "nu9ve",
+    "homepage": "https://nu9ve.xyz",
     "resources": { "../licenses/": "licenses/" },
     "shortDescription": "Native audio, intentional listening.",
     "macOS": {

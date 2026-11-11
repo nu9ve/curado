@@ -1,6 +1,6 @@
 # Set up curado
 
-This guide builds curado from source. macOS/Apple Silicon is the locally verified build environment. Windows and Linux have shared source and CI configuration, but recorded hardware/CI validation is still pending. See [Platforms](PLATFORMS.md) for the exact differences and [Status](STATUS.md) for evidence.
+This guide builds curado from source. macOS/Apple Silicon is the locally verified build environment. Windows 11 x64 builds, passes the automated checks and packages its own installer; Linux shares the source. Neither has recorded hardware validation, and the repository has no CI workflow. See [Platforms](PLATFORMS.md) for the exact differences and [Status](STATUS.md) for evidence.
 
 ## Give this to your agent
 
@@ -85,7 +85,7 @@ For development, `bun run desktop` starts the native app and dev server. `bun ru
 
 After source changes have passed checks, run `bun run desktop:install` again. Use `--no-build` only for a bundle just built from the intended source. Do not claim an update installed when the installer reports an open app or permission failure. Documentation-only changes do not change the installed binary.
 
-Windows/Linux: use `bun run desktop` for development and `bun tauri build` for native packaging on that OS. The Mac install/signing scripts are not cross-platform installers. See [Platforms](PLATFORMS.md). On Windows, [curado on Windows](WINDOWS.md) has the exact prerequisites, the installer to use and a debugging table.
+Windows/Linux: use `bun run desktop` for development and `bun tauri build` for native packaging on that OS. The Mac install/signing scripts are not cross-platform installers. See [Platforms](PLATFORMS.md). On Windows, [curado on Windows](WINDOWS.md) has the exact prerequisites and a debugging table, `bun run windows:release` builds the installer, and [The Windows installer](INSTALLER.md) describes it.
 
 ## Troubleshooting
 
