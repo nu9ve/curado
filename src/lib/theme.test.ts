@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import themeVectors from '../../vendor/nu9ve-core/data/theme-vectors-v1.json';
 import {
   COLOR_PRESETS,
   DEFAULT_THEME,
@@ -11,7 +12,6 @@ import {
   normalizeHex,
   palette,
   nativeWindowTheme,
-  readableInk,
   validateTheme,
 } from './theme';
 describe('theme contract', () => {
@@ -47,8 +47,25 @@ describe('theme contract', () => {
     expect(hsvToHex({ h: -120, s: 1, v: 1 })).toBe('#0000ff');
     expect(hsvToHex({ h: NaN, s: Infinity, v: NaN })).toBe('#000000');
   });
+  test('the shared accent roles match the suite vectors', () => {
+    for (const { skin, dark, base, roles } of themeVectors.cases) {
+      const mode = dark ? 'dark' : 'light';
+      for (const style of STYLE_IDS) {
+        const { tokens } = palette({ ...DEFAULT_THEME, style, base: base.toLowerCase(), mode });
+        const input = `${style} / ${mode} / ${base} (suite vector: ${skin})`;
+        expect(tokens['--accent'].toUpperCase(), input).toBe(roles.accent);
+        expect(tokens['--accent-ink'].toUpperCase(), input).toBe(roles.onAccent);
+      }
+    }
+  });
   test('every style × color × mode × variant keeps the base color and readable text', () => {
-    const bases = [...COLOR_PRESETS.map((c) => c.value), '#000000', '#ffffff', '#555555'];
+    const bases = new Set([
+      ...COLOR_PRESETS.map((c) => c.value),
+      ...themeVectors.cases.map(({ base }) => base.toLowerCase()),
+      '#000000',
+      '#ffffff',
+      '#555555',
+    ]);
     for (const style of STYLE_IDS)
       for (const base of [...bases, STYLES[style].suggested])
         for (const mode of ['light', 'dark', 'system'] as const)
@@ -56,7 +73,7 @@ describe('theme contract', () => {
             for (const systemDark of [false, true]) {
               const p = palette({ ...DEFAULT_THEME, style, base, mode, variant }, systemDark);
               expect(p.accent).toBe(base);
-              expect(contrast(base, readableInk(base))).toBeGreaterThanOrEqual(4.5);
+              expect(contrast(base, p.tokens['--accent-ink'])).toBeGreaterThanOrEqual(4.5);
               for (const surface of [p.panel, p.chrome]) {
                 expect(contrast(p.tokens['--accent-text'], surface)).toBeGreaterThanOrEqual(4.5);
                 expect(contrast(p.text, surface)).toBeGreaterThan(7);

@@ -34,7 +34,7 @@
 :root {
   --accent: #d66154;
   --accent-text: #d66154;
-  --accent-ink: #111111;
+  --accent-ink: #000000;
   --accent-hover: #db7469;
   --accent-soft: #3a2320;
   --accent-glow: #d661546b;
@@ -57,7 +57,7 @@
   --line: #f6f0ec14;
   --line-strong: #f6f0ec3d;
   --deck-b: #88ccdb;
-  --deck-b-ink: #111111;
+  --deck-b-ink: #000000;
   --deck-b-soft: #2f3233;
   --deck-b-glow: #88ccdb66;
   --danger: #f0af9d;

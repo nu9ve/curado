@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-16 · Suite theme vectors in TypeScript
+
+The palette chooses pure black or white for text on accent fills, whichever has higher contrast. The theme tests match both shared accent roles in all 110 pinned cases and include all 11 fixture colors in the five-style contrast matrix. The Windows installer art still passes its byte-for-byte check.
+
 ## 2026-11-16 · Local links to the suite contracts
 
 The [Windows suite notes](SUITE-WINDOWS.md) link to the pinned Windows, theme and interaction contracts and to the pinned theme vectors.

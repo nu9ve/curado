@@ -1,5 +1,16 @@
 # curado status
 
+## Suite vectors and audio inventory · 2026-11-16
+
+curado pins the suite theme, keyboard and interaction, macOS and Windows contracts and the theme vectors. The [Windows suite notes](SUITE-WINDOWS.md) link to the pinned copies. The TypeScript tests compare `accent` and `onAccent` for all 110 vectors in each of the five local styles and use all 11 vector bases in the existing contrast matrix. The previous white text on `#2f78d6` had 4.39:1 contrast. Pure black gives 4.78:1. The palette now chooses the better of pure black and white for both deck accents.
+
+The audio modules, synthetic music probe, stems runner and overlapping utilities are inventoried with source paths and sizes. [Suite adoption plan](https://github.com/nu9ve/core/blob/45d1ebc3a88c2152cc8ae63f4212e89dd46ae381/docs/suite-adoption.md#5-curado-audio-workers-y-otras-coincidencias)
+
+- On macOS, `bun run check` passed 133 tests, including `bun test src/lib/theme.test.ts` (7). `bun run core:check`, `bash vendor/nu9ve-core/scripts/sync-core.sh --strict`, `bun run build`, `bun run installer:art --check`, `cargo fmt --all -- --check`, `cargo test --workspace` (231 passed, 11 ignored) and `cargo clippy --workspace --all-targets -- -D warnings` passed.
+- `bun run desktop:build` produced the 15.14 MiB macOS bundle and verified its ad hoc signature. `bun run desktop:install --no-build` installed and registered it at `~/Applications/curado.app`. The executable SHA-256 starts with `b484648417ea`. The app was left closed.
+- `bun run format:check` still flags `docs/CONTROLS.md`, `docs/QUALITY.md` and this file. A broader palette audit found existing contrast gaps on raised and selected surfaces and in the secondary, danger and success colors. Comparing the other role colors depends on adopting the common palettes.
+- Use the inventory to define shared audio fixtures and the process boundary before extracting engine or worker code. Hardware and visual checks remain pending.
+
 ## A Windows installer with curado's identity · 2026-11-11
 
 The maintainer asked to review how curado installs on Windows and for an installer with its own look and voice, in the fewest steps, that could be the example for the other nu9ve apps. See [The Windows installer](INSTALLER.md) and [ADR-034](DECISIONS.md).

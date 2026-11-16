@@ -58,6 +58,8 @@ Mini view uses narrowly allowed `setSize`, `setMinSize`, `setAlwaysOnTop`, remem
 
 ## Evidence and limits
 
-Pure tests cover 5 styles ×10 colors ×3 modes ×3 variants ×light/dark OS. Chrome/sheet text-accent contrast ≥4.5:1; primary/secondary >7:1 / ≥7:1, muted >4.5:1; visible highs in light waveforms; valid hex and v1→v2 migration.
+Pure tests cover five styles, three modes, three variants and both OS appearances. The colors include all 11 bases from the [pinned theme vectors](../vendor/nu9ve-core/data/theme-vectors-v1.json), curado's presets, style suggestions and neutral extremes. Each style matches the expected `accent` and `onAccent` in the 110 cases. Text on an accent fill uses whichever of pure black and white has more contrast.
+
+On the chrome and sheet, accent text has at least 4.5:1 contrast, primary and secondary text at least 7:1, and muted text more than 4.5:1. The tests also check waveform highs in light mode, valid hex tokens and migration from v1 to v2.
 
 Math is not a full visual audit. A later authorized web-preview review covered curado at 1100/1440 px without native audio; native loaded decks and other styles remain unreviewed. Current preference prohibits further Computer Use/visual tests without explicit instruction. `color-mix()` and container units need Safari 16+ WebKit; macOS 12 with unupdated Safari 15 may fall back to unmixed backgrounds. Existing README imagery is a development capture, not evidence of current visual verification.

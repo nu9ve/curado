@@ -199,7 +199,7 @@ export function contrast(a: string, b: string) {
   return (hi + 0.05) / (lo + 0.05);
 }
 export function readableInk(base: string) {
-  return contrast(base, '#111111') >= contrast(base, '#ffffff') ? '#111111' : '#ffffff';
+  return contrast(base, '#000000') >= contrast(base, '#ffffff') ? '#000000' : '#ffffff';
 }
 /** Moves `base` toward black/white until it reaches `target` contrast on every background. */
 function accessibleOn(base: string, backgrounds: string[], target: number) {
