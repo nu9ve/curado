@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-16 · Local links to the suite contracts
+
+The [Windows suite notes](SUITE-WINDOWS.md) link to the pinned Windows, theme and interaction contracts and to the pinned theme vectors.
+
 ## 2026-11-16 · Suite contracts from nu9ve/core
 
 The suite contracts curado follows (macOS app, Windows app, theme) and the shared theme vectors now come from `nu9ve/core` as a pinned copy in `vendor/nu9ve-core/`, checked with `bun run core:check`. No app behaviour changes.
