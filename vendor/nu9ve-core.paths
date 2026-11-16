@@ -1,0 +1,6 @@
+# What curado uses from nu9ve/core. Pin with vendor/nu9ve-core/scripts/sync-core.sh [<commit>].
+# Never edit the copy: change nu9ve/core and sync again. The shared contracts are in Spanish.
+contracts/macos-app-v1.md
+contracts/windows-app-v1.md
+contracts/nu9ve-theme-v1.md
+data/theme-vectors-v1.json

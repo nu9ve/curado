@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-16 · Suite contracts from nu9ve/core
+
+The suite contracts curado follows (macOS app, Windows app, theme) and the shared theme vectors now come from `nu9ve/core` as a pinned copy in `vendor/nu9ve-core/`, checked with `bun run core:check`. No app behaviour changes.
+
 ## 2026-11-11 · A Windows installer with curado's identity
 
 The Windows installer now looks and talks like curado: dark chrome, the record and its grooves in dither, Jersey 15, and Spanish or English with a light Mexican voice. A first install is two clicks, an update too, and it never closes curado for you. Added `/DEMO`, a fast compile check, `bun run windows:release`, tests for its contracts and the bundled fonts' license texts. Publisher is now nu9ve and Windows builds NSIS only. Lesson: Tauri's default installer force-closes a running app, silently in silent mode; and Modern UI never unsets the install page's abort header. Not seen on screen yet. See [The Windows installer](INSTALLER.md), [Status](STATUS.md) and [ADR-034](DECISIONS.md).

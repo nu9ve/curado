@@ -17,6 +17,7 @@
     "docs:pictures": "bun scripts/preview/pictures.ts",
     "check:input": "bun scripts/preview/check-input.ts && bun scripts/preview/check-list.ts && bun scripts/preview/check-tracking.ts && bun scripts/preview/check-pieces.ts",
     "check": "tsc -b && bun test",
+    "core:check": "bash vendor/nu9ve-core/scripts/sync-core.sh --check",
     "check:rust": "cargo test --workspace && cargo clippy --workspace --all-targets -- -D warnings",
     "fixtures": "bun scripts/fixtures.ts",
     "format": "prettier --write src scripts docs README.md README.es.md AGENTS.md package.json && cargo fmt --all",

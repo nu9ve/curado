@@ -36,7 +36,8 @@ Desktop audio application. Always write the name in lowercase: **curado**. Befor
 
 - Update `docs/STATUS.md` with evidence, limits and concrete next steps.
 - Update `docs/CHANGELOG.md`; adjust architecture/decisions/contracts when changed.
-- Run `bun run check`, `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`.
+- Suite contracts and shared data come from `nu9ve/core` as a pinned copy in `vendor/nu9ve-core/` (listed in `vendor/nu9ve-core.paths`). Never edit the copy: fix it in `nu9ve/core`, then run `vendor/nu9ve-core/scripts/sync-core.sh` as its own change.
+- Run `bun run check`, `bun run core:check`, `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`.
 - For packaging, Swift, bridge or lifecycle changes, build `.app` and test relevant contracts in code. Do not launch or visually inspect it while the preference above remains in effect.
 - After verified app changes, install locally with `bun run desktop:install` (or `bun run desktop:install --no-build` immediately after building). Destination: `~/Applications/curado.app`, registered for Spotlight/Raycast. Never force an open instance to quit or interrupt audio; record a blocked update. Do not launch automatically. Documentation-only edits do not change the installed application and do not require rebuilding/reinstalling its unchanged bundle.
 - On Windows, after touching the installer run `bun run installer:check`; build it with `bun run windows:release`. Do not run the installer from an agent app, which redirects its writes; `/S /DEMO` writes nothing and may be run. The installer never ends a running curado, and no change may make it.
