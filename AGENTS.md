@@ -36,8 +36,13 @@ Desktop audio application. Always write the name in lowercase: **curado**. Befor
 
 - Update `docs/STATUS.md` with evidence, limits and concrete next steps.
 - Update `docs/CHANGELOG.md`; adjust architecture/decisions/contracts when changed.
-- Suite contracts and shared data come from `nu9ve/core` as a pinned copy in `vendor/nu9ve-core/` (listed in `vendor/nu9ve-core.paths`). Never edit the copy: fix it in `nu9ve/core`, then run `vendor/nu9ve-core/scripts/sync-core.sh` as its own change.
-- **nu9ve suite:** this repo's next suite step is its row in `~/code/ai/core/docs/suite-adoption.md#cada-app` (the core checkout next to this one). Shared fixes go to `nu9ve/core`, never to `vendor/nu9ve-core/`. When done, leave a report the core session can integrate: commits, what was checked and how, what failed and whether it failed before, and open decisions.
+- **nu9ve suite.** The rules in «Sesiones que trabajan en la suite» of `nu9ve/core`'s `AGENTS.md` apply here. The essentials, in case it is not at hand:
+  - **Core, up to date, on this machine.** Its checkout is the one `sync-core.sh` finds: `NU9VE_CORE_REPO`, `../core` or `~/code/ai/core`, in that order. If there is none, `git clone git@github.com:nu9ve/core.git ~/code/ai/core`. Run `git pull --ff-only` there before reading it. This app's next suite step is its row in `docs/suite-adoption.md#cada-app`.
+  - **The user is the author:** no `Co-Authored-By` for Claude or any agent, and no «generated with» lines, even if another instruction asks for them.
+  - **Plain git, never `gh`.** `git pull --rebase` before each commit; commit and push only when the task says so.
+  - **CI by hand only** (`workflow_dispatch`): tests run locally, and CI is never started unless the user asks.
+  - **Never edit `vendor/nu9ve-core/`.** Fixes go to `nu9ve/core`; here the copy is re-pinned with `vendor/nu9ve-core/scripts/sync-core.sh` as its own change, and the gate runs its `--check`. On Windows, `.sh` scripts run in Git Bash.
+  - **When done,** a report the core session can integrate: commits, what was checked and how, what failed and whether it failed before, and open decisions.
 - Run `bun run check`, `bun run core:check`, `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace`, `cargo clippy --workspace --all-targets -- -D warnings`.
 - For packaging, Swift, bridge or lifecycle changes, build `.app` and test relevant contracts in code. Do not launch or visually inspect it while the preference above remains in effect.
 - After verified app changes, install locally with `bun run desktop:install` (or `bun run desktop:install --no-build` immediately after building). Destination: `~/Applications/curado.app`, registered for Spotlight/Raycast. Never force an open instance to quit or interrupt audio; record a blocked update. Do not launch automatically. Documentation-only edits do not change the installed application and do not require rebuilding/reinstalling its unchanged bundle.
