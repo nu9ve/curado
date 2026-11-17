@@ -13,4 +13,4 @@ e22d4cd1d3c144cf844b0e7bfe09bdb874def77821ad3d185dd765b552369810  rust/nu9ve-fs/
 2bf1b8a0d994f909be2e480bc34ed06ed491b3fa824cc4f148baf6e58c505e10  rust/nu9ve-json/Cargo.toml
 446ab7e070917f9a18588677bdd5d60dae637cc456a747f3f073eccc35588a19  rust/nu9ve-json/src/lib.rs
 732bffd5379de94708f838cf63ed2d829abf61b3639dd67bf95c37b6eb3714ff  rust/nu9ve-json/tests/vectors.rs
-e6f7e13f0ce8ab13d8506b6d9dbb0a4586e8e4029bcd3f02105a211365358c5f  scripts/sync-core.sh
+7fc19f87e1529510edf68c43faa20bfcc4da831e639338df73f08fc821da5f29  scripts/sync-core.sh
