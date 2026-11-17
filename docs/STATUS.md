@@ -2,11 +2,11 @@
 
 ## Durable XML export and contrast on raised surfaces · 2026-11-16
 
-The two suite steps for curado in [the adoption plan](https://github.com/nu9ve/core/blob/548c1a83ba8c38e9e5a0031ce8e21d2859dff98f/docs/suite-adoption.md#cada-app): `nu9ve-fs` in the export, and the contrast gaps found on raised and selected surfaces and in state colors.
+The two suite steps for curado in [the adoption plan](https://github.com/nu9ve/core/blob/c5be0f75fa00c7d39a8e962cc24d8044228c88a3/docs/suite-adoption.md#cada-app): `nu9ve-fs` in the export, and the contrast gaps found on raised and selected surfaces and in state colors.
 
 **Built:**
 
-- `vendor/nu9ve-core.paths` adds `rust/nu9ve-json` and `rust/nu9ve-fs`, pinned at the same `548c1a8`. `src-tauri` depends on `nu9ve-fs` by path; `vendor` is excluded from the Cargo workspace so fmt and clippy never touch the copy. `Cargo.lock` only gains the two crates: every dependency they pin was already there ([ADR-035](DECISIONS.md)).
+- `vendor/nu9ve-core.paths` adds `rust/nu9ve-json` and `rust/nu9ve-fs`, pinned at the same `c5be0f7`. `src-tauri` depends on `nu9ve-fs` by path; `vendor` is excluded from the Cargo workspace so fmt and clippy never touch the copy. `Cargo.lock` only gains the two crates: every dependency they pin was already there ([ADR-035](DECISIONS.md)).
 - `rekordbox_xml.rs` writes the XML with `nu9ve_fs::atomic_write` (full sync, `F_FULLFSYNC` on macOS). A failure before the rename says the previous XML is unchanged; a failed folder sync after it says the new file is in place but not confirmed.
 - `palette()` checks muted, secondary, accent, danger and success text against the sheet, chrome, raised, hover and input surfaces. Danger and success are derived from their old hues; raised, hover and both selection tints get fainter only when text would drop under 7:1; deck B moves toward the text polarity only under 3:1 ([ADR-036](DECISIONS.md)). The Windows installer art and `palette.nsh` were regenerated.
 
@@ -24,7 +24,7 @@ The two suite steps for curado in [the adoption plan](https://github.com/nu9ve/c
 
 curado pins the suite theme, keyboard and interaction, macOS and Windows contracts and the theme vectors. The [Windows suite notes](SUITE-WINDOWS.md) link to the pinned copies. The TypeScript tests compare `accent` and `onAccent` for all 110 vectors in each of the five local styles and use all 11 vector bases in the existing contrast matrix. The previous white text on `#2f78d6` had 4.39:1 contrast. Pure black gives 4.78:1. The palette now chooses the better of pure black and white for both deck accents.
 
-The audio modules, synthetic music probe, stems runner and overlapping utilities are inventoried with source paths and sizes. [Suite adoption plan](https://github.com/nu9ve/core/blob/45d1ebc3a88c2152cc8ae63f4212e89dd46ae381/docs/suite-adoption.md#5-curado-audio-workers-y-otras-coincidencias)
+The audio modules, synthetic music probe, stems runner and overlapping utilities are inventoried with source paths and sizes. [Suite adoption plan](https://github.com/nu9ve/core/blob/d741c5a28498e75d38484a55f4e7c1f9fc80fede/docs/suite-adoption.md#5-curado-audio-workers-y-otras-coincidencias)
 
 - On macOS, `bun run check` passed 133 tests, including `bun test src/lib/theme.test.ts` (7). `bun run core:check`, `bash vendor/nu9ve-core/scripts/sync-core.sh --strict`, `bun run build`, `bun run installer:art --check`, `cargo fmt --all -- --check`, `cargo test --workspace` (231 passed, 11 ignored) and `cargo clippy --workspace --all-targets -- -D warnings` passed.
 - `bun run desktop:build` produced the 15.14 MiB macOS bundle and verified its ad hoc signature. `bun run desktop:install --no-build` installed and registered it at `~/Applications/curado.app`. The executable SHA-256 starts with `b484648417ea`. The app was left closed.

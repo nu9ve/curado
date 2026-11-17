@@ -14,7 +14,7 @@ A palette audit against [nu9ve-theme-v1 §2](../vendor/nu9ve-core/contracts/nu9v
 
 The rekordbox XML export wrote a temporary file and renamed it without syncing the data or its folder, so a power cut or an unplugged drive could leave a short file after the rename. The suite plan names curado as the third user of [nu9ve-fs-v1](../vendor/nu9ve-core/contracts/nu9ve-fs-v1.md).
 
-- **Pinned, not copied.** `rust/nu9ve-json` and `rust/nu9ve-fs` join `vendor/nu9ve-core.paths` at the same commit (`548c1a8`); `src-tauri` uses them by path, like Clipper. Their exact dependencies (libc 0.2.191, windows-sys 0.61.2, serde_json 1.0.154, sha2 0.10.9, tempfile 3.27.0) were already in `Cargo.lock`: the lockfile only gains the two crates.
+- **Pinned, not copied.** `rust/nu9ve-json` and `rust/nu9ve-fs` join `vendor/nu9ve-core.paths` at the same commit (`c5be0f7`); `src-tauri` uses them by path, like Clipper. Their exact dependencies (libc 0.2.191, windows-sys 0.61.2, serde_json 1.0.154, sha2 0.10.9, tempfile 3.27.0) were already in `Cargo.lock`: the lockfile only gains the two crates.
 - **`vendor` is excluded from the workspace.** Path dependencies inside the workspace folder become members otherwise, and `cargo fmt --all` could rewrite the pinned copy.
 - **Full sync**, the suite's default: `F_FULLFSYNC` on macOS, with `fsync(2)` where the file system refuses it. The export has no Python twin to match.
 - **Two messages.** A failure before the rename keeps the previous XML and says so; a failure syncing the folder after it says the new file is in place but not confirmed on disk.
