@@ -1,5 +1,29 @@
 # curado status
 
+## MIDI controllers explored, detected and preset · 2026-11-17
+
+The maintainer asked to try a DJ controller on Windows, control the mixer from it, learn ranges and buttons on any controller (including keyboards), and keep known controllers easy to set up. The unit at hand is a Pioneer DDJ-SB. See [MIDI](MIDI.md) and [ADR-037](DECISIONS.md).
+
+**Found on the real unit (Windows 11, WinMM):** a 10-minute capture (27 419 messages, every control moved once) shows 14-bit faders, knobs and EQs (CC _n_ with _n_ + 0x20), relative jogs (`offset64`) and browse (`twosComplement`), buttons as Note On 0x7F then 0x00, SHIFT handled in hardware (+0x08 on pads), an FX knob repeated on three CCs and **both tempo faders moving by themselves** (deck 2 untouched: 152 messages in 160 s, wandering 8192–9024 of 16383). The previous code would have read every 14-bit control as two 7-bit ones, could not read jogs or browse, and would have changed tempo all the time. A published third-party map was wrong on the browse press (0x65 here, not 0x41).
+
+**Built:**
+
+- `crates/midi` (`curado-midi`): message parsing (notes, CCs, pitch bend), gesture detection with a noise baseline, 14-bit pairing, mirrors and encoder encodings, a noise gate, the preset format and the DDJ-SB preset (124 controls, 95 mapped). `bun run midi:probe` lists ports, explores one live with an optional log, or replays a log.
+- `midi.rs`: learning binds a gesture with its detected kind; 14-bit, relative and pitch bend reading; jog scratch or bend by touch; toggles for sync, key lock, headphone cue and others; held release for roll, release FX and jog touch; preset applied on first connect with its `init` (the FILTER knob selects the Filter color FX); the remembered port reconnects; browse and LOAD reach the list through `midi:local`. Old bindings still read.
+- **Settings → MIDI** (`MidiSettings.tsx`): recognised preset and restore, noise measurement, last control and the list of controls seen, learn by action, guided setup for DJ controllers and for keyboards or pads, mappings per device. Bindings are read on request instead of in the 20 Hz snapshot.
+
+**Automatically tested on Windows 11 Pro 26200:**
+
+- Replaying the DDJ-SB fixture (3 291 messages from the capture) finds faders as 14-bit with their LSB, jogs and browse with their encodings, buttons and pads one gesture each, the FX knob with its two mirrors, and never the noisy fader; every gesture in it is in the preset with the same kind, and verified. The gate passes under a fifth of the fixture's tempo noise.
+- Every preset action validates in the engine or is MIDI's own; continuous values rest on their detents; every toggle has both states; bindings saved before this read as before. In TypeScript: labels, the learnable list, the guided lists, and a contract that every learnable kind exists in the engine or in `validate_target`.
+- `bun run check` (137 tests), `bun run core:check`, `bun run build`, `cargo fmt --all -- --check`, `cargo test --workspace --locked` (77 + 142 + 15 + 3 passed, 7 ignored) and `cargo clippy --workspace --all-targets --locked -- -D warnings` passed. `bun run format:check` fails only on `docs/CONTROLS.md`, `docs/QUALITY.md` and this file, as before.
+
+**Not tried:** nothing has been played from the controller. Not seen on screen, by preference: the new Settings → MIDI. Untested on hardware: jog feel and its scale (720 steps a turn is assumed), tempo direction (may need `invert`), the gate while mixing, reconnecting after unplugging, and macOS or Linux. Deck 1 play, vinyl and key lock, SHIFT with the jog and some pads were not in the capture; their numbers come from the other deck (`"verified": false`).
+
+**Packaging:** `bun run windows:release` built `target\release\bundle\nsis\curado_0.1.0_x64-setup.exe` (4.20 MiB, SHA-256 `43210ff8…fac62`, not signed). Not installed: this session runs inside an agent app that redirects an installer's writes; run it from Explorer.
+
+**Next:** the maintainer opens the new build with the DDJ-SB plugged in and plays: faders, EQ, filter, tempo direction, jogs touched and not, pads in each mode, browse and LOAD, then unplugs and plugs it back. Then: record one full jog turn with the probe to set its scale; LED feedback (S7); soft takeover.
+
 ## Durable XML export and contrast on raised surfaces · 2026-11-16
 
 The two suite steps for curado in [the adoption plan](https://github.com/nu9ve/core/blob/c5be0f75fa00c7d39a8e962cc24d8044228c88a3/docs/suite-adoption.md#cada-app): `nu9ve-fs` in the export, and the contrast gaps found on raised and selected surfaces and in state colors.

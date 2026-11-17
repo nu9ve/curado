@@ -2084,7 +2084,7 @@ function ConnectionsPanel({
           </dt>
           <dd>{midi.connected ?? tr('sin controlador', 'no controller')}</dd>
           <dt />
-          <dd>{midi.lastMessage ?? `${midi.bindings.length} ${tr('asignaciones', 'mappings')}`}</dd>
+          <dd>{midi.lastMessage ?? `${midi.mapped} ${tr('asignaciones', 'mappings')}`}</dd>
           <dt>
             <i className={`rx-led ${output ? 'is-on' : ''}`} />
             AUDIO

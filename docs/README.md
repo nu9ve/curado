@@ -11,6 +11,7 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 | [ARCHITECTURE](ARCHITECTURE.md)   | Audio, UI, library, MIDI and visual contracts                      |
 | [DECISIONS](DECISIONS.md)         | Why approaches were chosen and when to reconsider                  |
 | [CONTROLS](CONTROLS.md)           | Listen, mix, map controls and recover                              |
+| [MIDI](MIDI.md)                   | Controllers: detection, presets and how to add one                 |
 | [THEMES](THEMES.md)               | Visual language, styles, fonts and native header                   |
 | [MIXER-VIEWS](MIXER-VIEWS.md)     | Hardware-inspired console proposals and capability gaps            |
 | [PLATFORMS](PLATFORMS.md)         | Dependencies, distribution and OS differences                      |

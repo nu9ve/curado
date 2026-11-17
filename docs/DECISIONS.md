@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-037 · Controllers are explored by what they send, and known ones ship as presets — accepted (2026-11-17)
+
+MIDI read Note On and 7-bit CCs only, learned the first message it saw and needed connecting by hand at each launch. A Pioneer DDJ-SB captured on Windows showed why that is not enough: every fader and knob is 14-bit, jogs and browse are relative encoders in two encodings, an FX knob repeats itself on three CCs, and both tempo faders move by themselves.
+
+- **A crate of its own.** `crates/midi` (`curado-midi`) reads messages, detects kinds of control and holds presets, without Tauri or the engine, like `curado-audio`. Its only dependencies, serde and serde_json, were already in the lockfile; midir is a dev-dependency for the probe. `src-tauri/src/midi.rs` keeps ports, bindings and engine actions.
+- **Learning binds a gesture, not a message.** Everything sent until the controller is quiet (400 ms) or every held note is let go is classified: 14-bit pairs, mirrors, button, absolute or relative and which encoding. The binding stores the kind, so the person never says what a control is. A 3 s baseline with nothing touched marks noisy controls.
+- **Presets are JSON a person can write from a capture**, matched by port name, with evidence, notes and a `verified` flag per control. A test replays a capture fixture and requires the preset to agree with it. The DDJ-SB is the first.
+- **A noise gate, not a filter.** Lone messages count only past a dead band; messages in a movement always count. Measured on the capture: the tempo preset's 0.8% passes 35 of 152 noise messages and 228 of 230 moved by hand. A filter would add latency to every fader.
+- **MIDI's own actions** stay outside the engine: `jog` chooses scratch or bend from touch, `listMove`/`listLoad` reach the interface as `midi:local`. Everything else is the same `Action` contract as keyboard and screen.
+- **The remembered port reconnects** within 2 s of appearing, by listing ports from the MIDI worker. It never opens a port the person did not choose.
+- **Bindings left the 20 Hz snapshot.** A preset brings about a hundred; they are read on request with a version counter.
+- **Reconsider** the gesture rules when a controller is misread (replay its capture), the gate when a fader is still too noisy or feels stepped, and port-name matching when two models share a name: the MIDI identity request is the next step.
+
 ## ADR-036 · Text, state and selection colors hold their contrast on raised surfaces too — accepted (2026-11-16)
 
 A palette audit against [nu9ve-theme-v1 §2](../vendor/nu9ve-core/contracts/nu9ve-theme-v1.md) found gaps the matrix did not cover: muted and accent text on raised and hover surfaces (down to 3.25:1), fixed danger and success colors (down to 3.46:1), selection tints under 7:1 for text and deck B under 3:1 in a few combinations.

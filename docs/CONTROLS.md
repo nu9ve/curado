@@ -166,11 +166,18 @@ The footer stays outside content scroll. Hover or Tab-focus a control to see nam
 
 Help preserves the previous control while entering the help panel. Exact `data-action` slot/type/value identifies audio actions; generic controls use label/title and fallback text. Tips are maintained in `src/lib/hints.ts`, associated through `data-help`, not automatically generated. Mini view omits the footer.
 
-## MIDI Learn
+## MIDI
 
-**Configuración → MIDI**: choose port/action, **Aprender**, then press a note or move CC. Device/channel/type/number persist; learning the same control replaces its previous action. Connection is manual each launch. Track cues are shared across decks holding the same track.
+**Configuración → MIDI**: choose the port. A controller curado knows maps itself (today the Pioneer DDJ-SB) and is remembered: it connects at launch and whenever it is plugged in again. **Volver al preset** puts its preset back; **Borrar los mapeos de este equipo** clears them.
 
-Supports Note On velocity >0 and absolute CC 0–127; EQ unity is CC 64. No relative encoders, Clock, SysEx, LED feedback or automatic reconnect yet. A CC-to-button mapping triggers on every value ≥64; prefer notes for buttons. Player also blocks B/sample playback through MIDI.
+For any other controller, keyboard or pad unit:
+
+- **Medir ruido**: 3 s touching nothing, so controls that move by themselves are noted.
+- Move one control at a time: **Último control** says what it is (button, 7- or 14-bit fader/knob, relative encoder) and **Ver controles vistos** lists all of them with what they do.
+- **Aprender**: choose an action, move the control and let go. Learning a control again replaces what it did.
+- **Asistente: controlador DJ** asks for each common control in turn; **Asistente: teclado o pads** maps samples and hot cues. **Saltar** skips what the unit lacks.
+
+A jog scratches while its top is touched and bends the tempo otherwise. The browse knob and LOAD move and load the list like the arrows. Toggles (sync, key lock, headphone cue, slip, reverse, Beat FX) flip what the engine reports. Player mode still blocks deck B and samples through MIDI. Track cues are shared across decks holding the same track. Not yet: controller lights, MIDI Clock, SysEx. On Windows, close other DJ software: only one program can open a MIDI port. How detection works and how to add a controller: [MIDI](MIDI.md).
 
 ## Radio and web services
 

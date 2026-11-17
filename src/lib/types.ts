@@ -168,21 +168,98 @@ export interface KeyBinding {
   alt?: boolean;
   action: Action;
 }
+export type MidiKind = 'note' | 'cc' | 'pitchBend';
+/** One physical control: channel 0–15, note or CC number. */
+export interface MidiKey {
+  kind: MidiKind;
+  channel: number;
+  number: number;
+}
+export type MidiEncoding = 'offset64' | 'twosComplement' | 'signBit';
+export type MidiMode =
+  | { type: 'auto' }
+  | { type: 'button' }
+  | { type: 'absolute' }
+  | { type: 'relative'; encoding: MidiEncoding };
 export interface MidiBinding {
   device: string;
   status: number;
   channel: number;
   number: number;
   action: Action;
+  lsb: number | null;
+  mode: MidiMode;
+  invert: boolean;
+  scale: number | null;
+  deadband: number | null;
+  range: number | null;
+  label: string | null;
+  preset: string | null;
+}
+/** What one gesture on a controller was (crates/midi `Detected`). */
+export interface MidiDetected {
+  key: MidiKey;
+  lsb: number | null;
+  mode: MidiMode;
+  bits: number;
+  min: number;
+  max: number;
+  count: number;
+  mirrors: MidiKey[];
+}
+export interface MidiSeen {
+  key: MidiKey;
+  lsb: number | null;
+  mode: MidiMode | null;
+  count: number;
+  min: number;
+  max: number;
+  last: number;
+  noisy: boolean;
+}
+export interface MidiPresetInfo {
+  id: string;
+  name: string;
+  vendor: string;
+  controls: number;
+  mapped: number;
+  notes: string[];
+}
+export interface MidiPort {
+  name: string;
+  preset: MidiPresetInfo | null;
 }
 export interface MidiState {
   connected: string | null;
-  bindings: MidiBinding[];
+  remembered: string | null;
+  bindingsVersion: number;
+  mapped: number;
+  preset: MidiPresetInfo | null;
   learning: Action | null;
+  learned: MidiDetected | null;
+  detected: MidiDetected | null;
+  baselineLeftMs: number | null;
+  noisy: MidiKey[];
   lastMessage: string | null;
   error: string | null;
   dropped: number;
 }
+/** No controller: the state before the engine reports one. */
+export const EMPTY_MIDI: MidiState = {
+  connected: null,
+  remembered: null,
+  bindingsVersion: 0,
+  mapped: 0,
+  preset: null,
+  learning: null,
+  learned: null,
+  detected: null,
+  baselineLeftMs: null,
+  noisy: [],
+  lastMessage: null,
+  error: null,
+  dropped: 0,
+};
 export interface Slot {
   cue: boolean;
   trim: number;

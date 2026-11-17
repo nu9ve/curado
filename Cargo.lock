@@ -813,6 +813,7 @@ version = "0.1.0"
 dependencies = [
  "crossbeam-queue",
  "curado-audio",
+ "curado-midi",
  "midir",
  "nu9ve-fs",
  "rfd",
@@ -836,6 +837,15 @@ dependencies = [
  "serde",
  "signalsmith-stretch",
  "symphonia",
+]
+
+[[package]]
+name = "curado-midi"
+version = "0.1.0"
+dependencies = [
+ "midir",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

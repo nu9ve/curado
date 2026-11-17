@@ -1,0 +1,14 @@
+[package]
+name = "curado-midi"
+version = "0.1.0"
+edition = "2021"
+
+# Reading a controller without Tauri or the engine: messages, what kind of control sent them,
+# and bundled presets. See docs/MIDI.md.
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Only the probe opens ports; the app keeps opening them in src-tauri.
+[dev-dependencies]
+midir = "0.10"

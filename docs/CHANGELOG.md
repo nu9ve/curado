@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-17 · MIDI controllers explored, detected and preset
+
+A controller curado knows maps itself and reconnects whenever it is plugged in; the Pioneer DDJ-SB is the first, from a capture of the real unit on Windows. Any other controller or keyboard can be explored (noise first, then one control at a time) and learned with its kind detected: 14-bit faders, relative jogs and encoders, buttons. Guided setup for DJ controllers and for keys or pads. Jogs scratch when touched and bend otherwise; browse and LOAD move the list. New crate `curado-midi` and `bun run midi:probe`. Lesson: the third-party map got the browse press wrong and both tempo faders on the unit move by themselves, so presets come from captures and faders go through a noise gate. See [MIDI](MIDI.md), [Status](STATUS.md) and [ADR-037](DECISIONS.md).
+
 ## 2026-11-16 · Durable XML export and contrast on raised surfaces
 
 The rekordbox XML export writes through the pinned `nu9ve-fs` crate: the file and its folder are synced, and the two kinds of failure have their own messages ([ADR-035](DECISIONS.md)). Muted, accent, danger and success text keep 4.5:1 on raised, hover and input surfaces; selection tints keep text at 7:1, and deck B keeps 3:1 on the sheet ([ADR-036](DECISIONS.md)). The Windows installer art was regenerated from the new palette.

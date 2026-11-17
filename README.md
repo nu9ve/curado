@@ -17,7 +17,7 @@ _The console with invented tracks. Each pale badge is the key for that control._
 
 **Effects on every channel.** Six color effects and sixteen beat effects, including Stutter and Recycler, different per channel and on the master.
 
-**Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or use MIDI Learn. Hold Option to reach the whole mixer with arrows. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
+**Your keyboard and your hands at once.** Every control shows its key. Keep playing from the keyboard while dragging a fader or turning a knob, remap anything, or plug in a MIDI controller: one curado knows maps itself, and any other is explored and learned control by control ([MIDI](docs/MIDI.md)). Hold Option to reach the whole mixer with arrows. On a Force Touch trackpad, controls tap as they move and a harder press moves them more finely.
 
 **Your rekordbox USB as it is.** Playlists, covers, grids, keys and hot cues appear when you plug it in. curado only reads it, and it can send your cues back through a `rekordbox.xml`.
 

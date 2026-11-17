@@ -62,7 +62,7 @@ Executed three-OS CI, codec/error corpus, two-hour stress, accessibility and sig
 - S4 foundation exists: whole-track BPM/key, editable grid and bars, beat loops, native sync/deferred cues and a benchmark against stored rekordbox grids. Need listening, ground truth for phase and bars, a variable-tempo strategy and uncertain-grid handling.
 - Real-time key lock and transposition exist. Need listening quality and better transposition of low notes; preserve position and transport contracts.
 - Multichannel cue/master output and pair selection; ASIO/JACK/PipeWire per platform require configuration/routing/UI/hardware tests.
-- Continuous jog/nudge by dragging platter, timestamped actions, relative MIDI, hotplug, LEDs/UI MIDI feedback (S7).
+- Continuous jog/nudge by dragging platter, timestamped actions, LEDs/UI MIDI feedback (S7). Relative MIDI, 14-bit, reconnecting and presets exist ([MIDI](MIDI.md)); next for controllers: play the DDJ-SB, calibrate its jogs, soft takeover, the identity request and shareable user presets.
 - Native keyboard capture only if measurements justify it; global shortcuts opt-in with conflict/permission review.
 
 ## P2 · Expansion

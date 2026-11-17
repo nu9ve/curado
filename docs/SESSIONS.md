@@ -61,7 +61,7 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S7 · MIDI feedback in UI (P1)
 
-- **Context:** keyboard actions illuminate controls/HUD; native MIDI actions do not.
+- **Context:** keyboard actions illuminate controls/HUD; native MIDI actions do not. Since 2026-11-17 controllers are detected and preset ([MIDI](MIDI.md)); a preset could carry its LED notes, as the DDJ-SB lights a button by its own note.
 - **Scope:** bounded/coalesced `input:action` worker event reusing `feedback.ts`, controller LEDs and relative encoders.
 - **Done when:** real mapped controller messages update UI without harming MIDI→engine latency.
 

@@ -13,6 +13,8 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 curado-audio = { path = "../crates/audio-engine" }
+# Reading controllers: messages, detection and presets (docs/MIDI.md).
+curado-midi = { path = "../crates/midi" }
 # Durable atomic writes from the pinned nu9ve-fs-v1 crate (ADR-035).
 nu9ve-fs = { path = "../vendor/nu9ve-core/rust/nu9ve-fs" }
 tauri = { version = "2", features = ["tray-icon", "unstable"] }

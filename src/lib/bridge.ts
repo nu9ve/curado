@@ -2,6 +2,7 @@ import { invoke, isTauri } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSyncExternalStore } from 'react';
 import type { Action, AppSnapshot, DeviceInfo } from './types';
+import { EMPTY_MIDI } from './types';
 import { tr } from './language';
 import { receivePositions } from './position';
 export const native = isTauri();
@@ -13,14 +14,7 @@ let snapshot: AppSnapshot = {
   audio: null,
   output: null,
   error: native ? null : 'Vista previa web. Abre la app de escritorio para reproducir audio.',
-  midi: {
-    connected: null,
-    bindings: [],
-    learning: null,
-    lastMessage: null,
-    error: null,
-    dropped: 0,
-  },
+  midi: EMPTY_MIDI,
 };
 const listeners = new Set<() => void>();
 const subscribe = (cb: () => void) => {

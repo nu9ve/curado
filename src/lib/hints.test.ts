@@ -4,7 +4,7 @@ import { createElement } from 'react';
 import { ContextHelpPanel } from '../components/ContextHelp';
 import { describeHint, deckStatus, parseHintAction } from './hints';
 import { DEFAULT_KEYS } from './keyboard';
-import { EMPTY_SLOT } from './types';
+import { EMPTY_MIDI, EMPTY_SLOT } from './types';
 import type { AppSnapshot, Audio } from './types';
 
 const audio = (): Audio => ({
@@ -36,14 +36,7 @@ const snapshot = (): AppSnapshot => ({
   error: null,
   persistenceError: null,
   queue: { count: 0, index: 0, active: false, repeat: 'off', error: null },
-  midi: {
-    connected: null,
-    bindings: [],
-    learning: null,
-    lastMessage: null,
-    error: null,
-    dropped: 0,
-  },
+  midi: EMPTY_MIDI,
 });
 
 test('hints identify the exact deck and cue with current remapped shortcuts', () => {

@@ -399,6 +399,24 @@ export default function App() {
     },
     [notify, onError],
   );
+  // A controller's browse knob and LOAD buttons move the same list the keyboard does.
+  useEffect(() => {
+    if (!native) return;
+    let off: undefined | (() => void);
+    let gone = false;
+    void listen<{ slot: number; kind: string; value: number }>('midi:local', (event) => {
+      const { slot, kind, value } = event.payload;
+      if (kind === 'listMove') listKeys.current.move(value);
+      else if (kind === 'listLoad') listKeys.current.load(slot);
+    }).then((stop) => {
+      if (gone) stop();
+      else off = stop;
+    });
+    return () => {
+      gone = true;
+      off?.();
+    };
+  }, []);
   const [stemJob, setStemJob] = useState<StemsProgress | null>(null);
   useEffect(() => {
     if (!native) return;

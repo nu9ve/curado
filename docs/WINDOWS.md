@@ -103,6 +103,8 @@ target\release\bundle\nsis\curado_0.1.0_x64-setup.exe /DEMO
 
 **Run the installer yourself, from Explorer or your own terminal.** Some agent apps on Windows, including the Claude desktop app, are MSIX packages, and Windows redirects what their child processes write under `AppData` into the package's own folder. An installer started from there lands in `%LOCALAPPDATA%\Packages\<app>\LocalCache\Local\curado` instead of `%LOCALAPPDATA%\curado`; it still runs, but other programs may not see it and removing the agent app can remove it too. An agent can build the installer; installing is better done by hand.
 
+**Trying a build without installing.** Run `target\release\curado.exe` in place. From your own terminal or Explorer it uses the real library in `%APPDATA%\studio.curado.player`. Started by an agent app packaged as MSIX, its library, settings and MIDI mappings land in that package's folder instead, so a try from an agent is a clean QA run that never touches your library; close it like any app. To try a MIDI controller this way, close other DJ software first and choose its port in **Configuración → MIDI** ([MIDI](MIDI.md)).
+
 ## Where curado keeps things
 
 | What                      | Where                                                                   |
@@ -120,7 +122,7 @@ Copy the SQLite file only with curado closed. Uninstalling does not remove these
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Audio output             | CPAL over **WASAPI**, shared mode. ASIO is not enabled. Without any output at launch, curado tries the default output every 2 s and starts the engine once one appears.                         |
 | Pitch and key lock       | Signalsmith Stretch, compiled with MSVC and bindgen/libclang. Builds and passes the engine tests.                                                                                               |
-| MIDI and MIDI Learn      | midir over **WinMM**.                                                                                                                                                                           |
+| MIDI and MIDI Learn      | midir over **WinMM**. A Pioneer DDJ-SB was captured here and has a preset; see [MIDI](MIDI.md).                                                                                                 |
 | Keyboard                 | The same keys. **Option is Alt**: Alt with a hot cue's number fires a sample, Alt with a control's key and arrows sets the mixer. Badges and help say `Alt` and `Ctrl`, as the keys print them. |
 | Window                   | Native Windows title bar. The integrated header with traffic lights is macOS only, by design.                                                                                                   |
 | Tray and single instance | Tauri tray icon in the notification area; a second launch focuses the first.                                                                                                                    |
@@ -187,7 +189,7 @@ Automated checks and packaging pass; the following needs a person at a Windows m
 2. WASAPI with built-in, USB, Bluetooth and a 4-channel interface (cue bus), sample rates other than 48 kHz, unplugging and the default device changing.
 3. Sleep and resume during playback.
 4. Alt combinations in WebView2, Spanish and US layouts, and many keys at once.
-5. A MIDI controller through WinMM.
+5. Playing from a MIDI controller through WinMM: the DDJ-SB preset's faders, jogs, pads, browse and load, and unplugging it during a set. Its messages were captured and match the preset; nothing has been played from it.
 6. A rekordbox USB under a drive letter, and the same USB coming back under another letter.
 7. The integrated web explorer in WebView2: fractos radio, SoundCloud and login.
 8. Display scaling at 125 %, 150 % and 200 %, and the always-on-top mini player.

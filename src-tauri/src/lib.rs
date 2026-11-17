@@ -1113,8 +1113,8 @@ async fn save_keyboard(
     work(move || s.db.lock().unwrap().save("keyboard", &bindings)).await
 }
 #[tauri::command]
-async fn midi_ports() -> Result<Vec<String>, String> {
-    work(midi::Midi::ports).await
+async fn midi_ports() -> Result<Vec<midi::MidiPort>, String> {
+    work(midi::Midi::ports_with_presets).await
 }
 #[tauri::command]
 async fn midi_connect(
@@ -1122,7 +1122,14 @@ async fn midi_connect(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     let s = state.inner().clone();
-    work(move || s.midi.lock().unwrap().connect(name)).await
+    work(move || {
+        let mut midi = s.midi.lock().unwrap();
+        midi.connect(name.clone(), &s)?;
+        // Remembered only once it opened: curado connects it again whenever it is plugged in.
+        midi.state.lock().unwrap().remembered = name.clone();
+        s.db.lock().unwrap().save("midi-device", &name)
+    })
+    .await
 }
 #[tauri::command]
 fn midi_learn(
@@ -1130,15 +1137,9 @@ fn midi_learn(
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     if let Some(a) = &action {
-        a.validate()?;
+        midi::validate_target(a)?;
     }
-    let midi = state.midi.lock().unwrap();
-    let mut m = midi.state.lock().unwrap();
-    if action.is_some() && m.connected.is_none() {
-        return Err("Conecta primero un dispositivo MIDI".into());
-    }
-    m.learning = action;
-    Ok(())
+    state.midi.lock().unwrap().learn(action)
 }
 #[tauri::command]
 async fn midi_remove(index: usize, state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
@@ -1150,9 +1151,34 @@ async fn midi_remove(index: usize, state: tauri::State<'_, Arc<AppState>>) -> Re
             return Err("Mapeo no encontrado".into());
         }
         m.bindings.remove(index);
+        m.changed_bindings();
         s.db.lock().unwrap().save("midi", &m.bindings)
     })
     .await
+}
+#[tauri::command]
+fn midi_bindings(state: tauri::State<'_, Arc<AppState>>) -> Vec<midi::Binding> {
+    let midi = state.midi.lock().unwrap();
+    let bindings = midi.state.lock().unwrap().bindings.clone();
+    bindings
+}
+#[tauri::command]
+async fn midi_apply_preset(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let s = state.inner().clone();
+    work(move || s.midi.lock().unwrap().apply_preset(&s)).await
+}
+#[tauri::command]
+async fn midi_clear_device(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
+    let s = state.inner().clone();
+    work(move || s.midi.lock().unwrap().clear_device(&s)).await
+}
+#[tauri::command]
+fn midi_baseline(state: tauri::State<'_, Arc<AppState>>) {
+    state.midi.lock().unwrap().start_baseline();
+}
+#[tauri::command]
+fn midi_seen(state: tauri::State<'_, Arc<AppState>>) -> Vec<curado_midi::Seen> {
+    state.midi.lock().unwrap().seen()
 }
 #[tauri::command]
 async fn open_visuals(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
@@ -1264,6 +1290,7 @@ pub fn run() {
             let db =
                 Database::open(&data_dir.join("curado.sqlite")).map_err(std::io::Error::other)?;
             let bindings = db.setting("midi").unwrap_or_default();
+            let remembered = db.setting::<String>("midi-device");
             let mode = db.setting::<session::Mode>("mode").unwrap_or_default();
             let theme = db
                 .setting::<preferences::Theme>("theme")
@@ -1283,7 +1310,7 @@ pub fn run() {
                 output: Mutex::new(output),
                 audio_error: Mutex::new(error),
                 decode_gate: Mutex::new(()),
-                midi: Mutex::new(midi::Midi::new(bindings)),
+                midi: Mutex::new(midi::Midi::new(bindings, remembered)),
                 visuals: Mutex::new(visuals::Visuals::new()),
                 tracking: Arc::default(),
                 data_dir,
@@ -1376,6 +1403,7 @@ pub fn run() {
                         std::thread::sleep(Duration::from_millis(50));
                     }
                 })?;
+            state.midi.lock().unwrap().app = Some(app.handle().clone());
             let input = state.clone();
             std::thread::Builder::new()
                 .name("curado-midi".into())
@@ -1467,6 +1495,11 @@ pub fn run() {
                 midi_connect,
                 midi_learn,
                 midi_remove,
+                midi_bindings,
+                midi_apply_preset,
+                midi_clear_device,
+                midi_baseline,
+                midi_seen,
                 open_visuals,
                 play_queue,
                 stop_queue,

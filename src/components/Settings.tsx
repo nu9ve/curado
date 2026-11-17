@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Radio, Keyboard, SlidersHorizontal, Trash2, Palette } from 'lucide-react';
+import { MidiSettings } from './MidiSettings';
 import { StemsSettings } from './StemsSettings';
 import { ThemePanel } from './ThemePanel';
 import { call, native, useSnapshot } from '../lib/bridge';
@@ -20,18 +21,14 @@ export function Settings({
   const language = useLanguage();
   const [tab, setTab] = useState('appearance');
   const [devices, setDevices] = useState<string[]>([]);
-  const [ports, setPorts] = useState<string[]>([]);
   const [device, setDevice] = useState('');
   const [frames, setFrames] = useState('');
   const [busy, setBusy] = useState(false);
   const [capture, setCapture] = useState<number | null>(null);
   const snap = useSnapshot();
-  const [target, setTarget] = useState('0:toggle');
-  const [cue, setCue] = useState('0');
   const refresh = () => {
     if (!native) return;
     call<string[]>('audio_devices').then(setDevices).catch(onError);
-    call<string[]>('midi_ports').then(setPorts).catch(onError);
   };
   useEffect(() => {
     refresh();
@@ -83,16 +80,6 @@ export function Settings({
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
   }, [capture, keys, onKeys, onError]);
-  const learn = () => {
-    const [slot, kind] = target.split(':');
-    const action: Action = {
-      slot: +slot,
-      kind,
-      value:
-        kind === 'cue' || kind === 'setCue' ? +cue : kind === 'rate' || kind === 'roll' ? 1 : 0,
-    };
-    call('midi_learn', { action }).catch(onError);
-  };
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <section
@@ -287,136 +274,7 @@ export function Settings({
             </p>
           </div>
         )}
-        {tab === 'midi' && (
-          <div className="settings-body">
-            <h3>{tr('conecta. mueve. aprende.', 'connect. move. learn.')}</h3>
-            <p>
-              {tr(
-                'Note On y CC absolutos por dispositivo, canal y número. Los mapeos se guardan automáticamente.',
-                'Note On and absolute CC by device, channel and number. Mappings are saved automatically.',
-              )}{' '}
-            </p>
-            <label>
-              {tr('Entrada MIDI', 'MIDI input')}{' '}
-              <select
-                value={snap.midi.connected ?? ''}
-                onChange={(e) =>
-                  call('midi_connect', { name: e.target.value || null }).catch(onError)
-                }
-              >
-                <option value="">{tr('Desconectado', 'Disconnected')}</option>
-                {ports.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
-            </label>
-            <button onClick={refresh}>{tr('Buscar dispositivos', 'Find devices')}</button>
-            <div className="learn-box">
-              <label>
-                {tr('Acción', 'Action')}{' '}
-                <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                  {[0, 1].flatMap((slot) =>
-                    [
-                      'toggle',
-                      'cue',
-                      'setCue',
-                      'loop',
-                      'gain',
-                      'rate',
-                      'low',
-                      'mid',
-                      'high',
-                      'filter',
-                      'highPass',
-                      'echo',
-                      'trim',
-                      'color',
-                      'colorParam',
-                      'beatFxDepth',
-                      'beatFxOn',
-                      'slip',
-                      'reverse',
-                      'roll',
-                    ].map((kind) => (
-                      <option key={`${slot}:${kind}`} value={`${slot}:${kind}`}>
-                        Deck {slot ? 'B' : 'A'} · {actionLabel(kind)}
-                      </option>
-                    )),
-                  )}
-                  {[2, 3, 4, 5, 6, 7, 8, 9].map((slot) => (
-                    <option key={slot} value={`${slot}:trigger`}>
-                      Sample {slot - 1} {tr('· Disparar', '· Trigger')}{' '}
-                    </option>
-                  ))}
-                  <option value="2:beatFxOn">Master · {actionLabel('beatFxOn')}</option>
-                  <option value="2:beatFxDepth">Master · {actionLabel('beatFxDepth')}</option>
-                  <option value="2:sampler">Mixer · {actionLabel('sampler')}</option>
-                  <option value="0:crossfader">Mixer · Crossfader</option>
-                  <option value="0:master">Mixer · Master</option>
-                  <option value="0:panic">
-                    {tr('Mixer · Silenciar todo', 'Mixer · Mute all')}
-                  </option>
-                </select>
-              </label>
-              {(target.endsWith(':cue') || target.endsWith(':setCue')) && (
-                <select
-                  aria-label={tr('Número de cue', 'Cue number')}
-                  value={cue}
-                  onChange={(e) => setCue(e.target.value)}
-                >
-                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
-                    <option key={i} value={i}>
-                      Cue {i + 1}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <button className="primary" disabled={!snap.midi.connected} onClick={learn}>
-                {snap.midi.learning
-                  ? tr('Esperando control…', 'Waiting for control…')
-                  : tr('Aprender siguiente control', 'Learn next control')}
-              </button>
-              {snap.midi.learning && (
-                <button onClick={() => call('midi_learn', { action: null }).catch(onError)}>
-                  {tr('Cancelar aprendizaje', 'Cancel learn')}{' '}
-                </button>
-              )}
-              <small>
-                {snap.midi.lastMessage ??
-                  tr(
-                    'Mueve un control para ver su mensaje aquí.',
-                    'Move a control to see its message here.',
-                  )}
-              </small>
-            </div>
-            <div className="midi-mappings">
-              {snap.midi.bindings.map((b, i) => (
-                <div key={`${b.device}:${b.channel}:${b.number}:${i}`}>
-                  <span>
-                    <b>{b.device}</b>
-                    <small>
-                      CH {b.channel + 1} · {b.status === 176 ? 'CC' : 'NOTE'} {b.number} →{' '}
-                      {actionLabel(b.action.kind)}
-                    </small>
-                  </span>
-                  <button
-                    aria-label={tr('Eliminar mapeo MIDI', 'Remove MIDI mapping')}
-                    onClick={() => call('midi_remove', { index: i }).catch(onError)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-            {snap.midi.error && <p className="error-text">{snap.midi.error}</p>}
-            <p className="small-print">
-              {tr(
-                'Controladores relativos, MIDI Clock, feedback LED, SysEx y reconexión automática quedan pendientes. Tras desconectar físicamente un equipo, vuelve a buscarlo y conectarlo.',
-                'Relative controllers, MIDI Clock, LED feedback, SysEx and automatic reconnection are not implemented. After disconnecting a device, find and connect it again.',
-              )}{' '}
-            </p>
-          </div>
-        )}
+        {tab === 'midi' && <MidiSettings onError={onError} />}
       </section>
     </div>
   );

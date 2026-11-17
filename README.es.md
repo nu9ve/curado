@@ -15,7 +15,7 @@ _La consola con pistas inventadas. Cada etiqueta clara es la tecla de ese contro
 
 **Efectos en cada canal.** Seis efectos de color y dieciséis de beat, incluidos Stutter y Recycler, distintos por canal y en el master.
 
-**El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o usa MIDI Learn. Mantén Option para llegar a todo el mixer con flechas. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
+**El teclado y tus manos a la vez.** Cada control muestra su tecla. Sigue tocando desde el teclado mientras arrastras un fader o giras un knob, reasigna lo que quieras o conecta un controlador MIDI: uno que curado conoce se configura solo, y cualquier otro se explora y se aprende control por control ([MIDI](docs/MIDI.md)). Mantén Option para llegar a todo el mixer con flechas. En un trackpad con Force Touch, los controles dan toques al moverse y, si presionas más fuerte, se mueven más fino.
 
 **Tu USB de rekordbox tal como está.** Playlists, covers, grids, tonalidades y hot cues aparecen al conectarlo. curado solo lo lee, y puede devolver tus cues con un `rekordbox.xml`.
 
