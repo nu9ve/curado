@@ -5,3 +5,5 @@ contracts/windows-app-v1.md
 contracts/nu9ve-theme-v1.md
 contracts/nu9ve-interaction-v1.md
 data/theme-vectors-v1.json
+rust/nu9ve-json
+rust/nu9ve-fs

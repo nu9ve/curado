@@ -7,4 +7,6 @@ path=contracts/nu9ve-interaction-v1.md
 path=contracts/nu9ve-theme-v1.md
 path=contracts/windows-app-v1.md
 path=data/theme-vectors-v1.json
+path=rust/nu9ve-fs
+path=rust/nu9ve-json
 path=scripts/sync-core.sh
