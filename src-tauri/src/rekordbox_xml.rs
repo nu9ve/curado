@@ -472,16 +472,17 @@ fn render(plan: &Plan, report: &mut ExportReport) -> String {
 }
 
 /// The whole file appears at once or not at all, so a failure leaves any earlier export intact.
+/// Replaces the file through nu9ve-fs-v1: the data and its folder are synced (`F_FULLFSYNC` on
+/// macOS), and a failure before the rename keeps the previous XML.
 fn write_atomic(destination: &Path, text: &str) -> Result<(), String> {
-    let mut temporary = destination.as_os_str().to_owned();
-    temporary.push(".curado-tmp");
-    let temporary = PathBuf::from(temporary);
-    let written = fs::write(&temporary, text).and_then(|()| fs::rename(&temporary, destination));
-    if let Err(error) = written {
-        let _ = fs::remove_file(&temporary);
-        return Err(format!("No se pudo guardar el XML: {error}"));
-    }
-    Ok(())
+    nu9ve_fs::atomic_write(destination, text.as_bytes()).map_err(|error| match error {
+        nu9ve_fs::AtomicWriteError::BeforeRename(error) => {
+            format!("No se pudo guardar el XML; el anterior sigue igual: {error}")
+        }
+        nu9ve_fs::AtomicWriteError::AfterRename(error) => format!(
+            "El XML nuevo ya está en su lugar, pero no se pudo confirmar que llegó al disco: {error}"
+        ),
+    })
 }
 
 /// Runs outside any lock on the library: searching for originals can take a while.

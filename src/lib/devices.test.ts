@@ -119,8 +119,11 @@ test('the export destination comes from the native dialog alone', () => {
   );
   const source = readFileSync('src-tauri/src/rekordbox_xml.rs', 'utf8').split('#[cfg(test)]')[0];
   // The only write in the export goes through the destination it was handed.
-  expect(source.match(/fs::write|File::create|OpenOptions/g)).toEqual(['fs::write']);
-  expect(source).toContain('fs::write(&temporary, text)');
+  expect(source.match(/fs::write|File::create|OpenOptions|atomic_write\(/g)).toEqual([
+    'atomic_write(',
+  ]);
+  expect(source).toContain('nu9ve_fs::atomic_write(destination, text.as_bytes())');
+  expect(source).toContain('write_atomic(destination, &text)?');
 });
 
 test('the interface never handles paths on a device', () => {

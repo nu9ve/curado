@@ -74,12 +74,23 @@ describe('theme contract', () => {
               const p = palette({ ...DEFAULT_THEME, style, base, mode, variant }, systemDark);
               expect(p.accent).toBe(base);
               expect(contrast(base, p.tokens['--accent-ink'])).toBeGreaterThanOrEqual(4.5);
-              for (const surface of [p.panel, p.chrome]) {
-                expect(contrast(p.tokens['--accent-text'], surface)).toBeGreaterThanOrEqual(4.5);
+              const t = p.tokens;
+              const raised = [t['--surface-raised'], t['--surface-hover'], t['--surface-input']];
+              // nu9ve-theme-v1 §2: text roles hold on the sheet, the chrome and raised controls.
+              for (const surface of [p.panel, p.chrome, ...raised]) {
+                expect(contrast(t['--accent-text'], surface)).toBeGreaterThanOrEqual(4.5);
                 expect(contrast(p.text, surface)).toBeGreaterThan(7);
-                expect(contrast(p.tokens['--text-muted'], surface)).toBeGreaterThan(4.5);
-                expect(contrast(p.tokens['--text-secondary'], surface)).toBeGreaterThanOrEqual(7);
+                expect(contrast(t['--text-muted'], surface)).toBeGreaterThan(4.5);
+                expect(contrast(t['--text-secondary'], surface)).toBeGreaterThanOrEqual(7);
+                expect(contrast(t['--danger'], surface)).toBeGreaterThanOrEqual(4.5);
+                expect(contrast(t['--success'], surface)).toBeGreaterThanOrEqual(4.5);
               }
+              expect(contrast(t['--danger'], t['--danger-bg'])).toBeGreaterThanOrEqual(4.5);
+              // Selected rows: text on either deck's tint stays at 7:1.
+              expect(contrast(p.text, t['--accent-soft'])).toBeGreaterThanOrEqual(7);
+              expect(contrast(p.text, t['--deck-b-soft'])).toBeGreaterThanOrEqual(7);
+              expect(contrast(p.secondary, p.panel)).toBeGreaterThanOrEqual(3);
+              expect(contrast(t['--deck-b-ink'], p.secondary)).toBeGreaterThanOrEqual(4.5);
               // Waveform highs must stay visible on the sheet in light mode too.
               expect(contrast(p.wave.high, p.panel)).toBeGreaterThan(1.8);
               expect(

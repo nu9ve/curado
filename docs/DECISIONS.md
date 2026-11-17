@@ -1,5 +1,25 @@
 # Technical decisions
 
+## ADR-036 · Text, state and selection colors hold their contrast on raised surfaces too — accepted (2026-11-16)
+
+A palette audit against [nu9ve-theme-v1 §2](../vendor/nu9ve-core/contracts/nu9ve-theme-v1.md) found gaps the matrix did not cover: muted and accent text on raised and hover surfaces (down to 3.25:1), fixed danger and success colors (down to 3.46:1), selection tints under 7:1 for text and deck B under 3:1 in a few combinations.
+
+- **One list of grounds.** `palette()` checks text roles against the sheet, the chrome, raised, hover and input surfaces, not only the first two. `accessibleOn` moves a color toward the text polarity just enough.
+- **States are derived.** Danger and success keep their hues and move toward the text polarity until they reach 4.5:1 on every ground and, for danger, on its own background. They never take the user's accent.
+- **Tints yield to text.** Raised, hover, accent-soft and deck-b-soft start from their old amounts and get fainter only when text would drop under 7:1.
+- **Deck B may shift.** It keeps its hue and only moves toward the text polarity when it is fainter than 3:1 on the sheet. The user's accent is never changed.
+- **Cost.** With the default color, 70 of 1 290 tokens change across styles and modes; in dark curado, muted, secondary and accent text are lighter. The Windows installer art was regenerated from the same palette. Verified by tests only: nobody looked at it, by the maintainer's preference.
+
+## ADR-035 · Durable XML export through nu9ve-fs-v1 — accepted (2026-11-16)
+
+The rekordbox XML export wrote a temporary file and renamed it without syncing the data or its folder, so a power cut or an unplugged drive could leave a short file after the rename. The suite plan names curado as the third user of [nu9ve-fs-v1](../vendor/nu9ve-core/contracts/nu9ve-fs-v1.md).
+
+- **Pinned, not copied.** `rust/nu9ve-json` and `rust/nu9ve-fs` join `vendor/nu9ve-core.paths` at the same commit (`548c1a8`); `src-tauri` uses them by path, like Clipper. Their exact dependencies (libc 0.2.191, windows-sys 0.61.2, serde_json 1.0.154, sha2 0.10.9, tempfile 3.27.0) were already in `Cargo.lock`: the lockfile only gains the two crates.
+- **`vendor` is excluded from the workspace.** Path dependencies inside the workspace folder become members otherwise, and `cargo fmt --all` could rewrite the pinned copy.
+- **Full sync**, the suite's default: `F_FULLFSYNC` on macOS, with `fsync(2)` where the file system refuses it. The export has no Python twin to match.
+- **Two messages.** A failure before the rename keeps the previous XML and says so; a failure syncing the folder after it says the new file is in place but not confirmed on disk.
+- **Not yet:** the stems manifest and job files (`stems.rs`) still write directly. They belong with the stems supervisor (`nu9ve-jobs`).
+
 ## ADR-034 · A Windows installer with curado's identity: own NSIS template, generated art, never ends a running app — accepted (2026-11-11)
 
 The maintainer asked for an installer that looks and talks like curado, in the fewest steps, and that can serve as the example for the other nu9ve apps. See [The Windows installer](INSTALLER.md).

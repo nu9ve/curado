@@ -1,5 +1,25 @@
 # curado status
 
+## Durable XML export and contrast on raised surfaces · 2026-11-16
+
+The two suite steps for curado in [the adoption plan](https://github.com/nu9ve/core/blob/548c1a83ba8c38e9e5a0031ce8e21d2859dff98f/docs/suite-adoption.md#cada-app): `nu9ve-fs` in the export, and the contrast gaps found on raised and selected surfaces and in state colors.
+
+**Built:**
+
+- `vendor/nu9ve-core.paths` adds `rust/nu9ve-json` and `rust/nu9ve-fs`, pinned at the same `548c1a8`. `src-tauri` depends on `nu9ve-fs` by path; `vendor` is excluded from the Cargo workspace so fmt and clippy never touch the copy. `Cargo.lock` only gains the two crates: every dependency they pin was already there ([ADR-035](DECISIONS.md)).
+- `rekordbox_xml.rs` writes the XML with `nu9ve_fs::atomic_write` (full sync, `F_FULLFSYNC` on macOS). A failure before the rename says the previous XML is unchanged; a failed folder sync after it says the new file is in place but not confirmed.
+- `palette()` checks muted, secondary, accent, danger and success text against the sheet, chrome, raised, hover and input surfaces. Danger and success are derived from their old hues; raised, hover and both selection tints get fainter only when text would drop under 7:1; deck B moves toward the text polarity only under 3:1 ([ADR-036](DECISIONS.md)). The Windows installer art and `palette.nsh` were regenerated.
+
+**Automatically tested on macOS:**
+
+- Before the change, over 5 styles × 2 modes × 3 contrasts × 11 vector bases: muted text on hover failed 110/330 (worst 3.25:1), accent text on raised 101/330 (3.68:1), muted on raised 84/330 (3.76:1), success 38/660 (3.46:1), danger 23/660 (3.61:1), text on accent-soft 10/330 (6.35:1), deck B on the sheet 5/330 (2.46:1), text on deck-b-soft 2/330 (6.81:1). After it, none fail.
+- `theme.test.ts` now asserts those pairs over the full matrix (presets, vector bases, extremes, three modes, both OS appearances). The contract test in `devices.test.ts` requires the export's only write to be `nu9ve_fs::atomic_write` on the dialog's destination.
+- `bun run check` (133 tests), `bun run core:check`, `bun run build`, `bun run installer:art --check`, `cargo fmt --all -- --check`, `cargo test --workspace` (231 passed, 11 ignored) and `cargo clippy --workspace --all-targets --locked -- -D warnings` passed. `bun run desktop:install` built the 15.14 MiB bundle, verified its ad hoc signature and installed it at `~/Applications/curado.app` (executable SHA-256 starts with `dc3f644d0856`); the app was closed and was not opened. The first `bun run check` of the session reported a second failure that did not come back in eight later runs; it was not identified.
+
+**Limits:** with the default color, 70 of 1 290 tokens change; in dark curado, muted, secondary and accent text are lighter. Nobody looked at the result, by preference. The export was not tried against a real drive after the change, and the folder-sync failure path has no test that forces it. The stems manifest and job files still write directly (`stems.rs`).
+
+**Next:** a visual pass of the new colors when the maintainer allows it; the core session records curado as the third `nu9ve-fs` user in `docs/adoption.md`; durable writes for stems arrive with `nu9ve-jobs`.
+
 ## Suite vectors and audio inventory · 2026-11-16
 
 curado pins the suite theme, keyboard and interaction, macOS and Windows contracts and the theme vectors. The [Windows suite notes](SUITE-WINDOWS.md) link to the pinned copies. The TypeScript tests compare `accent` and `onAccent` for all 110 vectors in each of the five local styles and use all 11 vector bases in the existing contrast matrix. The previous white text on `#2f78d6` had 4.39:1 contrast. Pure black gives 4.78:1. The palette now chooses the better of pure black and white for both deck accents.

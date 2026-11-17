@@ -1,5 +1,7 @@
 [workspace]
 members = ["crates/audio-engine", "src-tauri"]
+# The pinned nu9ve/core crates are dependencies, not members: fmt and clippy here never touch the copy.
+exclude = ["vendor"]
 resolver = "2"
 
 [profile.release]

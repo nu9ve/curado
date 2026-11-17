@@ -212,6 +212,14 @@ function accessibleOn(base: string, backgrounds: string[], target: number) {
   }
   return endpoint;
 }
+/** A tint of `color` over `ground` (selection, raised, hover), fainter if needed to keep `text` at 7:1. */
+function softFill(ground: string, color: string, amount: number, text: string) {
+  for (let t = amount; t > 0; t -= 0.01) {
+    const fill = mix(ground, color, t);
+    if (contrast(text, fill) >= 7) return fill;
+  }
+  return ground;
+}
 const pick = <T extends string>(value: unknown, allowed: T[], fallback: T): T =>
   allowed.includes(value as T) ? (value as T) : fallback;
 /** Accepts v1 (pre-styles) and v2 preferences; anything else falls back to the default. */
@@ -255,12 +263,24 @@ export function palette(settings: ThemeSettings, systemDark = false) {
   const bg = chrome;
   const text = high ? (dark ? '#ffffff' : '#000000') : n.text;
   const accent = settings.base;
-  const accentText = accessibleOn(accent, [panel, chrome], 4.5);
+  const raised = softFill(panel, text, dark ? 0.07 : 0.05, text);
+  const hover = softFill(panel, text, dark ? 0.12 : 0.09, text);
+  const input = mix(panel, chrome, dark ? 0.55 : 0.3);
+  // Every background text can sit on: the sheet, the chrome and the controls raised over them.
+  const grounds = [panel, chrome, raised, hover, input];
+  const accentText = accessibleOn(accent, grounds, 4.5);
   const hue = hexToHsv(accent).h;
   const [secS, secV] = dark ? seed.secondary.dark : seed.secondary.light;
-  const secondary = hsvToHex({ h: (hue + seed.secondary.shift) % 360, s: secS, v: secV });
+  // Deck B keeps its hue and only moves toward the text polarity when it is fainter than 3:1.
+  const secondary = accessibleOn(
+    hsvToHex({ h: (hue + seed.secondary.shift) % 360, s: secS, v: secV }),
+    [panel],
+    3,
+  );
   const gradient = seed.gradient(accent, secondary, dark);
-  const raised = mix(panel, text, dark ? 0.07 : 0.05);
+  const dangerBg = dark ? '#3a2420' : '#fff0eb';
+  const state = (light: string, darkColor: string, extra: string[] = []) =>
+    accessibleOn(dark ? darkColor : light, [...grounds, ...extra], 4.5);
   // Light sheets cannot show white highs: bands darken toward the text color.
   const wave = dark
     ? seed.wave
@@ -284,7 +304,7 @@ export function palette(settings: ThemeSettings, systemDark = false) {
       '--accent-text': accentText,
       '--accent-ink': readableInk(accent),
       '--accent-hover': mix(accent, dark ? '#ffffff' : '#111111', 0.12),
-      '--accent-soft': mix(panel, accent, high ? 0.26 : 0.14),
+      '--accent-soft': softFill(panel, accent, high ? 0.26 : 0.14, text),
       '--accent-glow': alpha(accent, dark ? 0.42 : 0.3),
       '--gradient-end': gradient,
       '--bg': bg,
@@ -296,22 +316,22 @@ export function palette(settings: ThemeSettings, systemDark = false) {
       '--sheet-edge': alpha(text, dark ? (high ? 0.3 : 0.08) : high ? 0.4 : 0.1),
       '--sheet-shadow': dark ? '#000000a6' : '#3a281e33',
       '--surface-sidebar': chrome,
-      '--surface-input': mix(panel, chrome, dark ? 0.55 : 0.3),
+      '--surface-input': input,
       '--surface-raised': raised,
-      '--surface-hover': mix(panel, text, dark ? 0.12 : 0.09),
+      '--surface-hover': hover,
       '--text': text,
-      '--text-secondary': accessibleOn(mix(text, panel, high ? 0.12 : 0.28), [panel, chrome], 7),
-      '--text-muted': accessibleOn(mix(text, panel, 0.45), [panel, chrome], high ? 7 : 4.6),
+      '--text-secondary': accessibleOn(mix(text, panel, high ? 0.12 : 0.28), grounds, 7),
+      '--text-muted': accessibleOn(mix(text, panel, 0.45), grounds, high ? 7 : 4.6),
       '--line': alpha(text, dark ? (high ? 0.32 : 0.08) : high ? 0.4 : 0.12),
       '--line-strong': alpha(text, dark ? 0.24 : 0.3),
       '--deck-b': secondary,
       '--deck-b-ink': readableInk(secondary),
-      '--deck-b-soft': mix(panel, secondary, 0.14),
+      '--deck-b-soft': softFill(panel, secondary, 0.14, text),
       '--deck-b-glow': alpha(secondary, dark ? 0.4 : 0.3),
-      '--danger': dark ? '#f0af9d' : '#a33c31',
-      '--danger-bg': dark ? '#3a2420' : '#fff0eb',
+      '--danger': state('#a33c31', '#f0af9d', [dangerBg]),
+      '--danger-bg': dangerBg,
       '--danger-line': dark ? '#cc7d6355' : '#a33c3155',
-      '--success': dark ? '#a9caa0' : '#3c6c36',
+      '--success': state('#3c6c36', '#a9caa0'),
       '--visual-bg': mix(panel, chrome, 0.6),
       '--overlay': dark ? '#000000a6' : '#1a120f66',
       '--shadow': dark ? '#00000080' : '#36281e26',

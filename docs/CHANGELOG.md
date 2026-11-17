@@ -1,5 +1,9 @@
 # Change history
 
+## 2026-11-16 · Durable XML export and contrast on raised surfaces
+
+The rekordbox XML export writes through the pinned `nu9ve-fs` crate: the file and its folder are synced, and the two kinds of failure have their own messages ([ADR-035](DECISIONS.md)). Muted, accent, danger and success text keep 4.5:1 on raised, hover and input surfaces; selection tints keep text at 7:1, and deck B keeps 3:1 on the sheet ([ADR-036](DECISIONS.md)). The Windows installer art was regenerated from the new palette.
+
 ## 2026-11-16 · Suite theme vectors in TypeScript
 
 The palette chooses pure black or white for text on accent fills, whichever has higher contrast. The theme tests match both shared accent roles in all 110 pinned cases and include all 11 fixture colors in the five-style contrast matrix. The Windows installer art still passes its byte-for-byte check.
