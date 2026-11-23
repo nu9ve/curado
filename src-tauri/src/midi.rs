@@ -1,18 +1,22 @@
-//! MIDI controllers: connecting, reading, learning and presets. What a message means lives in
-//! `curado-midi` (crates/midi); this module turns it into engine actions. See docs/MIDI.md.
+//! MIDI ports, learning and dispatch. `nu9ve-midi` reads the hardware; `curado-midi` maps
+//! its control IDs to curado actions. See docs/MIDI.md.
 
-use crate::AppState;
+use crate::{session, AppState};
 use crossbeam_queue::ArrayQueue;
 use curado_audio::Action;
 use curado_midi::detect::{Detected, Explorer, Seen, Want};
-use curado_midi::input::{normalize, Gate, Mode};
+use curado_midi::input::{combine_cc14, normalize, Gate, Mode};
 use curado_midi::message::{Key, Kind, Message};
-use curado_midi::preset::{self, Preset};
+use curado_midi::pickup::Pickup;
+use curado_midi::preset::{self, Preset, PresetAction};
 use midir::{Ignore, MidiInput, MidiInputConnection};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::{
-    atomic::{AtomicU64, Ordering::Relaxed},
+    atomic::{
+        AtomicU64,
+        Ordering::{Acquire, Relaxed},
+    },
     Arc, Mutex,
 };
 use std::time::Instant;
@@ -61,7 +65,8 @@ impl Binding {
     fn from_preset(device: &str, preset: &Preset) -> Vec<Self> {
         preset
             .mapped()
-            .map(|(control, action)| {
+            .map(|(control, mapping)| {
+                let action = &mapping.action;
                 let key = control.key();
                 Binding {
                     device: device.into(),
@@ -75,15 +80,31 @@ impl Binding {
                     },
                     lsb: control.lsb,
                     mode: control.mode,
-                    invert: control.invert,
-                    scale: control.scale,
-                    deadband: control.deadband,
-                    range: control.range,
+                    invert: mapping.invert,
+                    scale: mapping.scale,
+                    deadband: mapping.deadband.or(control.deadband),
+                    range: mapping.range,
                     label: Some(control.label.clone()),
-                    preset: Some(preset.id.clone()),
+                    preset: Some(preset.profile.id.clone()),
                 }
             })
             .collect()
+    }
+    fn fader_range(&self, ranges: &session::TempoRanges) -> Option<f64> {
+        if self.preset.as_deref() == Some("pioneer-ddj-sb")
+            && self.action.kind == "rate"
+            && self.action.slot < 2
+        {
+            return Some(ranges.get(self.action.slot));
+        }
+        self.range
+    }
+    fn button_kind(&self) -> &str {
+        if self.preset.as_deref() == Some("pioneer-ddj-sb") && self.action.kind == "loopBeats" {
+            "toggleLoopBeats"
+        } else {
+            &self.action.kind
+        }
     }
     fn learned(device: &str, d: &Detected, action: Action) -> Self {
         let scale = match d.mode {
@@ -125,10 +146,10 @@ pub struct PresetInfo {
 impl From<&Preset> for PresetInfo {
     fn from(p: &Preset) -> Self {
         Self {
-            id: p.id.clone(),
-            name: p.name.clone(),
-            vendor: p.vendor.clone(),
-            controls: p.controls.len(),
+            id: p.profile.id.clone(),
+            name: p.profile.name.clone(),
+            vendor: p.profile.vendor.clone(),
+            controls: p.profile.controls.len(),
             mapped: p.mapped().count(),
             notes: p.notes.clone(),
         }
@@ -169,8 +190,17 @@ pub struct MidiStatus {
     pub last_message: Option<String>,
     pub error: Option<String>,
     pub dropped: u64,
+    pub tempo_pickup: [bool; 2],
 }
 impl MidiStatus {
+    fn add_defaults(&mut self, device: &str, preset: &Preset) -> bool {
+        if self.bindings.iter().any(|binding| binding.device == device) {
+            return false;
+        }
+        self.bindings.extend(Binding::from_preset(device, preset));
+        true
+    }
+
     pub(crate) fn changed_bindings(&mut self) {
         self.bindings_version += 1;
         self.mapped = match &self.connected {
@@ -218,13 +248,55 @@ pub struct Midi {
     explorer: Explorer,
     /// The high half of each 14-bit control, waiting for its low half.
     msb: HashMap<(u8, u8), u16>,
+    held_toggles: HashSet<Key>,
+    tempo_pickups: HashMap<Key, (TempoContext, Pickup)>,
     gates: HashMap<(u8, u8, u8), Gate>,
     /// Position of a relative encoder bound to a parameter with ends.
     positions: HashMap<(u8, u8, u8), f64>,
     touched: [bool; 2],
     bend_until: [Option<u64>; 2],
     next_scan: u64,
-    pending: Vec<Action>,
+    init: Vec<PresetInit>,
+}
+
+#[derive(Clone, Copy, PartialEq)]
+struct TempoContext {
+    generation: u64,
+    revision: u64,
+    range: f64,
+    slot: usize,
+    invert: bool,
+}
+
+struct PresetInit {
+    action: Action,
+    generation: Option<u64>,
+}
+
+impl PresetInit {
+    fn new(action: &PresetAction) -> Self {
+        Self {
+            action: Action {
+                slot: action.slot,
+                kind: action.kind.clone(),
+                value: action.value,
+            },
+            generation: None,
+        }
+    }
+
+    fn apply(
+        &mut self,
+        generation: u64,
+        mode: session::Mode,
+        send: impl FnOnce(Action) -> Result<(), String>,
+    ) -> Result<(), String> {
+        if self.generation != Some(generation) && mode.allows(&self.action) {
+            send(self.action.clone())?;
+            self.generation = Some(generation);
+        }
+        Ok(())
+    }
 }
 
 /// On/off controls: the engine takes the state to set, and a button only knows it was pressed.
@@ -283,6 +355,21 @@ pub fn validate_target(action: &Action) -> Result<(), String> {
         _ => action.validate().map(|_| ()),
     }
 }
+// The stock profile predates this address. An explicit binding wins over this default.
+// Pioneer DDJ-SB List of MIDI messages v1.00 lists SHIFT + KEY LOCK as 9n 60.
+fn ddj_sb_tempo_range_slot(state: &MidiStatus, key: Key) -> Option<usize> {
+    (key.kind == Kind::Note
+        && key.number == 0x60
+        && key.channel < 2
+        && state.bindings.iter().any(|binding| {
+            state.connected.as_ref() == Some(&binding.device)
+                && binding.preset.as_deref() == Some("pioneer-ddj-sb")
+                && binding.channel == key.channel
+                && binding.action.kind == "keyLock"
+        }))
+    .then_some(key.channel as usize)
+}
+
 /// Which kind of control learning should prefer for an action.
 fn wanted(kind: &str) -> Want {
     if continuous(kind, 0., None).is_some() || matches!(kind, "jog" | "listMove") {
@@ -307,12 +394,14 @@ impl Midi {
             clock: Instant::now(),
             explorer: Explorer::default(),
             msb: HashMap::new(),
+            held_toggles: HashSet::new(),
+            tempo_pickups: HashMap::new(),
             gates: HashMap::new(),
             positions: HashMap::new(),
             touched: [false; 2],
             bend_until: [None; 2],
             next_scan: 0,
-            pending: Vec::new(),
+            init: Vec::new(),
         }
     }
     fn now(&self) -> u64 {
@@ -338,14 +427,18 @@ impl Midi {
     /// and nothing mapped yet gets the preset. Saving is the caller's: `remember`.
     pub fn connect(&mut self, name: Option<String>, app: &AppState) -> Result<(), String> {
         self.connection = None;
+        self.init.clear();
         while self.queue.pop().is_some() {}
         self.explorer.reset();
         self.msb.clear();
+        self.held_toggles.clear();
+        self.tempo_pickups.clear();
         self.gates.clear();
         self.touched = [false; 2];
         let mut state = self.state.lock().unwrap();
         state.connected = None;
         state.preset = None;
+        state.tempo_pickup = [false; 2];
         state.changed_bindings();
         let Some(name) = name else {
             return Ok(());
@@ -386,19 +479,10 @@ impl Midi {
         state.error = None;
         if let Some(found) = preset::for_port(&name) {
             state.preset = Some(PresetInfo::from(&found));
-            if !state.bindings.iter().any(|b| b.device == name) {
-                state.bindings.extend(Binding::from_preset(&name, &found));
+            if state.add_defaults(&name, &found) {
                 app.db.lock().unwrap().save("midi", &state.bindings)?;
             }
-            self.pending = found
-                .init
-                .iter()
-                .map(|a| Action {
-                    slot: a.slot,
-                    kind: a.kind.clone(),
-                    value: a.value,
-                })
-                .collect();
+            self.init = found.init.iter().map(PresetInit::new).collect();
         }
         state.changed_bindings();
         Ok(())
@@ -415,6 +499,8 @@ impl Midi {
         state.bindings.extend(Binding::from_preset(&device, &found));
         self.gates.clear();
         self.positions.clear();
+        self.tempo_pickups.clear();
+        state.tempo_pickup = [false; 2];
         state.changed_bindings();
         app.db.lock().unwrap().save("midi", &state.bindings)
     }
@@ -426,6 +512,8 @@ impl Midi {
             .clone()
             .ok_or("Conecta primero un dispositivo MIDI")?;
         state.bindings.retain(|b| b.device != device);
+        self.tempo_pickups.clear();
+        state.tempo_pickup = [false; 2];
         state.changed_bindings();
         app.db.lock().unwrap().save("midi", &state.bindings)
     }
@@ -457,12 +545,7 @@ impl Midi {
             self.next_scan = now + SCAN_MS;
             self.scan(app);
         }
-        for action in std::mem::take(&mut self.pending) {
-            // Without an engine the init waits; with one, a refusal is shown.
-            if let Err(e) = app.action(action) {
-                self.state.lock().unwrap().error = Some(e);
-            }
-        }
+        self.init_output(app);
         let shared = self.state.clone();
         let mut state = shared.lock().unwrap();
         state.dropped = self.dropped.load(Relaxed);
@@ -509,6 +592,26 @@ impl Midi {
         }
     }
 
+    /// Output reconfiguration creates a fresh engine, so preset defaults need
+    /// to reach it too. Deck B waits until the session allows its actions.
+    fn init_output(&mut self, app: &AppState) {
+        let generation = app.generation.load(Acquire);
+        if self
+            .init
+            .iter()
+            .all(|init| init.generation == Some(generation))
+            || app.output.lock().unwrap().is_none()
+        {
+            return;
+        }
+        let mode = *app.mode.lock().unwrap();
+        for init in &mut self.init {
+            if let Err(error) = init.apply(generation, mode, |action| app.action(action)) {
+                self.state.lock().unwrap().error = Some(error);
+            }
+        }
+    }
+
     /// Notices a remembered controller plugged in or pulled out.
     fn scan(&mut self, app: &AppState) {
         let (remembered, connected) = {
@@ -524,9 +627,11 @@ impl Midi {
         let present = ports.contains(&wanted);
         if connected.is_some() && !present {
             self.connection = None;
+            self.init.clear();
             let mut state = self.state.lock().unwrap();
             state.connected = None;
             state.preset = None;
+            state.tempo_pickup = [false; 2];
             state.changed_bindings();
             state.error = Some(format!(
                 "{wanted} se desconectó. curado lo conectará de nuevo al volver."
@@ -557,6 +662,8 @@ impl Midi {
                         .is_some_and(|l| (b.channel, l) == (d.key.channel, d.key.number)));
             !(same || overlaps)
         });
+        self.tempo_pickups.remove(&d.key);
+        state.tempo_pickup = [false; 2];
         state.bindings.push(Binding::learned(&device, &d, action));
         state.learning = None;
         state.learned = Some(d);
@@ -580,7 +687,7 @@ impl Midi {
             if key.kind == Kind::Cc && b.status == 0xb0 && b.lsb == Some(key.number) {
                 // The low half completes the value the high half started.
                 let high = self.msb.get(&(b.channel, b.number)).copied().unwrap_or(0);
-                hits.push((b.clone(), high << 7 | message.value, 14));
+                hits.push((b.clone(), combine_cc14(high, message.value), 14));
             } else if b.key() == Some(key) {
                 if b.lsb.is_some() {
                     self.msb.insert((b.channel, b.number), message.value);
@@ -588,6 +695,13 @@ impl Midi {
                 }
                 let bits = if key.kind == Kind::PitchBend { 14 } else { 7 };
                 hits.push((b.clone(), message.value, bits));
+            }
+        }
+        if hits.is_empty() {
+            if let Some(slot) = ddj_sb_tempo_range_slot(state, key) {
+                if self.toggle_press(key, message.pressed()) {
+                    self.send(app, state, slot, "tempoRange", 0.);
+                }
             }
         }
         for (binding, value, bits) in hits {
@@ -619,9 +733,26 @@ impl Midi {
         }
     }
 
+    fn toggle_press(&mut self, key: Key, pressed: bool) -> bool {
+        if pressed {
+            self.held_toggles.insert(key)
+        } else {
+            self.held_toggles.remove(&key);
+            false
+        }
+    }
+
     fn button(&mut self, b: &Binding, pressed: bool, app: &AppState, state: &mut MidiStatus) {
         let slot = b.action.slot;
-        let kind = b.action.kind.as_str();
+        let kind = b.button_kind();
+        if kind == "toggleLoopBeats" {
+            if let Some(key) = b.key() {
+                if self.toggle_press(key, pressed) {
+                    self.send(app, state, slot, kind, b.action.value);
+                }
+            }
+            return;
+        }
         // Held controls: what happens on release matters.
         let release = match kind {
             "roll" => Some("rollEnd"),
@@ -670,7 +801,7 @@ impl Midi {
             x = 1. - x;
         }
         let kind = b.action.kind.as_str();
-        let Some(value) = continuous(kind, x, b.range) else {
+        let Some(value) = continuous(kind, x, b.fader_range(&app.tempo_ranges)) else {
             // A button-like action on a fader: it acts as it crosses the middle.
             if x >= 0.5 {
                 self.button(b, true, app, state);
@@ -688,7 +819,65 @@ impl Midi {
                 return;
             }
         }
-        self.send(app, state, b.action.slot, kind, value);
+        if kind == "rate" && b.action.slot < 2 {
+            self.tempo_fader(b, x, bits, app, state);
+        } else {
+            self.send(app, state, b.action.slot, kind, value);
+        }
+    }
+
+    fn tempo_fader(
+        &mut self,
+        b: &Binding,
+        position: f64,
+        bits: u8,
+        app: &AppState,
+        state: &mut MidiStatus,
+    ) {
+        let slot = b.action.slot;
+        let (Some(key), Some((generation, rate, revision))) = (b.key(), app.tempo_target(slot))
+        else {
+            return;
+        };
+        let range = b
+            .fader_range(&app.tempo_ranges)
+            .unwrap_or(0.2)
+            .clamp(0.01, 0.5);
+        let context = TempoContext {
+            generation,
+            revision,
+            range,
+            slot,
+            invert: b.invert,
+        };
+        let entry = self
+            .tempo_pickups
+            .entry(key)
+            .or_insert_with(|| (context, Pickup::default()));
+        if entry.0 != context {
+            *entry = (context, Pickup::default());
+        }
+        let target = (rate - 1.) / (2. * range) + 0.5;
+        // A f32 tempo at a range endpoint can round just outside the f64 interval.
+        let target = if (-0.000001..=1.000001).contains(&target) {
+            target.clamp(0., 1.)
+        } else {
+            target
+        };
+        let tolerance = if bits == 14 { 0.004 } else { 0.008 };
+        let caught = entry.1.apply(position, target, tolerance);
+        state.tempo_pickup[slot] = caught.is_none();
+        if let Some(position) = caught.filter(|&position| position != target) {
+            let value = 1. + (position * 2. - 1.) * range;
+            let action = Action {
+                slot,
+                kind: "rate".into(),
+                value,
+            };
+            if let Err(error) = app.action_with_pickup(action, Some((generation, revision))) {
+                state.error = Some(error);
+            }
+        }
     }
 
     fn relative(
@@ -754,6 +943,167 @@ impl Midi {
 mod tests {
     use super::*;
     use curado_audio::{engine, Control};
+
+    #[test]
+    fn preset_init_waits_for_mix_and_follows_the_output_generation() {
+        let preset = preset::for_port("PIONEER DDJ-SB").unwrap();
+        let mut init = preset.init.iter().map(PresetInit::new).collect::<Vec<_>>();
+        assert_eq!(init.len(), 2);
+        let mut apply = |generation, mode, handle: &curado_audio::EngineHandle| {
+            for init in &mut init {
+                init.apply(generation, mode, |action| {
+                    assert_eq!((action.kind.as_str(), action.value), ("colorFx", 6.));
+                    handle.action(action)
+                })
+                .unwrap();
+            }
+        };
+        let (first, mut renderer) = engine(48000);
+        let mut output = [0.; 512];
+        let effects = |handle: &curado_audio::EngineHandle| {
+            let snapshot = handle.snapshot();
+            [snapshot.slots[0].color_fx, snapshot.slots[1].color_fx]
+        };
+        apply(0, session::Mode::Player, &first);
+        renderer.render(&mut output, 2);
+        assert_eq!(effects(&first), [6, 0]);
+
+        let (second, mut renderer) = engine(48000);
+        apply(1, session::Mode::Player, &second);
+        renderer.render(&mut output, 2);
+        assert_eq!(effects(&second), [6, 0]);
+        second.control(0, Control::ColorFx(1)).unwrap();
+        second.control(0, Control::SetMode(true)).unwrap();
+        apply(1, session::Mode::Mix, &second);
+        renderer.render(&mut output, 2);
+        assert_eq!(effects(&second), [1, 6]);
+
+        let (third, mut renderer) = engine(48000);
+        third.control(0, Control::SetMode(true)).unwrap();
+        apply(2, session::Mode::Mix, &third);
+        renderer.render(&mut output, 2);
+        assert_eq!(effects(&third), [6, 6]);
+    }
+
+    #[test]
+    fn preset_init_retries_failed_actions() {
+        let preset = preset::for_port("PIONEER DDJ-SB").unwrap();
+        let mut init = PresetInit::new(&preset.init[0]);
+        assert!(init
+            .apply(0, session::Mode::Mix, |_| Err("queue full".into()))
+            .is_err());
+        assert_eq!(init.generation, None);
+        init.apply(0, session::Mode::Mix, |_| Ok(())).unwrap();
+        init.apply(0, session::Mode::Mix, |_| panic!("already applied"))
+            .unwrap();
+    }
+
+    #[test]
+    fn ddj_sb_load_and_jogs_keep_their_deck_and_wire_values() {
+        use curado_midi::Encoding;
+
+        let device = "PIONEER DDJ-SB";
+        let preset = preset::for_port(device).unwrap();
+        let bindings = Binding::from_preset(device, &preset);
+        let binding = |bytes: [u8; 3]| {
+            let message = Message::parse(&bytes).unwrap();
+            bindings
+                .iter()
+                .find(|b| b.key() == Some(message.key))
+                .unwrap()
+        };
+        for (slot, load) in [(0, 0x46), (1, 0x47)] {
+            let load = binding([0x96, load, 127]);
+            assert_eq!(
+                (load.action.slot, load.action.kind.as_str()),
+                (slot, "listLoad")
+            );
+            assert_eq!(load.mode, Mode::Button);
+            validate_target(&load.action).unwrap();
+
+            let status = 0x90 + slot as u8;
+            let touch = binding([status, 0x35, 127]);
+            assert_eq!(
+                (touch.action.slot, touch.action.kind.as_str()),
+                (slot, "jogTouch")
+            );
+            assert_eq!(touch.mode, Mode::Button);
+            let pressed = Message::parse(&[status, 0x35, 127]).unwrap();
+            for release in [[status, 0x35, 0], [status - 0x10, 0x35, 64]] {
+                let released = Message::parse(&release).unwrap();
+                assert_eq!((released.key, released.value), (pressed.key, 0));
+            }
+            for cc in [0x21, 0x23] {
+                let jog = binding([0xb0 + slot as u8, cc, 65]);
+                assert_eq!((jog.action.slot, jog.action.kind.as_str()), (slot, "jog"));
+                let Mode::Relative { encoding } = jog.mode else {
+                    panic!("jog must be relative");
+                };
+                assert_eq!(encoding, Encoding::Offset64);
+                assert_eq!(jog.scale, Some(0.0025));
+                assert!(!jog.invert);
+                assert_eq!(
+                    [encoding.delta(63), encoding.delta(64), encoding.delta(65)],
+                    [-1, 0, 1]
+                );
+            }
+            let tempo = binding([0xb0 + slot as u8, 0, 64]);
+            assert_eq!(
+                (tempo.lsb, tempo.deadband, tempo.range),
+                (Some(0x20), Some(0.008), Some(0.1))
+            );
+        }
+    }
+
+    #[test]
+    fn ddj_sb_shift_key_lock_and_factory_bindings_follow_deck_controls() {
+        let preset = preset::for_port("PIONEER DDJ-SB").unwrap();
+        let bindings = Binding::from_preset("PIONEER DDJ-SB", &preset);
+        let state = MidiStatus {
+            connected: Some("PIONEER DDJ-SB".into()),
+            bindings: bindings.clone(),
+            ..Default::default()
+        };
+        let mut midi = Midi::new(vec![], None);
+        let ranges = session::TempoRanges::default();
+        for slot in 0..2 {
+            let shifted = Message::parse(&[0x90 + slot as u8, 0x60, 127]).unwrap();
+            let released = Message::parse(&[0x90 + slot as u8, 0x60, 0]).unwrap();
+            let unshifted = Message::parse(&[0x90 + slot as u8, 0x1a, 127]).unwrap();
+            assert_eq!(ddj_sb_tempo_range_slot(&state, shifted.key), Some(slot));
+            assert_eq!(ddj_sb_tempo_range_slot(&state, unshifted.key), None);
+            assert!(midi.toggle_press(shifted.key, shifted.pressed()));
+            assert!(!midi.toggle_press(shifted.key, shifted.pressed()));
+            assert!(!midi.toggle_press(released.key, released.pressed()));
+            assert!(midi.toggle_press(shifted.key, shifted.pressed()));
+
+            let tempo = bindings
+                .iter()
+                .find(|b| b.action.slot == slot && b.action.kind == "rate")
+                .unwrap();
+            assert_eq!(tempo.fader_range(&ranges), Some(0.10));
+            ranges.cycle(slot).unwrap();
+            assert_eq!(
+                continuous("rate", 1., tempo.fader_range(&ranges)),
+                Some(1.16)
+            );
+            ranges.cycle(slot).unwrap();
+            assert_eq!(
+                continuous("rate", 0., tempo.fader_range(&ranges)),
+                Some(0.50)
+            );
+            let mut custom = tempo.clone();
+            custom.preset = None;
+            assert_eq!(custom.fader_range(&ranges), Some(0.10));
+
+            for pad in bindings
+                .iter()
+                .filter(|b| b.action.slot == slot && b.action.kind == "loopBeats")
+            {
+                assert_eq!(pad.button_kind(), "toggleLoopBeats");
+            }
+        }
+    }
 
     #[test]
     fn a_button_flips_what_the_engine_reports() {
@@ -900,11 +1250,36 @@ mod tests {
     }
 
     #[test]
-    fn bindings_saved_before_modes_still_read() {
-        let old = r#"[{"device":"X","status":176,"channel":0,"number":7,"action":{"slot":0,"kind":"low","value":0}}]"#;
-        let bindings: Vec<Binding> = serde_json::from_str(old).unwrap();
-        assert_eq!(bindings[0].mode, Mode::Auto);
-        assert_eq!(bindings[0].lsb, None);
+    fn saved_custom_and_legacy_bindings_keep_the_remembered_port_and_skip_defaults() {
+        let db = crate::Database::open(std::path::Path::new(":memory:")).unwrap();
+        let device = "PIONEER DDJ-SB";
+        let preset = preset::for_port(device).unwrap();
+        let old = serde_json::json!([
+            {"device": device, "status": 176, "channel": 0, "number": 7,
+             "action": {"slot": 0, "kind": "low", "value": 0}},
+            {"device": device, "status": 176, "channel": 1, "number": 0, "lsb": 32,
+             "mode": {"type": "absolute"}, "deadband": 0.012, "invert": true, "range": 0.06,
+             "action": {"slot": 1, "kind": "rate", "value": 1}}
+        ]);
+        db.save("midi", &old).unwrap();
+        db.save("midi-device", &Some(device)).unwrap();
+        let midi = Midi::new(db.setting("midi").unwrap(), db.setting("midi-device"));
+        let mut state = midi.state.lock().unwrap();
+        assert_eq!(state.remembered.as_deref(), Some(device));
+        assert!(!state.add_defaults(device, &preset));
+        assert_eq!(state.bindings.len(), 2);
+        assert_eq!(
+            (state.bindings[0].mode, state.bindings[0].lsb),
+            (Mode::Auto, None)
+        );
+        let custom = &state.bindings[1];
+        assert_eq!(
+            (custom.mode, custom.lsb, custom.deadband, custom.range),
+            (Mode::Absolute, Some(32), Some(0.012), Some(0.06))
+        );
+        assert!(custom.invert);
+        assert!(state.add_defaults("DDJ-SB MIDI", &preset));
+        assert_eq!(state.bindings.len(), 97);
     }
 
     #[test]

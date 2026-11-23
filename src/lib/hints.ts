@@ -181,6 +181,14 @@ const descriptions: Record<string, [string, string]> = {
     'Empieza un loop aquí con una sola pulsación, sin marcar IN y OUT. Otra pulsación sale.',
     'Elige la longitud abajo, también mientras suena: conserva su inicio. Con el teclado, Shift la acorta y Control la alarga.',
   ],
+  toggleLoopBeats: [
+    'Empieza un loop. Repite el mismo pad para salir.',
+    'Otro pad cambia la longitud y conserva el inicio mientras haya espacio.',
+  ],
+  tempoRange: [
+    'Cambia el rango del fader de tempo del deck.',
+    'Afecta el deslizador de pantalla y el fader del preset del DDJ-SB.',
+  ],
   loopBeats: [
     'Crea un loop con una longitud en beats.',
     'Con Q activo comienza en el beat más cercano. El beatgrid pertenece a esta pista; sync conserva la relación de tempo con el master.',
@@ -384,6 +392,14 @@ const englishDescriptions: Record<string, [string, string]> = {
   autoLoop: [
     'Starts a loop here with one press, without marking IN and OUT. Another press leaves it.',
     'Choose its length below, even while it plays: its start stays. On the keyboard, Shift shortens it and Control lengthens it.',
+  ],
+  toggleLoopBeats: [
+    'Start a loop. Press the same pad again to exit.',
+    'A different pad changes the length while keeping the start when there is room.',
+  ],
+  tempoRange: [
+    'Cycle the deck tempo fader range.',
+    'Applies to the on-screen slider and the DDJ-SB preset fader.',
   ],
   loopBeats: [
     'Create a loop of the selected beat length.',

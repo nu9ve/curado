@@ -1,0 +1,202 @@
+.sb-console {
+  max-width: 1020px;
+  min-width: 650px;
+  margin: 0 auto;
+}
+
+.sb-browse,
+.sb-track,
+.sb-fx,
+.sb-transport,
+.sb-pad-modes,
+.sb-output {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sb-console button:not(.platter) {
+  min-height: 28px;
+  padding: 3px 6px;
+  font: 600 10px/1.2 var(--font-mono);
+}
+
+.sb-console button[aria-pressed='true'],
+.sb-console button[data-set='true'] {
+  color: var(--tone-ink, var(--accent-text));
+  background: var(--tone-soft, var(--accent-soft));
+  box-shadow: inset 0 -2px var(--cue-color, var(--tone, var(--accent)));
+}
+
+.sb-browse {
+  width: min(100%, 440px);
+  margin: 0 auto 10px;
+}
+
+.sb-browse button:not(.sb-selection) {
+  flex: none;
+}
+
+.sb-browse .sb-selection,
+.sb-track strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sb-browse .sb-selection {
+  flex: 1;
+}
+
+.sb-surface {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 154px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.sb-deck {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.sb-track {
+  gap: 8px;
+  min-width: 0;
+  min-height: 28px;
+}
+
+.sb-track button {
+  flex: none;
+  margin-inline-start: auto;
+}
+
+.sb-fx .knob {
+  margin-inline-start: auto;
+}
+
+.sb-platter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px;
+  align-items: center;
+  justify-items: center;
+}
+
+.sb-platter-row .platter {
+  grid-area: auto;
+  width: min(100%, 200px);
+  touch-action: none;
+}
+
+.sb-platter-row .platter-disc {
+  background:
+    repeating-conic-gradient(from 0deg, var(--chrome-line) 0deg 2deg, transparent 2deg 9deg),
+    radial-gradient(circle, var(--surface-raised) 60%, var(--chrome) 61%);
+}
+
+.sb-platter-row .deck-readout {
+  min-width: 76px;
+  padding: 8px;
+  color: var(--text);
+  background: var(--chrome);
+  box-shadow: 0 1px 8px var(--shadow);
+}
+
+.sb-platter-row .deck-readout-time {
+  font-size: 24px;
+}
+
+.sb-platter-row .deck-readout-value {
+  font-size: 14px;
+}
+
+.sb-tempo {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  width: 100%;
+}
+
+.sb-tempo .slider {
+  --len: 98px;
+}
+
+.sb-tempo-status {
+  min-height: 2em;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.sb-transport > button,
+.sb-pad-modes > button {
+  flex: 1;
+}
+
+.sb-transport > button:first-child {
+  display: grid;
+  place-items: center;
+}
+
+.sb-pads {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.sb-console .sb-pads button {
+  min-height: 42px;
+  font-size: 13px;
+}
+
+.sb-mixer {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface-raised);
+}
+
+.sb-channels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sb-channel {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 5px;
+}
+
+.sb-filter {
+  display: grid;
+  justify-items: center;
+  grid-template-rows: auto 28px;
+}
+
+.sb-filter .knob-label {
+  text-align: center;
+}
+
+.sb-level {
+  display: flex;
+  align-items: start;
+}
+
+.sb-level .slider {
+  --len: 84px;
+}
+
+.sb-level .meter.vertical {
+  height: 84px;
+}
+
+.sb-mixer > .slider.horizontal {
+  --len: 100%;
+}
+
+.sb-output {
+  justify-content: center;
+}

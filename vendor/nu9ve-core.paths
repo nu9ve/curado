@@ -7,3 +7,5 @@ contracts/nu9ve-interaction-v1.md
 data/theme-vectors-v1.json
 rust/nu9ve-json
 rust/nu9ve-fs
+rust/nu9ve-midi
+data/midi/pioneer-ddj-sb-v1.json

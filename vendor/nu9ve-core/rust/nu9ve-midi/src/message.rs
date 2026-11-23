@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// The message families curado reads. Everything else (clock, SysEx, aftertouch) is ignored.
+/// The supported channel message families. Everything else (clock, SysEx, aftertouch) is ignored.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Kind {

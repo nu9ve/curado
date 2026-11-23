@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import { Play, Pause } from 'lucide-react';
 import { control, parameter, useDevices, useSnapshot } from '../lib/bridge';
@@ -15,7 +23,6 @@ import {
   COLOR_FX_LABELS,
   neighborCue,
   nextDivision,
-  nextTempoRange,
   PITCH_FX,
   pitchLabel,
   SAMPLE_PADS,
@@ -26,7 +33,7 @@ import type { PadMode } from '../lib/console-pads';
 import { cueColor, useCueInfo } from '../lib/cues';
 import { useCover } from '../lib/covers';
 import { haptic } from '../lib/haptics';
-import { keyColor, keyLabel, keyMatch, outputKey } from '../lib/music';
+import { keyColor, keyLabel, keyMatch, outputBpm, outputKey } from '../lib/music';
 import {
   isSample,
   nextEmptyPad,
@@ -43,6 +50,7 @@ import { PerformancePads, useJog } from './Performance';
 import { MusicalControls } from './MusicalControls';
 import { KeyboardMap } from './KeyboardMap';
 import { WaveOverview, ZoomWave } from './Waveform';
+import { DeckReadout } from './DeckReadout';
 import { altSymbol, bindingLabel, keyLabel as keyLabel_, TOGGLE_KINDS } from '../lib/keyboard';
 import { mixerTargetFor } from '../lib/mixer-keys';
 import {
@@ -380,8 +388,8 @@ function AutoLoop({
             data-next={beats === value}
             disabled={disabled}
             aria-label={`Auto loop ${beatLabel(value)} ${tr('beats', 'beats')}`}
-            data-action={act(index, 'loopBeats', value)}
-            onClick={() => send('loopBeats', value)}
+            data-action={act(index, 'toggleLoopBeats', value)}
+            onClick={() => send('toggleLoopBeats', value)}
           >
             {beatLabel(value)}
           </button>
@@ -392,7 +400,7 @@ function AutoLoop({
 }
 
 /** Its own component, so the fast position stream redraws this and not the whole deck. */
-function JogDisc({ index, slot, name }: { index: number; slot: Slot; name: string }) {
+function JogDisc({ index, slot, readoutId }: { index: number; slot: Slot; readoutId: string }) {
   const live = useLivePosition(index, slot.position);
   const progress = slot.duration ? Math.min(1, live / slot.duration) : 0;
   const { element, image } = useCover(slot.id ? { kind: 'track', id: slot.id } : null);
@@ -403,9 +411,7 @@ function JogDisc({ index, slot, name }: { index: number; slot: Slot; name: strin
       </span>
       <span ref={element} className="rx-jog-lcd" style={{ '--p': progress } as CSSProperties}>
         {image && <img alt="" src={image} />}
-        <b>{name}</b>
-        <em>{remaining({ position: live, duration: slot.duration })}</em>
-        <small>{slot.sync ? 'SYNC' : slot.playing ? '▶' : 'Ⅱ'}</small>
+        <DeckReadout id={readoutId} slot={slot} position={live} />
       </span>
     </>
   );
@@ -432,6 +438,8 @@ function RxDeck({
   loading,
   masterDeck,
   masterHasBpm,
+  tempoRange,
+  tempoPickup,
   onError,
   samples,
   tracks,
@@ -445,6 +453,8 @@ function RxDeck({
   loading: boolean;
   masterDeck: number;
   masterHasBpm: boolean;
+  tempoRange: number;
+  tempoPickup: boolean;
   onError: (e: unknown) => void;
   samples: Slot[];
   tracks: Track[];
@@ -453,17 +463,18 @@ function RxDeck({
   loadingSlots: number[];
 }) {
   const name = index ? '2' : '1';
+  const readoutId = useId();
   const tone = index ? 'b' : 'a';
   const empty = !track || loading;
   const [padMode, setPadMode] = useState<PadMode>('cue');
   const [vinyl, setVinyl] = useState(true);
   const [sensitivity, setSensitivity] = useState(1);
-  const [tempoRange, setTempoRange] = useState(0.1);
   const [shift, setShift] = useState(false);
   const jog = useJog(index, slot.playing, vinyl, sensitivity, onError);
   const cueInfo = useCueInfo(slot.id || undefined);
   const send = (kind: string, value = 0) => control(index, kind, value).catch(onError);
   const loopSet = slot.loopOut > slot.loopIn;
+  const tempoOutside = Math.abs(slot.tuning.rate - 1) > tempoRange + 0.000001;
   const neighbor = (direction: 1 | -1) => {
     const at = tracks.findIndex((t) => t.id === track?.id);
     return tracks[at + direction];
@@ -672,11 +683,12 @@ function RxDeck({
           'Arriba: scratch (VINYL) · borde: doblar el tempo · rueda: doblar el tempo',
           'Top: scratch (VINYL) · edge: bend the tempo · scroll: bend the tempo',
         )}
+        aria-describedby={readoutId}
         data-help="jog"
         {...jog.handlers}
         onPointerCancel={jog.handlers.onPointerUp}
       >
-        <JogDisc index={index} slot={slot} name={name} />
+        <JogDisc index={index} slot={slot} readoutId={readoutId} />
       </button>
       <span className="rx-at rx-print rx-jog-side-label" style={at(128, 384)}>
         ← REV
@@ -750,7 +762,8 @@ function RxDeck({
         y={250}
         size={16}
         title={tr('Rango del fader de tempo', 'Tempo fader range')}
-        onClick={() => setTempoRange(nextTempoRange(tempoRange))}
+        action={act(index, 'tempoRange')}
+        onClick={() => send('tempoRange')}
       />
       <Lamp
         label="MASTER TEMPO"
@@ -766,9 +779,32 @@ function RxDeck({
         action={act(index, 'keyLock', slot.tuning.keyLock ? 0 : 1)}
         onClick={() => send('keyLock', slot.tuning.keyLock ? 0 : 1)}
       />
-      <div className="rx-at rx-tempo-fader" style={at(456, 440)}>
+      <div
+        className="rx-at rx-tempo-fader"
+        style={at(456, 440)}
+        title={
+          tempoOutside
+            ? tr(
+                'El tempo actual está fuera del rango. Amplía el rango o arrastra el fader en pantalla hacia dentro.',
+                'Current tempo is outside this range. Expand the range or drag the on-screen fader back into it.',
+              )
+            : tempoPickup
+              ? tr(
+                  'Mueve el fader físico hasta cruzar el tempo actual.',
+                  'Move the physical fader across the current tempo.',
+                )
+              : undefined
+        }
+      >
         <Slider
-          label="TEMPO"
+          anchored
+          label={
+            tempoOutside
+              ? tr('FUERA DE RANGO', 'OUT OF RANGE')
+              : tempoPickup
+                ? tr('CRUZA TEMPO', 'MATCH TEMPO')
+                : 'TEMPO'
+          }
           action={act(index, 'rate')}
           tone={tone}
           min={1 - tempoRange}
@@ -2185,9 +2221,8 @@ function Screen({
   onKey: (key: ScreenKey) => void;
   onError: (e: unknown) => void;
 }) {
-  const shownBpm = (slot: Slot) => (slot.music.bpm ? slot.music.bpm * slot.tuning.rate : null);
   const beatMs = (slot: Slot) => {
-    const bpm = fx.bpm || shownBpm(slot) || 120;
+    const bpm = fx.bpm || outputBpm(slot) || 120;
     return Math.round((60000 / bpm) * fx.beats);
   };
   return (
@@ -2210,7 +2245,7 @@ function Screen({
                     ` ${slot.tuning.semitones > 0 ? '+' : ''}${slot.tuning.semitones}`}
                 </small>
                 <KeyTag slot={slot} other={slots[1 - i]} index={i} onError={onError} />
-                <small>{shownBpm(slot)?.toFixed(1) ?? '—'}</small>
+                <small>{outputBpm(slot)?.toFixed(1) ?? '—'}</small>
               </div>
               <ZoomWave
                 name={i ? '2' : '1'}
@@ -2252,7 +2287,7 @@ function Screen({
               <div className="rx-display-time">
                 <strong>{remaining(slot)}</strong>
                 <em>{`${slot.tuning.rate >= 1 ? '+' : ''}${((slot.tuning.rate - 1) * 100).toFixed(2)}%`}</em>
-                <b>{shownBpm(slot)?.toFixed(1) ?? '—'}</b>
+                <b>{outputBpm(slot)?.toFixed(1) ?? '—'}</b>
               </div>
               <WaveOverview
                 compact
@@ -2308,7 +2343,7 @@ export function HardwareConsole({
   onSaveBank: (index: number) => void;
   onSaveLoop: (slot: number) => void;
 }) {
-  const { audio, output } = useSnapshot();
+  const { audio, output, midi, tempoRanges } = useSnapshot();
   const devices = useDevices();
   const hasCue = (output?.channels ?? 2) >= 4;
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -2359,6 +2394,8 @@ export function HardwareConsole({
       loading={loading.includes(index)}
       masterDeck={audio?.masterDeck ?? 0}
       masterHasBpm={!!audio?.slots[audio.masterDeck]?.music.bpm}
+      tempoRange={tempoRanges?.[index] ?? 0.1}
+      tempoPickup={midi.tempoPickup?.[index] ?? false}
       onError={onError}
       samples={samples}
       tracks={library.tracks}

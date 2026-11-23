@@ -17,6 +17,12 @@ test('the divider cannot hide either side', () => {
   expect(parseWorkspace('{"split":9}').split).toBe(MAX_SPLIT);
 });
 
+test('deck displays default to Camelot and remember the alternate notation', () => {
+  expect(parseWorkspace('{}').deckKeyNotation).toBe('camelot');
+  expect(parseWorkspace('{"deckKeyNotation":"unknown"}').deckKeyNotation).toBe('camelot');
+  expect(parseWorkspace('{"deckKeyNotation":"american"}').deckKeyNotation).toBe('american');
+});
+
 test('mixing starts with the rail and listening with the full sidebar', () => {
   expect(DEFAULT_WORKSPACE.railMix).toBe(true);
   expect(DEFAULT_WORKSPACE.railPlayer).toBe(false);

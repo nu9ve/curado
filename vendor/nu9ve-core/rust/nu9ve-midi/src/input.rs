@@ -39,8 +39,7 @@ impl Encoding {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Mode {
-    /// Bindings saved before modes existed: a note is a button; a CC is absolute, and a press at
-    /// 64 or above for actions that are not continuous.
+    /// Legacy bindings without an explicit mode. The consumer chooses how to read the input.
     #[default]
     Auto,
     /// Pressed and released, by note or by CC.
@@ -49,6 +48,11 @@ pub enum Mode {
     Absolute,
     /// An endless encoder sending steps.
     Relative { encoding: Encoding },
+}
+
+/// Join the two 7-bit values from an MSB/LSB pair. The caller tracks when the LSB arrives.
+pub fn combine_cc14(msb: u16, lsb: u16) -> u16 {
+    (msb & 0x7f) << 7 | (lsb & 0x7f)
 }
 
 /// 0–1 from a raw value, with the centre detent (64 of 127, 8192 of 16383) at exactly 0.5.
@@ -70,7 +74,7 @@ pub const MOTION_MS: u64 = 40;
 /// Keeps a worn fader still. A control that sends now and then, by itself, only gets through
 /// when it has drifted past `deadband` (of 0–1); one moving by hand sends every few
 /// milliseconds and gets through at full resolution. Measured on a DDJ-SB: an untouched tempo
-/// fader steps 48–64 of 16383 about once a second; a hand sends every 2–10 ms. See docs/MIDI.md.
+/// fader steps 48–64 of 16383 about once a second; a hand sends every 2–10 ms.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Gate {
     anchor: Option<f64>,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { parseWaveform } from './waveform';
+import { parseWaveform, waveWindowSeconds } from './waveform';
 import { bayer } from './dither';
 import { LOGO_CELLS } from '../components/Logo';
 
@@ -32,4 +32,12 @@ test('logo mark is a ring opened to the right with a centre spindle', () => {
   expect(has(1, 7)).toBe(true);
   expect(has(14, 7)).toBe(false);
   expect(has(0, 0)).toBe(false);
+});
+
+test('a tempo-scaled detail window shows the same duration at the output', () => {
+  for (const rate of [0.5, 0.9, 1, 1.16, 1.5]) {
+    expect(waveWindowSeconds('source', rate)).toBe(8);
+    expect(waveWindowSeconds('playback', rate) / rate).toBeCloseTo(8);
+  }
+  expect(waveWindowSeconds('playback', 0)).toBe(8);
 });

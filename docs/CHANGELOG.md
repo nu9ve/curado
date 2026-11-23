@@ -1,5 +1,75 @@
 # Change history
 
+## 2026-11-22 · DDJ-SB view in Mix
+
+Added the DDJ-SB surface with four pads per deck, deck-specific SHIFT,
+shared transport, tempo and readable platter readouts, Browse and LOAD,
+and a central two-channel mixer. A recognized controller suggests DDJ-SB,
+while RX3 remains the default and layout changes preserve the native session.
+Documented stock mappings and pending controls in [MIDI](MIDI.md#ddj-sb-v1-coverage).
+
+## 2026-11-22 · Retro deck display and Camelot notation
+
+The RX3 platter renders its elapsed clock, BPM and Camelot glyphs in the
+bundled Jersey 15 with a deck-colored halo and a glass reflection. Mix deck
+readouts put Camelot above the note by default. The Mix toolbar can swap the
+two and remembers the choice.
+
+## 2026-11-22 · RX3 platter balance
+
+Reduced the elapsed clock and enlarged BPM and key in the RX3 platter. Cover
+art fills the inner display again, with a translucent backing under the text.
+
+## 2026-11-22 · Mix layout picker and jog readability
+
+The Mix toolbar offers RX3, curado, Compact and Monitor during playback. A
+connected DDJ-SB suggests Compact and every layout remains selectable. The RX3
+jog readout has larger type and a darker center over cover art.
+
+## 2026-11-22 · Tempo scale default, platter readouts and fader pickup
+
+The detailed waveform follows tempo by default. The center of each platter
+shows elapsed track time, playback BPM and the estimated sounding key.
+Absolute MIDI tempo faders wait for a pickup crossing after a range or
+target change, and the on-screen tempo fader drags from the current value.
+
+## 2026-11-22 · DDJ-SB tempo range, loop pads and waveform scale
+
+SHIFT + KEY LOCK and the console cycle one range per deck, and the stock
+DDJ-SB faders follow it. A repeated auto-loop pad exits its loop. Loop markers,
+a deck-colored three-band energy map and an optional playback-time scale are
+available for waveforms. Detail tiles load on demand and Touch Preview guards
+against late starts. See [Status](STATUS.md) and [MIDI](MIDI.md).
+
+## 2026-11-22 · Adopt shared MIDI reader and DDJ-SB profile
+
+Pinned `nu9ve-midi` v0.1.0 and the DDJ-SB v1 profile at core `1114e0244f49`.
+curado keeps its 95 action mappings and filter defaults for the 125 physical
+controls. Added regression coverage for LOAD, jog inputs, filter initialization
+across output generations and Mix entry, and saved bindings and port selection.
+The MIDI probe replay matches the original capture output. Built, signed and
+installed the macOS bundle locally. Listening, jog calibration, physical
+reconnection and identification of note 0x65 are still pending. See
+[Status](STATUS.md#shared-midi-adoption--2026-11-22) for the verification record.
+
+## 2026-11-22 · Shared MIDI handoff prepared
+
+Documented the extraction boundary, the CoreMIDI source fixture, the core
+deliverable and the curado migration checks. The [handoff](SUITE.md#shared-midi-handoff)
+keeps multi-app mapping profiles as a follow-up to the first adoption.
+
+## 2026-11-22 · DDJ-SB and LPLBZ checked on macOS
+
+CoreMIDI recognised the Pioneer and CoreAudio opened its four-channel stream.
+The preset recognises Browse press (CH 7 note 0x41) from the Mac capture, and
+the checked-in capture sample makes the MIDI integration tests reproducible.
+Replay now measures its baseline from connection time. Native rekordbox
+reading and temporary XML export passed on LPLBZ. Audio settings show the
+active device and channels. MIDI preset defaults survive output replacement
+and apply when Mix mode permits the action. The core pin moved to
+`2d45333`. See [Status](STATUS.md), [Mac hardware checks](MIDI.md#macos-hardware-check)
+and the [suite review](SUITE.md) for evidence and remaining work.
+
 ## 2026-11-17 · MIDI controllers explored, detected and preset
 
 A controller curado knows maps itself and reconnects whenever it is plugged in; the Pioneer DDJ-SB is the first, from a capture of the real unit on Windows. Any other controller or keyboard can be explored (noise first, then one control at a time) and learned with its kind detected: 14-bit faders, relative jogs and encoders, buttons. Guided setup for DJ controllers and for keys or pads. Jogs scratch when touched and bend otherwise; browse and LOAD move the list. New crate `curado-midi` and `bun run midi:probe`. Lesson: the third-party map got the browse press wrong and both tempo faders on the unit move by themselves, so presets come from captures and faders go through a noise gate. See [MIDI](MIDI.md), [Status](STATUS.md) and [ADR-037](DECISIONS.md).

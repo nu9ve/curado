@@ -17,6 +17,8 @@ import {
 describe('theme contract', () => {
   test('coral is the exact initial color and old/corrupt preferences fall back safely', () => {
     expect(DEFAULT_THEME.base).toBe('#d66154');
+    expect(DEFAULT_THEME.waveTime).toBe('playback');
+    expect(validateTheme({ ...DEFAULT_THEME, waveTime: 'source' }).waveTime).toBe('source');
     expect(palette(DEFAULT_THEME).accent).toBe('#d66154');
     expect(validateTheme({ base: 'garbage', mode: 'other' })).toEqual(DEFAULT_THEME);
     expect(

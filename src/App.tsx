@@ -68,9 +68,12 @@ import {
 } from './lib/devices';
 import type { PlaylistRow } from './lib/devices';
 import { setMiniWindow } from './lib/window';
-import { readMixLayout, saveMixLayout } from './lib/mix-layout';
+import { MIX_LAYOUTS, readMixLayout, saveMixLayout, suggestedMixLayout } from './lib/mix-layout';
 import type { MixLayout } from './lib/mix-layout';
 import { Deck } from './components/Deck';
+import { MixMonitor } from './components/MixMonitor';
+import { DdjSbConsole } from './components/DdjSbConsole';
+import { DeckKeyNotation } from './components/DeckReadout';
 import { Mixer, SampleBank } from './components/Mixer';
 import { DeckTools, HardwareConsole, KeyboardGuide } from './components/HardwareConsole';
 import type { ScreenKey } from './components/HardwareConsole';
@@ -994,6 +997,12 @@ export default function App() {
               loading={loading}
               onLoad={load}
               selected={selected}
+              browseSelection={
+                deviceView
+                  ? openedLibrary?.tracks.find((track) => track.id === deviceSelected)?.title
+                  : localLibrary.tracks.find((track) => track.id === selected)?.title
+              }
+              onLoadChosen={loadChosen}
               onTrigger={trigger}
               onLibrary={setLibrary}
               onEdit={edit}
@@ -1158,6 +1167,8 @@ function MixView({
   loading,
   onLoad,
   selected,
+  browseSelection,
+  onLoadChosen,
   onTrigger,
   onLibrary,
   onEdit,
@@ -1176,6 +1187,8 @@ function MixView({
   loading: number[];
   onLoad: (slot: number, id: number) => void;
   selected: number | null;
+  browseSelection?: string;
+  onLoadChosen: (slot: number) => void;
   onTrigger: (binding: KeyBinding) => void;
   onLibrary: (data: LibraryData) => void;
   onEdit: (edit: LibraryEdit) => unknown;
@@ -1188,12 +1201,12 @@ function MixView({
   onSaveBank: (index: number) => void;
   onSaveLoop: (slot: number) => void;
 }) {
-  const { audio } = useSnapshot();
+  const { audio, midi } = useSnapshot();
   const [layout, setLayout] = useState<MixLayout>(() => {
     try {
       return readMixLayout(globalThis.localStorage);
     } catch {
-      return 'classic';
+      return 'console';
     }
   });
   const chooseLayout = (next: MixLayout) => {
@@ -1205,6 +1218,14 @@ function MixView({
     }
   };
   const slots = [0, 1].map((i) => audio?.slots[i] ?? EMPTY_SLOT);
+  const layoutLabels: Record<MixLayout, string> = {
+    console: 'RX3',
+    'ddj-sb': 'DDJ-SB',
+    classic: 'curado',
+    compact: tr('Compacta', 'Compact'),
+    monitor: tr('Monitor', 'Monitor'),
+  };
+  const suggested = suggestedMixLayout(midi.connected, midi.preset?.id);
   const waves = (
     <div className="zoom-stack">
       {slots.map((slot, i) => (
@@ -1248,19 +1269,44 @@ function MixView({
           role="toolbar"
           aria-label={tr('Vista de mezcla', 'Mix layout')}
         >
+          {MIX_LAYOUTS.map((option) => {
+            const recommend = suggested === option && layout !== option;
+            return (
+              <button
+                key={option}
+                type="button"
+                aria-pressed={layout === option}
+                className={recommend ? 'mix-layout-suggested' : undefined}
+                title={
+                  recommend
+                    ? tr(
+                        'Vista sugerida para el DDJ-SB conectado',
+                        'Suggested view for the connected DDJ-SB',
+                      )
+                    : undefined
+                }
+                onClick={() => chooseLayout(option)}
+              >
+                {layoutLabels[option]}
+                {recommend ? tr(' · sugerida', ' · suggested') : ''}
+              </button>
+            );
+          })}
           <button
             type="button"
-            aria-pressed={layout === 'classic'}
-            onClick={() => chooseLayout('classic')}
+            aria-pressed={workspace.deckKeyNotation === 'camelot'}
+            aria-label={tr('Tonalidad principal en Camelot', 'Primary key in Camelot')}
+            title={tr(
+              'Intercambia Camelot y la nota musical en los decks',
+              'Swap Camelot and the musical note on the decks',
+            )}
+            onClick={() =>
+              onWorkspace({
+                deckKeyNotation: workspace.deckKeyNotation === 'camelot' ? 'american' : 'camelot',
+              })
+            }
           >
-            {tr('curado', 'curado')}
-          </button>
-          <button
-            type="button"
-            aria-pressed={layout === 'console'}
-            onClick={() => chooseLayout('console')}
-          >
-            {tr('cabina', 'console')}
+            {workspace.deckKeyNotation === 'camelot' ? 'Camelot' : tr('Notas', 'Notes')}
           </button>
           {layout === 'console' && (
             <button
@@ -1306,49 +1352,75 @@ function MixView({
           </button>
         </div>
         <div className="mix-stage">
-          {layout === 'console' ? (
-            <HardwareConsole
-              library={library}
-              keys={keys}
-              loading={loading}
-              onError={onError}
-              selected={selected}
-              onLoad={onLoad}
-              onEdit={onEdit}
-              badges={workspace.badges}
-              autoGain={workspace.autoGain}
-              onAutoGain={(autoGain) => onWorkspace({ autoGain })}
-              onScreenKey={onScreenKey}
-              onBrowse={onBrowse}
-              bank={workspace.bank}
-              onRecallBank={onRecallBank}
-              onSaveBank={onSaveBank}
-              onSaveLoop={onSaveLoop}
-            />
-          ) : (
-            <div className="mix-classic">
-              {waves}
-              <div className="console">
-                <Deck
-                  index={0}
-                  onLibrary={onLibrary}
-                  tracks={library.tracks}
-                  keys={keys}
-                  onError={onError}
-                  loading={loading.includes(0)}
-                />
-                <Mixer keys={keys} onError={onError} />
-                <Deck
-                  index={1}
-                  onLibrary={onLibrary}
-                  tracks={library.tracks}
-                  keys={keys}
-                  onError={onError}
-                  loading={loading.includes(1)}
-                />
+          <DeckKeyNotation.Provider value={workspace.deckKeyNotation}>
+            {layout === 'console' ? (
+              <HardwareConsole
+                library={library}
+                keys={keys}
+                loading={loading}
+                onError={onError}
+                selected={selected}
+                onLoad={onLoad}
+                onEdit={onEdit}
+                badges={workspace.badges}
+                autoGain={workspace.autoGain}
+                onAutoGain={(autoGain) => onWorkspace({ autoGain })}
+                onScreenKey={onScreenKey}
+                onBrowse={onBrowse}
+                bank={workspace.bank}
+                onRecallBank={onRecallBank}
+                onSaveBank={onSaveBank}
+                onSaveLoop={onSaveLoop}
+              />
+            ) : (
+              <div className={`mix-classic mix-${layout}-layout`}>
+                {waves}
+                {layout === 'ddj-sb' ? (
+                  <DdjSbConsole
+                    tracks={library.tracks}
+                    loading={loading}
+                    sampleSelection={selected}
+                    browseSelection={browseSelection}
+                    onLoad={onLoad}
+                    onLoadChosen={onLoadChosen}
+                    onBrowse={onBrowse}
+                    onOpenLibrary={() => onScreenKey('browse')}
+                    onError={onError}
+                  />
+                ) : layout === 'monitor' ? (
+                  <MixMonitor
+                    slots={slots}
+                    titles={slots.map(
+                      (slot) => library.tracks.find((track) => track.id === slot.id)?.title,
+                    )}
+                    crossfader={audio?.crossfader ?? 0.5}
+                    masterPeak={audio?.peak ?? 0}
+                    onError={onError}
+                  />
+                ) : (
+                  <div className="console">
+                    <Deck
+                      index={0}
+                      onLibrary={onLibrary}
+                      tracks={library.tracks}
+                      keys={keys}
+                      onError={onError}
+                      loading={loading.includes(0)}
+                    />
+                    <Mixer keys={keys} onError={onError} />
+                    <Deck
+                      index={1}
+                      onLibrary={onLibrary}
+                      tracks={library.tracks}
+                      keys={keys}
+                      onError={onError}
+                      loading={loading.includes(1)}
+                    />
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </DeckKeyNotation.Provider>
         </div>
       </section>
       {workspace.panelOpen && (

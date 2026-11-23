@@ -13,6 +13,7 @@ export interface Workspace {
   autoGain: boolean;
   badges: boolean;
   haptics: boolean;
+  deckKeyNotation: 'camelot' | 'american';
   /** The sample bank last used. */
   bank: number;
   /** How track lists are ordered; none means the list's own order. */
@@ -29,6 +30,7 @@ export const DEFAULT_WORKSPACE: Workspace = {
   autoGain: false,
   badges: true,
   haptics: true,
+  deckKeyNotation: 'camelot',
   bank: 0,
   sort: null,
   split: 0.72,
@@ -66,6 +68,7 @@ export function parseWorkspace(text: string | null | undefined): Workspace {
     autoGain: flag('autoGain'),
     badges: flag('badges'),
     haptics: flag('haptics'),
+    deckKeyNotation: saved.deckKeyNotation === 'american' ? 'american' : 'camelot',
     bank: saved.bank === 1 || saved.bank === 2 || saved.bank === 3 ? saved.bank : 0,
     sort: parseSort(saved.sort),
     split: typeof saved.split === 'number' ? clampSplit(saved.split) : DEFAULT_WORKSPACE.split,

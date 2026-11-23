@@ -13,6 +13,7 @@ For ongoing development, read **Status → Architecture → Roadmap → Sessions
 | [CONTROLS](CONTROLS.md)           | Listen, mix, map controls and recover                              |
 | [MIDI](MIDI.md)                   | Controllers: detection, presets and how to add one                 |
 | [THEMES](THEMES.md)               | Visual language, styles, fonts and native header                   |
+| [SUITE](SUITE.md)                 | Pinned core, adoption status and next cross-platform work          |
 | [MIXER-VIEWS](MIXER-VIEWS.md)     | Hardware-inspired console proposals and capability gaps            |
 | [PLATFORMS](PLATFORMS.md)         | Dependencies, distribution and OS differences                      |
 | [WINDOWS](WINDOWS.md)             | Windows install, build, feature table and debugging                |

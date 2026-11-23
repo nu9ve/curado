@@ -2,7 +2,7 @@
 //! moved by hand, ending when it goes quiet. The person never has to say what kind of control it
 //! was: the messages do.
 
-use crate::input::{Encoding, Mode};
+use crate::input::{Encoding, Mode, combine_cc14};
 use crate::message::{Key, Kind, Message};
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
@@ -193,10 +193,10 @@ fn combined(key: Key, lsb: u8, events: &[Event]) -> Vec<u16> {
         }
         if k.number == key.number {
             msb = Some(event.message.value);
-        } else if k.number == lsb {
-            if let Some(m) = msb {
-                values.push(m << 7 | event.message.value);
-            }
+        } else if k.number == lsb
+            && let Some(m) = msb
+        {
+            values.push(combine_cc14(m, event.message.value));
         }
     }
     values
@@ -446,8 +446,8 @@ pub fn parse_log(text: &str) -> Vec<Event> {
 /// noisy controls, then every gesture is reported with the time it ended.
 pub fn replay(events: &[Event], baseline_ms: u64, quiet_ms: u64) -> Vec<(u64, Detected)> {
     let mut explorer = Explorer::new(quiet_ms);
-    let start = events.first().map_or(0, |e| e.at_ms);
-    explorer.start_baseline(start, baseline_ms);
+    // The probe logs elapsed time from connection, including any silence before the first event.
+    explorer.start_baseline(0, baseline_ms);
     let mut found = Vec::new();
     for event in events {
         // Time passes between messages: a gap long enough closes the gesture before it.
@@ -617,9 +617,11 @@ mod tests {
         // A release with no press seen is nothing.
         explorer.feed(7000, Message::parse(&[0x91, 0x17, 0x00]).unwrap());
         assert_eq!(explorer.poll(7000, None), None);
-        assert!(explorer
-            .seen()
-            .iter()
-            .any(|s| s.noisy && s.key == noise.key));
+        assert!(
+            explorer
+                .seen()
+                .iter()
+                .any(|s| s.noisy && s.key == noise.key)
+        );
     }
 }

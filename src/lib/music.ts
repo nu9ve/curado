@@ -1,4 +1,4 @@
-import type { MusicalKey } from './types';
+import type { MusicalKey, Slot } from './types';
 export const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
 const MAJOR = [8, 3, 10, 5, 12, 7, 2, 9, 4, 11, 6, 1];
 const MINOR = [5, 12, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10];
@@ -20,6 +20,9 @@ export function outputKey(slot: {
 }) {
   const shift = slot.tuning.semitones + (slot.tuning.keyLock ? 0 : 12 * Math.log2(slot.rate));
   return transposeKey(slot.music.key, shift);
+}
+export function outputBpm(slot: Pick<Slot, 'outputBpm' | 'music' | 'tuning'>) {
+  return slot.outputBpm ?? (slot.music.bpm ? slot.music.bpm * slot.tuning.rate : null);
 }
 /** A place on the Camelot wheel as a color, so neighbours look alike. Major is lighter. */
 export function keyColor(key: MusicalKey | null): string | undefined {

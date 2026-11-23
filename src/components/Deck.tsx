@@ -1,6 +1,6 @@
 import { cueColor, useCueInfo } from '../lib/cues';
 import { tr } from '../lib/language';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useLivePosition } from '../lib/position';
 import type { CSSProperties } from 'react';
 import type { PadMode } from '../lib/console-pads';
@@ -14,6 +14,7 @@ import { bindingLabel } from '../lib/keyboard';
 import { actionKey } from '../lib/feedback';
 import { deckStatus } from '../lib/hints';
 import { WaveOverview } from './Waveform';
+import { DeckReadout } from './DeckReadout';
 import { Key, Slider } from './Controls';
 
 /** Key label for an action, preferring digit keys for numbered cues. */
@@ -27,7 +28,7 @@ export function keyFor(keys: KeyBinding[], slot: number, kind: string, value = 0
 }
 
 /** Rotation is derived from the engine position (33⅓ rpm), never from a UI timer. */
-function Platter({
+export function Platter({
   slot,
   index,
   disabled,
@@ -40,7 +41,8 @@ function Platter({
   onToggle: () => void;
   onError: (e: unknown) => void;
 }) {
-  const turn = useLivePosition(index, slot.position) * 200;
+  const position = useLivePosition(index, slot.position);
+  const readoutId = useId();
   const jog = useJog(index, slot.playing, true, 1, onError);
   return (
     <button
@@ -49,21 +51,23 @@ function Platter({
       ref={jog.ref}
       {...jog.handlers}
       onPointerCancel={jog.handlers.onPointerUp}
+      onLostPointerCapture={jog.handlers.onPointerUp}
       onClick={() => {
         if (!jog.wasDragged()) onToggle();
       }}
       aria-label={`${slot.playing ? tr('Pausar', 'Pause') : tr('Reproducir', 'Play')} deck ${index ? 'B' : 'A'}`}
+      aria-describedby={readoutId}
       title={tr(
         'Clic: reproducir o pausar · arrastrar en círculo: scratch',
         'Click: play or pause · drag around: scratch',
       )}
       data-action={actionKey({ slot: index, kind: 'toggle', value: 0 })}
     >
-      <span className="platter-disc" style={{ '--turn': `${turn}deg` } as CSSProperties}>
+      <span className="platter-disc" style={{ '--turn': `${position * 200}deg` } as CSSProperties}>
         <i className="platter-label" />
         <i className="platter-mark" />
       </span>
-      <span className="platter-letter">{index ? 'B' : 'A'}</span>
+      <DeckReadout id={readoutId} slot={slot} position={position} />
     </button>
   );
 }

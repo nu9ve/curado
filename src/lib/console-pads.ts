@@ -78,7 +78,6 @@ export function pitchLabel(beats: number): string {
   const step = PITCH_STEPS[BEAT_DIVISIONS.indexOf(beats)] ?? 1;
   return `${step > 0 ? '+' : ''}${step} st`;
 }
-export const TEMPO_RANGES = [0.06, 0.1, 0.16, 0.5];
 
 export function beatLabel(beats: number): string {
   if (beats >= 1) return String(beats);
@@ -90,9 +89,6 @@ export function nextDivision(current: number, direction: 1 | -1): number {
   const index = BEAT_DIVISIONS.indexOf(current);
   if (index < 0) return 1;
   return BEAT_DIVISIONS[Math.min(BEAT_DIVISIONS.length - 1, Math.max(0, index + direction))];
-}
-export function nextTempoRange(current: number): number {
-  return TEMPO_RANGES[(TEMPO_RANGES.indexOf(current) + 1) % TEMPO_RANGES.length];
 }
 /** The shortest way around between two angles, in radians, across the point where they wrap. */
 export function angleDelta(from: number, to: number): number {

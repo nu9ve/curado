@@ -1317,8 +1317,18 @@ input[type='range']::-moz-range-thumb {
   pointer-events: none;
 }
 .wave-loop.active {
+  min-width: 3px;
   background: color-mix(in srgb, var(--tone) 24%, transparent);
+  border-inline-width: 2px;
   border-color: var(--tone);
+  box-shadow: inset 0 3px var(--tone);
+}
+.wave-loop.saved {
+  top: auto;
+  height: 6px;
+  min-width: 2px;
+  border-color: var(--text-muted);
+  border-bottom: 1px solid var(--text-muted);
 }
 
 .visual {
@@ -1595,17 +1605,38 @@ input[type='range']::-moz-range-thumb {
   background: var(--text);
   box-shadow: 0 0 8px var(--text);
 }
-.platter-letter {
+.deck-readout {
   position: relative;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
   display: grid;
-  place-items: center;
-  font-family: var(--font-display);
-  font-size: 16px;
-  background: var(--chrome);
+  justify-items: center;
+  gap: 3px;
+  white-space: nowrap;
   color: var(--text);
+  font: 600 10px/1.1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+.deck-readout-time {
+  font-size: 22px;
+  font-weight: 700;
+}
+.deck-readout-music {
+  display: flex;
+  align-items: start;
+  gap: 7px;
+}
+.deck-readout-value {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+}
+.deck-readout-music small {
+  font-size: 8px;
+}
+.platter .deck-readout {
+  padding: 6px 8px;
+  border-radius: var(--r);
+  background: var(--chrome);
 }
 .deck-pads {
   display: grid;
@@ -3313,6 +3344,7 @@ input[type='color'] {
 .mix-layout-bar {
   flex: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
   padding: 6px 10px;
@@ -3334,6 +3366,11 @@ input[type='color'] {
   background: var(--accent-soft);
   color: var(--accent-text);
   box-shadow: inset 0 -2px var(--accent);
+}
+
+.mix-layout-bar .mix-layout-suggested {
+  color: var(--accent-text);
+  box-shadow: inset 0 -1px var(--accent);
 }
 
 /* Mixing is one fixed screen: only the side panel's lists and tools scroll, inside themselves. */
@@ -3413,6 +3450,90 @@ input[type='color'] {
     grid-column: auto;
     grid-row: auto;
   }
+}
+.mix-compact-layout .console {
+  gap: 12px;
+}
+.mix-compact-layout .deck {
+  padding: 4px 0 6px;
+  gap: 8px;
+}
+.mix-compact-layout .deck-body {
+  gap: 8px;
+}
+.mix-compact-layout .platter {
+  width: clamp(118px, 11vw, 154px);
+}
+.mix-compact-layout .cue-pad {
+  min-height: 36px;
+}
+@container (min-width: 820px) {
+  .mix-compact-layout .console {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+  .mix-compact-layout .mixer {
+    grid-column: auto;
+    grid-row: auto;
+  }
+}
+.mix-monitor {
+  display: grid;
+  gap: 16px;
+}
+.mix-monitor-layout .zoom-wave {
+  height: clamp(76px, 17vh, 160px);
+}
+.mix-monitor-decks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px;
+}
+.mix-monitor-deck,
+.mix-monitor-output {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+}
+.mix-monitor-track {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+.mix-monitor-track > b {
+  color: var(--tone);
+  font: 22px var(--font-display);
+}
+.mix-monitor-track > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mix-monitor-track > button {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  min-width: 32px;
+  padding: 3px;
+}
+.mix-monitor-deck .deck-readout {
+  justify-items: start;
+  gap: 5px;
+  font-size: 15px;
+}
+.mix-monitor-deck .deck-readout-time {
+  font-size: clamp(28px, 4vw, 46px);
+}
+.mix-monitor-state {
+  display: flex;
+  gap: 10px;
+  min-height: 1em;
+  color: var(--tone);
+  font: 600 10px var(--font-mono);
+}
+.mix-monitor-output {
+  width: min(100%, 360px);
+  justify-self: center;
 }
 .pad-tabs {
   display: grid;

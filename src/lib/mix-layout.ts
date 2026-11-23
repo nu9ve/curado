@@ -1,9 +1,15 @@
-export type MixLayout = 'classic' | 'console';
+export const MIX_LAYOUTS = ['console', 'ddj-sb', 'classic', 'compact', 'monitor'] as const;
+export type MixLayout = (typeof MIX_LAYOUTS)[number];
+
+export function suggestedMixLayout(connected: string | null, presetId?: string): MixLayout | null {
+  return connected && presetId === 'pioneer-ddj-sb' ? 'ddj-sb' : null;
+}
 const key = 'curado.mix-layout.v1';
 
 export function readMixLayout(storage: Pick<Storage, 'getItem'> | undefined): MixLayout {
   try {
-    return storage?.getItem(key) === 'classic' ? 'classic' : 'console';
+    const saved = storage?.getItem(key);
+    return MIX_LAYOUTS.find((layout) => layout === saved) ?? 'console';
   } catch {
     return 'console';
   }

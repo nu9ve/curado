@@ -37,7 +37,17 @@ flowchart LR
 
 Telemetry never causes the UI to re-emit an action. No PCM crosses IPC. Library UI is separate from telemetry consumers. Slider parameters coalesce for 16 ms; transport goes directly. Focused hotkeys follow DOM → IPC → Rust queue without waiting for React. They are not sample accurate; MIDI bypasses the WebView. Web Animations illuminate `data-action`/`data-key` controls, keycaps and the HUD in the input handler, without reading layout or awaiting the engine.
 
-Mix offers classic and console presentations. `HardwareConsole` renders a separate hardware-inspired layout but uses the same native actions, snapshots and shared controls. Each deck has a temporary local HOT CUE/SAMPLER presentation mode: the same pad positions address that deck's three cues or the four global sample slots, with no native mode or audio command on switching. A selected library ID can load an empty sample pad or replace one with Shift-click. Existing keyboard/MIDI actions continue regardless of the visible pad mode. Per-deck curado effects and musical controls sit below the pads, linked transport is in A, and a keyboard map with action feedback is in B. The full mixer remains expandable. Unavailable reference controls have `aria-disabled` and no audio action. `curado.mix-layout.v1` stores only the layout choice in frontend localStorage, with a classic fallback if unavailable or invalid. Switching it does not send a session-mode command or change transport. A resize observer fits the fixed-proportion console to the available sheet width and initial height using CSS zoom; at the 65% minimum it falls back to scrolling rather than shrinking controls indefinitely. This affects presentation only. It is not a hardware or DSP emulation; see [Mixer views](MIXER-VIEWS.md).
+Mix offers RX3, DDJ-SB, classic curado, Compact and Monitor. The selector
+writes only `curado.mix-layout.v1` to frontend localStorage, with RX3 as the
+default when storage is missing or invalid. The recognized MIDI preset may
+mark a suggestion in the toolbar. Layout selection remains independent of
+controller recognition, bindings, the native mode, queue and audio output.
+RX3 and DDJ-SB use the same actions and snapshots. DDJ-SB Browse and LOAD
+call the same current-list handlers as MIDI and keyboard, including device
+libraries. Per-deck pad modes and the DDJ-SB on-screen SHIFT toggle are local
+presentation state. A screen jog gesture releases on unmount. RX3 uses
+CSS zoom with a 65% floor and DDJ-SB uses scrolling at its minimum usable
+width. See [Mixer views](MIXER-VIEWS.md).
 
 `ContextHelp` delegates `pointerover` and `focusin` once per mount, not `pointermove`. `hints.ts` resolves exact actions/current mappings and derives transport/routing diagnostics from snapshots. Help never controls audio, extrapolates position or writes preferences. Unspecified controls use their label/title and fallback text. Its fixed footer row expands the shell's reserved height and repositions notices.
 
@@ -47,7 +57,17 @@ Mix offers classic and console presentations. `HardwareConsole` renders a separa
 
 `get_library` excludes peaks. UI requests only displayed track waveforms, with a bounded 24-track FIFO cache. Pre-v3 tracks have `waveform NULL`; the next deck load fills it through non-overwriting `fill_waveform`, and UI requests it again.
 
-Overview canvas repaints only for data, size or theme changes. Position, played area, loop and cues are DOM overlays using transforms/percentages. Detailed waveform pre-renders at 1 px/bin into 4096 px tiles (WebKit canvas limits); each snapshot uses one `drawImage` per visible tile, with an 8 s window and centered playhead. Platters use `position × 200°` (33⅓ rpm), derived from snapshots rather than a timer. Both remain at 20 Hz; see SESSIONS S2.
+Overview canvas repaints for data, size or theme changes. Position, played area,
+loop and cues are DOM overlays. Detail renders 1,024-bin tiles on demand and
+keeps four tiles per deck. Original-time mode spans eight source seconds and
+the default tempo-scaled mode spans eight output seconds at the current deck rate. Beat
+lines, loop bounds and pointer seeks use the same geometry. The overview
+retains the full track. Playheads and platters derive position from native
+snapshots and the 60 Hz position stream. Platter centers show elapsed source
+time, the native deck BPM (local beat grid times the tuning rate), and the
+estimated sounding key from the track key and current tuning.
+Mix deck readouts show Camelot and conventional key names together. The
+workspace stores which notation appears first, independently of the layout.
 
 ## Engine
 
@@ -131,7 +151,19 @@ Trusted frontend has local CSP, no remote scripts or generic shell/file API. Fon
 
 ## MIDI and visuals
 
-midir uses CoreMIDI/WinMM/ALSA. The input callback copies three bytes of notes, CCs and pitch bend into a queue of 256. A worker handles at most 64 messages every 2 ms and sends the same engine actions as keyboard and screen; the library list's `listMove`/`listLoad` go to the interface as a `midi:local` event. `crates/midi` (`curado-midi`, no Tauri) owns what messages mean: 14-bit pairs, relative encodings, the noise gate, gesture detection and bundled presets; `src-tauri/src/midi.rs` owns ports, bindings and actions. Learning binds a whole gesture, so a control is stored with its detected kind and LSB. A remembered port reconnects within 2 s of appearing. Bindings and explored controls are read on request, not in the 20 Hz snapshot. No MIDI Clock, SysEx or LED feedback yet. Method, rules and preset format: [MIDI](MIDI.md).
+midir uses CoreMIDI/WinMM/ALSA. The input callback copies three bytes of notes, CCs and pitch bend into a queue of 256. A worker handles at most 64 messages every 2 ms and sends the same engine actions as keyboard and screen; the library list's `listMove`/`listLoad` go to the interface as a `midi:local` event. The pinned `nu9ve-midi` crate owns message parsing, 14-bit pairs, relative encodings, the noise gate, gesture detection and physical profiles. `crates/midi` (`curado-midi`, no Tauri) maps stable hardware IDs to app actions and runs the terminal probe. `src-tauri/src/midi.rs` owns ports, bindings and dispatch. Learning binds a whole gesture, so a control is stored with its detected kind and LSB. A remembered port reconnects within 2 s of appearing. Bindings and explored controls are read on request, not in the 20 Hz snapshot. No MIDI Clock, SysEx or LED feedback yet. Method, rules and preset format: [MIDI](MIDI.md).
+
+The MIDI probe records milliseconds from connection, so replay measures its idle
+baseline from zero even when the first message follows several seconds of silence.
+The DDJ-SB tests use the CoreMIDI regression fixture from the pin.
+The MIDI worker applies preset initialization once per audio engine generation.
+Actions that need Mix mode wait until it is active.
+
+Absolute tempo controls use pickup on the MIDI worker. The engine publishes
+a lightweight rate and revision. Loading, tempo and sync commands advance
+the revision, and a queued MIDI fader action applies only against the
+revision it captured. Output or range changes invalidate the worker's
+pickup state.
 
 Metal is a separate process. The visual worker requests one preallocated 2,048-sample mono master capture at a time only while the helper exists. The callback fills it over multiple blocks and publishes through bounded atomics without waiting or allocating; request IDs reject cancelled captures. The worker applies a Hann window and FFT into 24 logarithmic 40 Hz–16 kHz display bins, smooths attack/release, and sends bins with RMS, peak, a 64-sample scope and accent through stdin at up to 20 Hz. Captures are short windows, not full PCM; a blocked pipe stalls only the visual worker and leaves at most one capture pending. The spectrum is approximate, not calibrated metering; mono downmix can cancel anti-phase stereo. Resolution is sample-rate/2048 (23.4 Hz at 48 kHz), with lower bins sharing FFT coefficients; effective updates may be slower than 20 Hz because capture spans callbacks.
 

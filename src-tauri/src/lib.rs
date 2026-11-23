@@ -53,6 +53,7 @@ pub struct AppState {
     queue: Mutex<playback::Queue>,
     theme: Mutex<preferences::Theme>,
     mode: Mutex<session::Mode>,
+    tempo_ranges: session::TempoRanges,
     annotations: Mutex<annotations::Annotations>,
     persistence_error: Mutex<Option<String>>,
     generation: AtomicU64,
@@ -134,6 +135,25 @@ impl AppState {
     }
 
     fn action(&self, action: Action) -> Result<(), String> {
+        self.action_with_pickup(action, None)
+    }
+
+    fn tempo_target(&self, slot: usize) -> Option<(u64, f64, u64)> {
+        let output = self.output.lock().unwrap();
+        let (rate, revision) = output.as_ref()?.handle.tempo_target(slot)?;
+        Some((self.generation.load(Ordering::Acquire), rate, revision))
+    }
+
+    fn action_with_pickup(&self, action: Action, pickup: Option<(u64, u64)>) -> Result<(), String> {
+        if action.kind == "tempoRange" {
+            if action.value != 0. {
+                return Err("Control o valor inválido".into());
+            }
+            if !self.mode.lock().unwrap().allows(&action) {
+                return Err("Ese control está disponible en el modo Mezcla".into());
+            }
+            return self.tempo_ranges.cycle(action.slot);
+        }
         action.validate()?;
         let mode = self.mode.lock().unwrap();
         if !mode.allows(&action) {
@@ -143,13 +163,16 @@ impl AppState {
         if action.kind == "panic" {
             self.queue.lock().unwrap().enabled = false;
         }
-        self.output
-            .lock()
-            .unwrap()
-            .as_ref()
-            .ok_or(NO_ENGINE)?
-            .handle
-            .action(action)
+        let output = self.output.lock().unwrap();
+        let handle = &output.as_ref().ok_or(NO_ENGINE)?.handle;
+        if let Some((generation, revision)) = pickup {
+            if self.generation.load(Ordering::Acquire) != generation {
+                return Ok(());
+            }
+            handle.tempo_fader(action, revision)
+        } else {
+            handle.action(action)
+        }
     }
     /// For a MIDI button: the value that flips an on/off control.
     fn toggled(&self, action: &Action) -> Option<f64> {
@@ -179,6 +202,7 @@ impl AppState {
             midi,
             queue,
             persistence_error,
+            tempo_ranges: [self.tempo_ranges.get(0), self.tempo_ranges.get(1)],
             mode,
             devices,
         }
@@ -194,6 +218,8 @@ struct AppSnapshot {
     #[serde(rename = "persistenceError")]
     persistence_error: Option<String>,
     mode: session::Mode,
+    #[serde(rename = "tempoRanges")]
+    tempo_ranges: [f64; 2],
     devices: Vec<devices::DeviceInfo>,
 }
 #[derive(Clone, Serialize, Deserialize)]
@@ -803,6 +829,9 @@ fn load_into_slot(
     if s.generation.load(Ordering::Acquire) != generation {
         return Err("El dispositivo cambió durante la carga; vuelve a cargar la pista".into());
     }
+    if replaced() {
+        return Ok(None);
+    }
     let handle = output.as_ref().ok_or(NO_ENGINE)?.handle.clone();
     let ticket = handle.load(slot, clip)?;
     drop(output);
@@ -813,7 +842,7 @@ fn load_into_slot(
         }
         std::thread::sleep(Duration::from_millis(2));
     }
-    Ok(Some(id))
+    Ok((!replaced()).then_some(id))
 }
 fn start_load(s: &AppState, slot: usize) -> Result<u64, String> {
     if slot >= curado_audio::SLOTS {
@@ -993,13 +1022,31 @@ async fn track_beats(
     let s = state.inner().clone();
     work(move || Ok(s.db.lock().unwrap().beats(id))).await
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TrackCueInfo {
+    #[serde(flatten)]
+    style: devices::CueInfo,
+    cues: [f64; curado_audio::annotations::HOT_CUES],
+    cue_ends: [f64; curado_audio::annotations::HOT_CUES],
+}
+
 #[tauri::command]
 async fn track_cue_info(
     id: u64,
     state: tauri::State<'_, Arc<AppState>>,
-) -> Result<devices::CueInfo, String> {
+) -> Result<TrackCueInfo, String> {
     let s = state.inner().clone();
-    work(move || Ok(devices::current_cue_info(&s.db.lock().unwrap(), id))).await
+    work(move || {
+        let db = s.db.lock().unwrap();
+        let (cues, cue_ends) = db.saved_cues(id);
+        Ok(TrackCueInfo {
+            style: devices::current_cue_info(&db, id),
+            cues,
+            cue_ends,
+        })
+    })
+    .await
 }
 /// The destination comes from the native dialog alone: the interface cannot name a path.
 #[tauri::command]
@@ -1318,6 +1365,7 @@ pub fn run() {
                 queue: Mutex::new(playback::Queue::default()),
                 theme: Mutex::new(theme),
                 mode: Mutex::new(mode),
+                tempo_ranges: Default::default(),
                 annotations: Mutex::new(annotations::Annotations::default()),
                 persistence_error: Mutex::new(None),
                 generation: AtomicU64::new(0),

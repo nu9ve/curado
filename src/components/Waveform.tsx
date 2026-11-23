@@ -8,13 +8,20 @@ import { isDownbeat, isMapDownbeat } from '../lib/music';
 import { useBeatMap } from '../lib/beats';
 import { findPhrases, PHRASE_LABELS } from '../lib/phrases';
 import { useLivePosition } from '../lib/position';
-import { drawOverview, drawWindow, renderTiles, useWaveform } from '../lib/waveform';
+import {
+  drawOverview,
+  drawWindow,
+  useWaveform,
+  waveTiles,
+  waveWindowSeconds,
+} from '../lib/waveform';
 import type { WaveColors } from '../lib/waveform';
 import type { Slot } from '../lib/types';
 
 function useColors(tone: 'a' | 'b'): {
   colors: WaveColors;
   style: ReturnType<typeof useTheme>['waveform'];
+  time: ReturnType<typeof useTheme>['waveTime'];
   crisp: boolean;
   key: string;
 } {
@@ -25,6 +32,7 @@ function useColors(tone: 'a' | 'b'): {
     return {
       colors,
       style: theme.waveform,
+      time: theme.waveTime,
       crisp: theme.style === 'pixel',
       key: `${JSON.stringify(colors)}|${theme.waveform}|${p.dark}`,
     };
@@ -54,10 +62,11 @@ function useSize<T extends HTMLElement>() {
 interface OverviewProps {
   trackId?: number;
   slot: Pick<Slot, 'position' | 'duration' | 'cues' | 'looping' | 'loopIn' | 'loopOut'> &
-    Partial<Pick<Slot, 'music'>>;
+    Partial<Pick<Slot, 'music' | 'cueEnds'>>;
   tone?: 'a' | 'b';
   onSeek?: (seconds: number) => void;
   compact?: boolean;
+  storedCues?: boolean;
   label?: string;
 }
 /**
@@ -70,10 +79,13 @@ export function WaveOverview({
   tone = 'a',
   onSeek,
   compact = false,
+  storedCues = false,
   label = tr('Posición de reproducción', 'Playback position'),
 }: OverviewProps) {
   const wave = useWaveform(trackId);
-  const cueInfo = useCueInfo(trackId);
+  const cueInfo = useCueInfo(trackId, storedCues);
+  const cues = (storedCues && cueInfo.cues) || slot.cues;
+  const cueEnds = (storedCues && cueInfo.cueEnds) || slot.cueEnds;
   const { colors, style, key } = useColors(tone);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [box, size] = useSize<HTMLDivElement>();
@@ -151,7 +163,19 @@ export function WaveOverview({
         />
       )}
       {d > 0 &&
-        slot.cues.map((c, i) =>
+        cueEnds?.map((end, index) => {
+          const start = cues[index];
+          return start > 0 && end > start ? (
+            <i
+              key={index}
+              className="wave-loop saved"
+              aria-hidden="true"
+              style={{ left: `${(start / d) * 100}%`, width: `${((end - start) / d) * 100}%` }}
+            />
+          ) : null;
+        })}
+      {d > 0 &&
+        cues.map((c, i) =>
           c > 0 ? (
             <i
               key={i}
@@ -181,7 +205,6 @@ export function WaveOverview({
   );
 }
 
-const WINDOW_SECONDS = 8;
 /** Scrolling detail view with the playhead fixed in the centre, like a club deck. */
 export function ZoomWave({
   trackId,
@@ -200,10 +223,11 @@ export function ZoomWave({
   const cueInfo = useCueInfo(trackId);
   const position = useLivePosition(tone === 'b' ? 1 : 0, slot.position);
   const beatMap = useBeatMap(trackId, slot.loadTicket);
-  const { colors, style, crisp, key } = useColors(tone);
+  const { colors, style, time, crisp, key } = useColors(tone);
+  const windowSeconds = waveWindowSeconds(time, slot.tuning.rate);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [box, size] = useSize<HTMLDivElement>();
-  const tiles = useMemo(() => (wave ? renderTiles(wave, colors, style, 96) : []), [wave, key]);
+  const tileAt = useMemo(() => (wave ? waveTiles(wave, colors, style) : null), [wave, key]);
   useEffect(() => {
     const el = canvas.current;
     if (!el || !size.w) return;
@@ -221,16 +245,12 @@ export function ZoomWave({
     ctx.clearRect(0, 0, w, h);
     const p = currentPalette();
     const rate = wave?.rate ?? 50;
-    const pxPerBin = w / (WINDOW_SECONDS * rate);
+    const pxPerBin = w / (windowSeconds * rate);
     const centre = w / 2;
     const toX = (seconds: number) => centre + (seconds - position) * rate * pxPerBin;
-    if (slot.loopOut > slot.loopIn) {
-      ctx.fillStyle = slot.looping ? `${p.accent}33` : `${p.text}14`;
-      ctx.fillRect(toX(slot.loopIn), 0, (slot.loopOut - slot.loopIn) * rate * pxPerBin, h);
-    }
-    if (tiles.length) {
+    if (tileAt && wave) {
       ctx.imageSmoothingEnabled = !crisp;
-      drawWindow(ctx, tiles, position * rate - centre / pxPerBin, pxPerBin, w, h);
+      drawWindow(ctx, tileAt, wave.count, position * rate - centre / pxPerBin, pxPerBin, w, h);
     } else {
       ctx.fillStyle = `${p.text}22`;
       ctx.fillRect(0, h / 2 - 0.5, w, 1);
@@ -245,20 +265,26 @@ export function ZoomWave({
     };
     if (beatMap && !slot.music.manual) {
       ctx.fillStyle = p.tokens['--text-muted'];
-      const left = position - WINDOW_SECONDS / 2;
-      const first = beatMap.findIndex((seconds) => seconds >= left);
-      for (let n = Math.max(first, 0); n < beatMap.length; n++) {
-        if (beatMap[n] > left + WINDOW_SECONDS) break;
+      const left = position - windowSeconds / 2;
+      let first = 0;
+      let end = beatMap.length;
+      while (first < end) {
+        const mid = (first + end) >>> 1;
+        if (beatMap[mid] < left) first = mid + 1;
+        else end = mid;
+      }
+      for (let n = first; n < beatMap.length; n++) {
+        if (beatMap[n] > left + windowSeconds) break;
         drawBeat(beatMap[n], isMapDownbeat(beatMap, n, slot.music.downbeat));
       }
     } else if (slot.music.bpm) {
       const beat = 60 / slot.music.bpm;
       const first = Math.max(
         0,
-        Math.ceil((position - WINDOW_SECONDS / 2 - slot.music.beatOffset) / beat),
+        Math.ceil((position - windowSeconds / 2 - slot.music.beatOffset) / beat),
       );
       ctx.fillStyle = p.tokens['--text-muted'];
-      for (let n = first; n < first + WINDOW_SECONDS / beat + 2; n++) {
+      for (let n = first; n < first + windowSeconds / beat + 2; n++) {
         const time = slot.music.beatOffset + n * beat;
         drawBeat(time, isDownbeat(time, beat, slot.music.downbeat));
       }
@@ -268,6 +294,26 @@ export function ZoomWave({
     ctx.globalAlpha = 0.45;
     ctx.fillRect(0, 0, centre, h);
     ctx.globalAlpha = 1;
+    const markLoop = (start: number, end: number, active: boolean, color: string) => {
+      const left = toX(start);
+      const right = toX(end);
+      if (right < 0 || left > w) return;
+      ctx.fillStyle = color;
+      ctx.globalAlpha = active ? 0.22 : 0.1;
+      ctx.fillRect(left, 0, right - left, h);
+      ctx.globalAlpha = active ? 1 : 0.65;
+      ctx.fillRect(left, 0, right - left, active ? 3 : 1);
+      ctx.fillRect(left, h - 10, 2, 10);
+      ctx.fillRect(right - 1, h - 10, 2, 10);
+      ctx.globalAlpha = 1;
+    };
+    slot.cueEnds.forEach((end, i) => {
+      const start = slot.cues[i];
+      if (start > 0 && end > start) markLoop(start, end, false, p.text);
+    });
+    if (slot.loopOut > slot.loopIn) {
+      markLoop(slot.loopIn, slot.loopOut, slot.looping, slot.looping ? colors.accent : p.text);
+    }
     slot.cues.forEach((c, i) => {
       if (c <= 0) return;
       const x = Math.round(toX(c));
@@ -284,10 +330,12 @@ export function ZoomWave({
     ctx.fillRect(Math.round(centre) - 5, 0, 10, 3);
     ctx.fillRect(Math.round(centre) - 5, h - 3, 10, 3);
   }, [
-    tiles,
+    tileAt,
+    windowSeconds,
     size,
     position,
     slot.cues,
+    slot.cueEnds,
     cueInfo,
     beatMap,
     slot.loopIn,
@@ -321,8 +369,7 @@ export function ZoomWave({
       onPointerDown={(e) => {
         if (!onSeek || !slot.duration) return;
         const r = e.currentTarget.getBoundingClientRect();
-        const seconds =
-          slot.position + ((e.clientX - r.left - r.width / 2) / r.width) * WINDOW_SECONDS;
+        const seconds = position + ((e.clientX - r.left - r.width / 2) / r.width) * windowSeconds;
         onSeek(Math.max(0, Math.min(slot.duration, seconds)));
       }}
     >

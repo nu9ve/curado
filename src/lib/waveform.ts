@@ -1,6 +1,7 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { call, native } from './bridge';
-import type { WaveStyle } from './theme';
+import { mix } from './theme';
+import type { WaveStyle, WaveTime } from './theme';
 
 /** Mirrors `analysis::encode` in the audio crate: `[version, binsPerSecond, 0, 0]` + 4 bytes/bin. */
 export interface WaveData {
@@ -84,6 +85,16 @@ function column(
   colors: WaveColors,
   style: WaveStyle,
 ) {
+  if (style === 'heatmap') {
+    const row = (half * 2) / 3;
+    for (const [index, color] of [colors.high, colors.mid, colors.low].entries()) {
+      ctx.fillStyle = color;
+      ctx.globalAlpha = level(v[3 - index], 3 - index);
+      ctx.fillRect(x, mid - half + index * row, w, row);
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
   if (style === 'bands') {
     for (const [band, color] of [
       [1, colors.low],
@@ -132,6 +143,9 @@ export function drawOverview(
     ctx.globalAlpha = 1;
     return;
   }
+  if (style === 'heatmap') {
+    colors = heatmapColors(colors);
+  }
   const step = 2;
   const columns = Math.floor(width / step);
   const v = [0, 0, 0, 0];
@@ -144,7 +158,7 @@ export function drawOverview(
     column(
       ctx,
       i * step,
-      step - (style === 'bands' ? 0.5 : 1),
+      step - (style === 'heatmap' ? 0 : style === 'bands' ? 0.5 : 1),
       height / 2,
       height / 2 - 1,
       v,
@@ -154,53 +168,69 @@ export function drawOverview(
   }
 }
 
-const TILE = 4096;
-/** Pre-renders the detailed waveform at one pixel per bin, in tiles under WebKit canvas limits. */
-export function renderTiles(
-  wave: WaveData,
-  colors: WaveColors,
-  style: WaveStyle,
-  height: number,
-): HTMLCanvasElement[] {
-  const tiles: HTMLCanvasElement[] = [];
-  for (let start = 0; start < wave.count; start += TILE) {
-    const count = Math.min(TILE, wave.count - start);
+function heatmapColors(colors: WaveColors): WaveColors {
+  return {
+    ...colors,
+    low: mix(colors.low, colors.accent, 0.35),
+    mid: mix(colors.mid, colors.accent, 0.55),
+    high: mix(colors.high, colors.accent, 0.3),
+  };
+}
+
+export function waveWindowSeconds(mode: WaveTime, rate: number): number {
+  return 8 * (mode === 'playback' ? Math.max(0.5, Math.min(1.5, rate || 1)) : 1);
+}
+
+const TILE = 1024;
+const CACHED_TILES = 4;
+
+/** Renders visible waveform tiles on demand, with bounded work when a new track loads. */
+export function waveTiles(wave: WaveData, colors: WaveColors, style: WaveStyle) {
+  const tiles = new Map<number, HTMLCanvasElement>();
+  const palette = style === 'heatmap' ? heatmapColors(colors) : colors;
+  return (index: number) => {
+    const known = tiles.get(index);
+    if (known) return known;
+    const start = index * TILE;
     const canvas = document.createElement('canvas');
-    canvas.width = count;
-    canvas.height = height;
+    canvas.width = Math.min(TILE, wave.count - start);
+    canvas.height = 96;
     const ctx = canvas.getContext('2d');
-    if (!ctx) break;
-    for (let i = 0; i < count; i++)
+    if (!ctx) return canvas;
+    for (let i = 0; i < canvas.width; i++)
       column(
         ctx,
         i,
         1,
-        height / 2,
-        height / 2 - 1,
+        48,
+        47,
         wave.bins.subarray((start + i) * 4, (start + i) * 4 + 4),
-        colors,
+        palette,
         style,
       );
-    tiles.push(canvas);
-  }
-  return tiles;
+    tiles.set(index, canvas);
+    if (tiles.size > CACHED_TILES) tiles.delete(tiles.keys().next().value!);
+    return canvas;
+  };
 }
 
 /** Copies the visible window of tiles. Cost: one drawImage per intersecting tile. */
 export function drawWindow(
   ctx: CanvasRenderingContext2D,
-  tiles: HTMLCanvasElement[],
+  tileAt: ReturnType<typeof waveTiles>,
+  count: number,
   firstBin: number,
   pxPerBin: number,
   width: number,
   height: number,
 ) {
-  const lastBin = firstBin + width / pxPerBin;
-  tiles.forEach((tile, index) => {
+  const lastBin = Math.min(count, firstBin + width / pxPerBin);
+  for (let index = Math.max(0, Math.floor(firstBin / TILE)); index * TILE < lastBin; index++) {
+    const tile = tileAt(index);
     const tileStart = index * TILE;
     const from = Math.max(firstBin, tileStart);
     const to = Math.min(lastBin, tileStart + tile.width);
-    if (to <= from) return;
+    if (to <= from) continue;
     ctx.drawImage(
       tile,
       from - tileStart,
@@ -212,5 +242,5 @@ export function drawWindow(
       (to - from) * pxPerBin,
       height,
     );
-  });
+  }
 }

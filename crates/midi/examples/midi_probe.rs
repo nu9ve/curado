@@ -48,8 +48,8 @@ fn main() {
     let Some(wanted) = args.first().filter(|a| !a.starts_with("--")) else {
         println!("MIDI inputs:");
         for name in &names {
-            let known =
-                preset::for_port(name).map(|p| format!("  (preset: {} {})", p.vendor, p.name));
+            let known = preset::for_port(name)
+                .map(|p| format!("  (preset: {} {})", p.profile.vendor, p.profile.name));
             println!("  {name}{}", known.unwrap_or_default());
         }
         if names.is_empty() {
@@ -140,7 +140,7 @@ fn compare(port: Option<&str>, found: BTreeSet<curado_midi::Key>) {
         preset::bundled().into_iter().max_by_key(|p| {
             found
                 .iter()
-                .filter(|k| p.controls.iter().any(|c| c.key() == **k))
+                .filter(|k| p.profile.control_by_key(**k).is_some())
                 .count()
         })
     }) else {
@@ -148,17 +148,17 @@ fn compare(port: Option<&str>, found: BTreeSet<curado_midi::Key>) {
     };
     let known = found
         .iter()
-        .filter(|k| preset.controls.iter().any(|c| c.key() == **k))
+        .filter(|k| preset.profile.control_by_key(**k).is_some())
         .count();
     println!(
         "\nPreset {} {}: knows {known} of the {} controls found.",
-        preset.vendor,
-        preset.name,
+        preset.profile.vendor,
+        preset.profile.name,
         found.len()
     );
     for key in found
         .iter()
-        .filter(|k| !preset.controls.iter().any(|c| c.key() == **k))
+        .filter(|k| preset.profile.control_by_key(**k).is_none())
     {
         println!("  missing: {}", key.label());
     }

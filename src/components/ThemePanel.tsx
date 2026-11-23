@@ -13,7 +13,15 @@ import {
   palette,
   resolved,
 } from '../lib/theme';
-import type { ThemeMode, ThemeVariant, HSV, Typography, Texture, WaveStyle } from '../lib/theme';
+import type {
+  ThemeMode,
+  ThemeVariant,
+  HSV,
+  Typography,
+  Texture,
+  WaveStyle,
+  WaveTime,
+} from '../lib/theme';
 import { Fader } from './Controls';
 const styleEnglish: Record<string, [string, string]> = {
   curado: ['curado', 'Warm and forward-looking: soft gradients and pixel details.'],
@@ -193,6 +201,19 @@ export function ThemePanel({ onError }: { onError: (e: unknown) => void }) {
               {tr('RGB · color por frecuencia', 'RGB · color by frequency')}
             </option>
             <option value="mono">{tr('Mono · color principal', 'Mono · accent color')}</option>
+            <option value="heatmap">
+              {tr('Mapa de energía · 3 frecuencias', 'Energy map · 3 frequency bands')}
+            </option>
+          </select>
+        </label>
+        <label>
+          {tr('Escala de waveform detallada', 'Detailed waveform scale')}
+          <select
+            value={theme.waveTime}
+            onChange={(e) => patch({ waveTime: e.target.value as WaveTime })}
+          >
+            <option value="source">{tr('Tiempo original', 'Original time')}</option>
+            <option value="playback">{tr('Sigue el tempo', 'Follows tempo')}</option>
           </select>
         </label>
       </div>

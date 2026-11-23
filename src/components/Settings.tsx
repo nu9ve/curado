@@ -150,6 +150,14 @@ export function Settings({
                 Backend<b>{snap.output?.backend ?? tr('Sin salida', 'No output')}</b>
               </span>
               <span>
+                {tr('Salida activa', 'Active output')}
+                <b>{snap.output?.device ?? '—'}</b>
+              </span>
+              <span>
+                {tr('Canales', 'Channels')}
+                <b>{snap.output?.channels ?? '—'}</b>
+              </span>
+              <span>
                 {tr('Frecuencia', 'Sample rate')}
                 <b>{snap.output?.sampleRate ?? '—'} Hz</b>
               </span>
@@ -231,8 +239,8 @@ export function Settings({
             </div>
             <p className="small-print">
               {tr(
-                'El EQ es de tres bandas básicas. El echo sigue el BPM y la división elegida; SYNC vincula tempo y fase al deck master. No hay preescucha independiente todavía.',
-                'The EQ has three basic bands. Echo follows BPM and the selected division; SYNC links tempo and phase to the master deck. Independent headphone cue is not available yet.',
+                'Para preescucha independiente, elige una salida de cuatro canales o más. El master usa los canales 1–2 y el cue de audífonos usa 3–4.',
+                'For independent headphone cue, choose an output with at least four channels. Master uses channels 1–2 and headphone cue uses 3–4.',
               )}{' '}
             </p>
             <StemsSettings onError={onError} />

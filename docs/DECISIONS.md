@@ -13,6 +13,11 @@ MIDI read Note On and 7-bit CCs only, learned the first message it saw and neede
 - **Bindings left the 20 Hz snapshot.** A preset brings about a hundred; they are read on request with a version counter.
 - **Reconsider** the gesture rules when a controller is misread (replay its capture), the gate when a fader is still too noisy or feels stepped, and port-name matching when two models share a name: the MIDI identity request is the next step.
 
+**2026-11-22 update.** curado adopted `nu9ve-midi` v0.1.0 from the suite pin
+`1114e0244f49`. The portable reader and DDJ-SB physical profile are shared.
+The app keeps the action mappings, output initialization, native input ports
+and saved binding format. See [suite adoption](SUITE.md#curado-adoption).
+
 ## ADR-036 · Text, state and selection colors hold their contrast on raised surfaces too — accepted (2026-11-16)
 
 A palette audit against [nu9ve-theme-v1 §2](../vendor/nu9ve-core/contracts/nu9ve-theme-v1.md) found gaps the matrix did not cover: muted and accent text on raised and hover surfaces (down to 3.25:1), fixed danger and success colors (down to 3.46:1), selection tints under 7:1 for text and deck B under 3:1 in a few combinations.

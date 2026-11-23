@@ -8,6 +8,9 @@ fn auto() -> String {
 fn bands() -> String {
     "bands".into()
 }
+fn playback_time() -> String {
+    "playback".into()
+}
 /// Mirrors `ThemeSettings` in `src/lib/theme.ts`. v1 rows (pre-styles) deserialize with defaults.
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq)]
 pub struct Theme {
@@ -23,6 +26,8 @@ pub struct Theme {
     pub texture: String,
     #[serde(default = "bands")]
     pub waveform: String,
+    #[serde(default = "playback_time", rename = "waveTime")]
+    pub wave_time: String,
 }
 impl Default for Theme {
     fn default() -> Self {
@@ -35,6 +40,7 @@ impl Default for Theme {
             typography: auto(),
             texture: auto(),
             waveform: bands(),
+            wave_time: playback_time(),
         }
     }
 }
@@ -53,7 +59,8 @@ impl Theme {
                 &["auto", "display", "pixel", "system", "mono"],
             )
             || !one_of(&self.texture, &["auto", "dither", "smooth", "flat"])
-            || !one_of(&self.waveform, &["bands", "rgb", "mono"])
+            || !one_of(&self.waveform, &["bands", "rgb", "mono", "heatmap"])
+            || !one_of(&self.wave_time, &["source", "playback"])
             || self.base.len() != 7
             || !self.base.starts_with('#')
             || !self.base.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
@@ -102,6 +109,13 @@ mod tests {
         v1.validate().unwrap();
         assert_eq!(v1.style, "curado");
         assert_eq!(v1.waveform, "bands");
+        assert_eq!(v1.wave_time, "playback");
+        let original_time: Theme = serde_json::from_str(
+            r##"{"version":2,"mode":"light","variant":"tinted","base":"#548bbf","waveTime":"source"}"##,
+        )
+        .unwrap();
+        original_time.validate().unwrap();
+        assert_eq!(original_time.wave_time, "source");
         assert_eq!(v1.base, "#548bbf");
     }
 }

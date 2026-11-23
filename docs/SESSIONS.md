@@ -13,7 +13,7 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 **USB reading implemented 2026-10-30:** see Status and ADR-020. **XML export implemented 2026-10-30, not yet confirmed in rekordbox:** see ADR-021.
 
-- **Context:** curado reads a rekordbox USB and exports an XML, but cannot read an XML from rekordbox.
+- **Context:** curado reads a rekordbox USB and exports an XML. The real LPLBZ parser, in-memory registration and export were exercised on macOS on 2026-11-22. Importing XML from rekordbox and playback from the installed app remain open. See [Status](STATUS.md).
 - **Scope:** confirm the export, then import `rekordbox.xml`, the documented route that needs no reverse engineering. Writing `export.pdb` and `ANLZ` files comes after, and only to exports curado itself created.
 - **Done when:** cues set in curado appear in rekordbox and on a real player, confirmed by the maintainer.
 - **Risks:** undocumented details of the formats decide whether hardware accepts a USB; never touching an existing library without a backup.
@@ -55,8 +55,8 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S6 · Alternate views (P1 UX)
 
-- **Context:** always-on-top 460×132 mini exists; other variants do not.
-- **Scope:** compact library/player, focus/stage decks/waveform fullscreen, floating visual, per-view size/position and shortcut.
+- **Context:** the always-on-top 460×132 mini and five in-window [Mix layouts](MIXER-VIEWS.md#switch-views-during-playback) exist. A separate desktop monitoring window remains open.
+- **Scope:** compact library/player, a separate focus/stage monitor, per-view size/position and shortcuts.
 - **Done when:** transport/queue/samples/focus/keyboard survive changes; size restoration covered by contracts.
 
 ## S7 · MIDI feedback in UI (P1)
@@ -64,6 +64,8 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 - **Context:** keyboard actions illuminate controls/HUD; native MIDI actions do not. Since 2026-11-17 controllers are detected and preset ([MIDI](MIDI.md)); a preset could carry its LED notes, as the DDJ-SB lights a button by its own note.
 - **Scope:** bounded/coalesced `input:action` worker event reusing `feedback.ts`, controller LEDs and relative encoders.
 - **Done when:** real mapped controller messages update UI without harming MIDI→engine latency.
+- **First:** finish the [DDJ-SB hardware checklist](MIDI.md#macos-hardware-check) on Mac and Windows. Record scratch/bend calibration, tempo direction, idle drift, headphone routing and what happens when a held control loses its port.
+- **Suite handoff:** [shared MIDI extraction and curado adoption](SUITE.md#shared-midi-handoff) can proceed with the recorded fixture while physical playback checks remain open.
 
 ## S8 · macOS template tray icon (P1 polish)
 
@@ -78,5 +80,5 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S10 · Distribution and executed CI (P0)
 
-- **Context:** no CI workflow exists yet (earlier notes said otherwise); local ad hoc bundle. macOS and Windows 11 have been built and tested by hand.
+- **Context:** no CI workflow is tracked; the local draft must use manual dispatch before it is added. macOS and Windows 11 have been built and tested locally. The Mac bundle is ad hoc signed.
 - **Scope:** run all three OS jobs, signed in-bundle Metal helper, notarization, licenses/notices including font OFL, and repository license. See [Licensing](LICENSING.md); recommendation is not an applied license.

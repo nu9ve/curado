@@ -1,6 +1,8 @@
 # Priorities and dependencies
 
-Large work topics have dedicated briefs in [Sessions](SESSIONS.md), S1…S10.
+Large work topics have dedicated briefs in [Sessions](SESSIONS.md), S1…S11.
+See [Suite integration](SUITE.md#suggested-delivery-order) for the current
+DDJ-SB/LPLBZ baseline, the shared loudness meter and the theme/locale work.
 
 ## Agreed delivery sequence · 2026-10-26
 

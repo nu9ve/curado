@@ -8,33 +8,32 @@ const known = new Map<number, CueInfo>();
 export function invalidateCueInfo(id: number) {
   known.delete(id);
 }
-/** Colors, names and memory cues of a track, which only exports have. Positions stay native. */
-export function useCueInfo(id: number | undefined): CueInfo {
-  const [info, setInfo] = useState<CueInfo>(EMPTY);
+/** Reads colors, memory cues and saved loop markers from the native library. */
+export function useCueInfo(id: number | undefined, refresh = false): CueInfo {
+  const [data, setData] = useState<{ id: number; info: CueInfo } | null>(null);
   useEffect(() => {
     if (!id || !native) {
-      setInfo(EMPTY);
       return;
     }
-    const cached = known.get(id);
+    const cached = refresh ? undefined : known.get(id);
     if (cached) {
-      setInfo(cached);
+      setData({ id, info: cached });
       return;
     }
     let current = true;
     call<CueInfo>('track_cue_info', { id })
       .then((loaded) => {
         known.set(id, loaded);
-        if (current) setInfo(loaded);
+        if (current) setData({ id, info: loaded });
       })
       .catch(() => {
-        if (current) setInfo(EMPTY);
+        if (current) setData(null);
       });
     return () => {
       current = false;
     };
-  }, [id]);
-  return info;
+  }, [id, refresh]);
+  return data && data.id === id ? data.info : EMPTY;
 }
 export function cueColor(style: CueStyle | null | undefined): string | undefined {
   if (!style?.color) return undefined;

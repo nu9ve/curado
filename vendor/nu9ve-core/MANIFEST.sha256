@@ -2,6 +2,7 @@
 5d995f71c9223460ac5ae0f7daff425a5f5dc7b49ebe2fcb1052908e3aa3be29  contracts/nu9ve-interaction-v1.md
 874f9534e15ed7fb9acb3dd7d58321ac0ab9318fcb7bb87cc97bf1300cd873b6  contracts/nu9ve-theme-v1.md
 a6268fe65be4580b0fbdf8222a7a5a06f9c195d57d56aeae7d59545e245e3789  contracts/windows-app-v1.md
+27a1b70873287706f60a9320e3d2db351d8f4c2df5b9a70d938f3471e1d3a542  data/midi/pioneer-ddj-sb-v1.json
 504b78a0b86674a6aa2a552683ce3ae78640deffb7189f424c4bac54a8125851  data/theme-vectors-v1.json
 c3e5d3af9b3d842585895fab28259fbe87c852c04462887fb900edc704f66e00  rust/nu9ve-fs/Cargo.toml
 eda1dbc6175b0fbd44c5b0511d4b24e6632c45e000e43ab0f17508a4d99698d1  rust/nu9ve-fs/src/lib.rs
@@ -13,4 +14,16 @@ e22d4cd1d3c144cf844b0e7bfe09bdb874def77821ad3d185dd765b552369810  rust/nu9ve-fs/
 2bf1b8a0d994f909be2e480bc34ed06ed491b3fa824cc4f148baf6e58c505e10  rust/nu9ve-json/Cargo.toml
 446ab7e070917f9a18588677bdd5d60dae637cc456a747f3f073eccc35588a19  rust/nu9ve-json/src/lib.rs
 732bffd5379de94708f838cf63ed2d829abf61b3639dd67bf95c37b6eb3714ff  rust/nu9ve-json/tests/vectors.rs
+c2752f17904a3e6ddee116221ae3c2436393e80b3256cb3249c930827de0a695  rust/nu9ve-midi/Cargo.toml
+29aa24f2fda223714607b3349f5133b6822bb98936e88119c7f2d03fdc8f100b  rust/nu9ve-midi/README.md
+8716b878f386053e8d032849466a1b9d88956d5eb2a567f450044057e17bf791  rust/nu9ve-midi/ddj-sb-control-ids.md
+83132a919e4fbd20ba94a337d6a57424082e3c4222268359b5e6551d3051a90c  rust/nu9ve-midi/src/detect.rs
+7623390d070530d70d0400cc8f59130f8425b668013a0b490361ebb46f9a036b  rust/nu9ve-midi/src/input.rs
+22d7b65e3d424d605ce5881615d31e634d2d95d903231534107b847d6fd2b5a7  rust/nu9ve-midi/src/lib.rs
+b7aef510fec65d39016468042b34d14f2b1f52cd780246e7a642ea7c1ce2f571  rust/nu9ve-midi/src/message.rs
+8dc4699c417e5c6b54c0beabd0009d5aeb9db0d895da4b814fe4f60ee3c04db1  rust/nu9ve-midi/src/profile.rs
+58260ff6bd3c0152c665a7674e2b316ccc97a8bd091b570a1595364748882549  rust/nu9ve-midi/tests/ddj_sb_capture.rs
+4c1d51f325ea06aaed38a8a61b1ecdb206f9fcca97d90061c171902eeb86a559  rust/nu9ve-midi/tests/fixtures/ddj-sb-2026-11-22-replay.json
+d13ed8b92ab7ec56f68fa5fa99e3f370951e6b616dade2508ce296d41f627651  rust/nu9ve-midi/tests/fixtures/ddj-sb-2026-11-22.txt
+3673f0ae65b3ba1849086a3745d2854c792260c7d008968b8b7e057a237cce5b  rust/nu9ve-midi/tests/profile.rs
 7fc19f87e1529510edf68c43faa20bfcc4da831e639338df73f08fc821da5f29  scripts/sync-core.sh

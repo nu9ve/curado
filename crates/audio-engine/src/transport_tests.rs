@@ -1007,6 +1007,50 @@ fn rising(seconds: f64) -> Vec<f64> {
 }
 
 #[test]
+fn a_stale_midi_fader_cannot_replace_a_new_deck_tempo() {
+    let (h, mut r) = timed_deck();
+    let (_, revision) = h.tempo_target(0).unwrap();
+    let fader = |value| Action {
+        slot: 0,
+        kind: "rate".into(),
+        value,
+    };
+    h.control(0, Control::Rate(1.25)).unwrap();
+    h.tempo_fader(fader(0.95), revision).unwrap();
+    render(&mut r, 1);
+    let (rate, current) = h.tempo_target(0).unwrap();
+    assert_eq!(rate, 1.25);
+    assert_ne!(current, revision);
+
+    h.tempo_fader(fader(1.125), current).unwrap();
+    render(&mut r, 1);
+    assert_eq!(h.tempo_target(0), Some((1.125, current)));
+
+    h.load(0, clip_of(2, sine(1, 220., 0.2), true)).unwrap();
+    h.tempo_fader(fader(1.125), current).unwrap();
+    render(&mut r, 1);
+    assert_eq!(h.tempo_target(0).unwrap().0, 1.);
+}
+
+#[test]
+fn deck_output_bpm_follows_the_local_grid_and_tuning() {
+    let (h, mut r) = engine(SR);
+    assert_eq!(h.snapshot().slots[0].output_bpm, None);
+    h.load(0, mapped(1, 2, vec![0., 0.5, 1., 1.4, 1.8]))
+        .unwrap();
+    render(&mut r, 1);
+    assert_eq!(h.snapshot().slots[0].output_bpm, Some(120.));
+
+    h.control(0, Control::Seek(1.2)).unwrap();
+    h.control(0, Control::Rate(1.2)).unwrap();
+    render(&mut r, 1);
+    let deck = h.snapshot().slots[0].clone();
+    assert!((deck.output_bpm.unwrap() - 180.).abs() < 0.0001);
+    assert!(!deck.playing);
+    assert_eq!(h.snapshot().slots[1].output_bpm, None);
+}
+
+#[test]
 fn a_beat_map_drives_quantize_loops_and_jumps() {
     let beats = rising(30.);
     let (h, mut r) = settled();
@@ -1318,6 +1362,58 @@ fn the_size_of_the_next_auto_loop_can_be_chosen_before_there_is_a_loop() {
     let s = h.snapshot().slots[0].clone();
     assert!(s.looping);
     assert!((s.loop_out - s.loop_in - 32. * BEAT).abs() < 1e-6);
+}
+
+#[test]
+fn a_beat_loop_pad_closes_or_resizes_the_active_loop_in_command_order() {
+    let (h, mut r) = timed_deck();
+    let pad = |value| Action {
+        slot: 0,
+        kind: "toggleLoopBeats".into(),
+        value,
+    };
+    h.action(pad(4.)).unwrap();
+    render(&mut r, 1);
+    let started = h.snapshot().slots[0].clone();
+    assert!(started.looping);
+
+    h.action(pad(2.)).unwrap();
+    render(&mut r, 1);
+    let resized = &h.snapshot().slots[0];
+    assert!(resized.looping);
+    assert_eq!(resized.loop_in, started.loop_in);
+    assert!((resized.loop_out - resized.loop_in - 2. * BEAT).abs() < 1e-6);
+
+    h.action(pad(2.)).unwrap();
+    render(&mut r, 1);
+    assert!(!h.snapshot().slots[0].looping);
+
+    h.action(pad(4.)).unwrap();
+    h.action(pad(4.)).unwrap();
+    render(&mut r, 1);
+    assert!(
+        !h.snapshot().slots[0].looping,
+        "both presses land in one callback"
+    );
+}
+
+#[test]
+fn loading_a_paused_deck_preserves_the_playing_decks_audio() {
+    fn run(load: bool) -> (Vec<f32>, f64) {
+        let (h, mut r) = settled();
+        h.load_and_play(0, clip_of(1, sine(1, 440., 0.2), true))
+            .unwrap();
+        render(&mut r, 4096);
+        if load {
+            h.load(1, clip_of(2, sine(1, 220., 0.2), true)).unwrap();
+        }
+        let audio = render(&mut r, 1024);
+        let snapshot = h.snapshot();
+        assert!(snapshot.slots[0].playing);
+        assert!(!snapshot.slots[1].playing);
+        (audio, snapshot.slots[0].position)
+    }
+    assert_eq!(run(true), run(false));
 }
 
 #[test]

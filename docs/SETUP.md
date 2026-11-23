@@ -1,6 +1,6 @@
 # Set up curado
 
-This guide builds curado from source. macOS/Apple Silicon is the locally verified build environment. Windows 11 x64 builds, passes the automated checks and packages its own installer; Linux shares the source. Neither has recorded hardware validation, and the repository has no CI workflow. See [Platforms](PLATFORMS.md) for the exact differences and [Status](STATUS.md) for evidence.
+This guide builds curado from source. macOS/Apple Silicon is the locally verified build environment. Windows 11 x64 builds, passes the automated checks and packages its own installer. The DDJ-SB has been captured through MIDI on both systems. Linux shares the source and awaits hardware validation. No CI workflow is tracked. See [Platforms](PLATFORMS.md) for the differences and [Status](STATUS.md) for evidence.
 
 ## Give this to your agent
 
@@ -72,6 +72,8 @@ bun run desktop:install --no-build
 `bun run desktop:install --check` validates the existing source bundle without installing; see the script output for the actual bundle identity. The build output is `target/release/bundle/macos/curado.app`. Local signing is ad hoc, not Developer ID distribution/notarization.
 
 Quit an installed instance before replacing it. The installer refuses to interrupt it, rejects unexpected identities/symlink destinations and stages a verified copy with rollback. Library and settings keep the same app identifier. An instance launched from another checkout can capture the single-instance activation: quit that instance before opening the installed app yourself.
+
+For the Pioneer controller and rekordbox USB, use the [Mac hardware checklist](MIDI.md#macos-hardware-check) after installation.
 
 ## 4. Try it when ready
 

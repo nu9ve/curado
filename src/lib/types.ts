@@ -67,6 +67,8 @@ export interface MemoryCue {
 export interface CueInfo {
   hot: (CueStyle | null)[];
   memory: MemoryCue[];
+  cues?: number[];
+  cueEnds?: number[];
 }
 export interface MusicalKey {
   tonic: number;
@@ -243,6 +245,7 @@ export interface MidiState {
   lastMessage: string | null;
   error: string | null;
   dropped: number;
+  tempoPickup?: [boolean, boolean];
 }
 /** No controller: the state before the engine reports one. */
 export const EMPTY_MIDI: MidiState = {
@@ -280,6 +283,7 @@ export interface Slot {
   peak: number;
   gain: number;
   rate: number;
+  outputBpm?: number | null;
   low: number;
   mid: number;
   high: number;
@@ -346,6 +350,7 @@ export interface QueueStatus {
 export interface AppSnapshot {
   devices: DeviceInfo[];
   mode: 'player' | 'mix';
+  tempoRanges?: [number, number];
   persistenceError: string | null;
   queue: QueueStatus;
   audio: Audio | null;

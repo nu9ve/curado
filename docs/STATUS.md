@@ -1,5 +1,308 @@
 # curado status
 
+## DDJ-SB view in Mix · 2026-11-22
+
+Mix adds a DDJ-SB view with two jogs and their elapsed time, BPM and key,
+four pads per deck, deck FX, tempo and range, Browse/LOAD and a two-channel
+mixer. A recognized controller suggests the view. RX3 remains the default
+and the chosen view is stored separately from MIDI. Layout selection updates
+presentation only. The DDJ-SB view uses the current native session, including
+the decks, loops, sync, effects, samples and device-library load path. The
+existing 95 preset bindings and shared 125-entry physical profile are intact.
+
+**Automated.** `bun run check` passed (141 tests), including layout defaults,
+storage, suggestion and stock loop-pad parity. `bun run build`,
+`cargo fmt --all -- --check`, `cargo test --workspace` (251 passed, 11 ignored)
+and `cargo clippy --workspace --all-targets -- -D warnings` passed.
+`bun run core:check` passed. Strict freshness still reports the upstream
+theme contract and sync-script changes from the prior session. Repository-wide
+Prettier still reports the existing findings in `CONTROLS.md`, `QUALITY.md`
+and `STATUS.md`. Vite warns about the main chunk exceeding 500 kB.
+
+**macOS bundle.** The signed 15.51 MiB ARM64 bundle built with
+`bun run desktop:build` and was installed and registered under
+`~/Applications/curado.app` with `bun run desktop:install --no-build`.
+Its installed signature passed strict verification and its executable
+matches the build (SHA-256 prefix `99febc9d56ee45c5`). The app was left
+closed.
+
+**Hardware and visual follow-up.** Use the [DDJ-SB playback checklist](MIDI.md#ddj-sb-layout-and-playback-check)
+with both decks sounding and again with a different controller. Listen to the
+master and headphone cue, confirm the jog calibration and check clock/BPM/key
+legibility in a small window. The [coverage inventory](MIDI.md#ddj-sb-v1-coverage)
+distinguishes available actions, missing mappings and new features such as
+temporary cue preview and native VINYL mode. Windows and Linux remain untested
+for this view.
+
+## Retro deck display and Camelot notation · 2026-11-22
+
+The RX3 platter uses bundled Jersey 15 for the elapsed clock, BPM and
+Camelot glyphs. Layered shadows give the text a deck-colored halo, and a
+glass highlight sits over the cover. The conventional key name keeps the
+monospace stack for sharps and flats. The readouts in every Mix view default
+to Camelot (for example `1A`) in the primary position and show the note below.
+The toolbar swaps them and stores the choice in the existing workspace.
+
+Frontend checks (140 tests), build, Rust formatting, workspace tests (251
+passed, 11 ignored), and Clippy passed. Core integrity passed and strict
+freshness still flags the upstream theme contract and sync script. The signed
+15.51 MiB Mac bundle was installed and verified (`99918c05472c18a0`). The app
+was left closed. Check legibility at small console zoom, with light and dark
+covers, and verify the notation choice after switching layouts and reopening.
+
+## RX3 platter balance · 2026-11-22
+
+The elapsed clock is 24 px and BPM and key are 21 px at the console's
+unscaled size. Cover art fills the inner display, with a translucent backing
+behind the text for contrast. A visual check with light and dark covers and
+small console sizes remains pending.
+
+Frontend checks (139 tests), build, `cargo fmt`, workspace tests (251 passed,
+11 ignored), and Clippy passed. The core integrity check passed. Its strict
+freshness check reported upstream theme-contract and sync-script changes
+since `1114e0244f49`. This CSS adjustment uses the existing pin.
+
+The signed macOS bundle (15.51 MiB) was installed and verified at
+`~/Applications/curado.app` (executable SHA-256 `b05e49d7f341050d`). The app
+was left closed.
+
+## Switchable mix views and larger platter display · 2026-11-22
+
+The maintainer's screenshot showed the prior installed platter readout.
+Its executable matched the previous install (`79a55cad361da2e1`), while
+the earlier readout build had been blocked by the running app.
+
+Mix now offers RX3 (the default), curado, Compact and Monitor. Compact lays
+out the curado decks and mixer in less space. When a recognized DDJ-SB is
+connected, its button suggests Compact and the selected view stays in place.
+Monitor shows larger waveforms and deck readouts, channel and master levels,
+loop/sync/cue state, play/pause and crossfader. All views use the same session,
+bindings and engine. Only the presentation preference changes on selection.
+Leaving a view while dragging its on-screen jog releases that gesture.
+
+On RX3, the jog display is larger. A mask keeps the artwork visible toward
+the edge and the center dark under the larger elapsed time, BPM and key.
+This build also includes the prior waveform default and tempo pickup work.
+
+**Verified.** `bun run check` passed (139 tests), along with `bun run
+core:check`, the strict core pin check (`1114e0244f49`), `bun run build`,
+`cargo fmt --all -- --check`, workspace tests (251 passed, 11 ignored), and
+workspace Clippy with warnings denied. The 15.62 MiB ARM64 bundle built and
+was installed at `~/Applications/curado.app` with the app closed. The installed
+code signature passed strict verification and its executable matched the
+built bundle (`feae888a88c3b193`). The existing `rust-objcopy` missing-library
+warning did not prevent bundling or signing.
+
+**Manual follow-up.** Check the platter with light and dark covers and switch
+through all views with both decks playing and the DDJ-SB connected. Confirm
+that audio and MIDI stay active and the layout suggestion leaves the current
+view in place. Monitor currently lives inside Mix.
+
+## Tempo-scaled waveform, platter readouts and fader pickup · 2026-11-22
+
+New or missing waveform scale settings follow playback tempo. An explicitly
+saved original-time setting stays available. The console jog and classic
+platter center show a larger elapsed track time with current BPM and key
+below it. The clock is driven by the live position stream. BPM comes from
+the local beat grid at the deck's tuning rate, and key follows transposition
+and key lock. Decks with no track or missing analysis use a dash for values
+they cannot show. Remaining time is still available in the deck displays.
+
+Absolute MIDI tempo faders now wait for the physical position to cross the
+current tempo after connecting, changing range, loading, changing output or
+receiving an external tempo or sync action. The capture event preserves the
+current value and subsequent movement takes control. A tempo outside the
+current range stays in place until the range or tempo changes. The on-screen
+fader stays at the rail edge and starts a drag from the current value, so
+dragging it back into range is gradual. Native revisions reject any fader
+command queued against an earlier tempo target.
+
+The normalized pickup rule is a reusable Rust module in `curado-midi`.
+See [Suite](SUITE.md#absolute-control-pickup) for the extraction boundary.
+
+**Verified.** Frontend checks passed 138 tests and the locked Rust workspace
+passed 251 with 11 ignored. Coverage includes the new default and explicitly
+saved waveform scale, BPM telemetry for a variable beat grid at a changed
+rate, pickup crossing and out-of-range behavior, and rejection of stale MIDI
+commands after a manual tempo change or a load. Formatting, Clippy and both
+core checks passed at `1114e0244f49`. The platter layout and pickup on the
+physical DDJ-SB still need a manual pass.
+
+**macOS bundle.** The 15.62 MiB ARM64 build passed deep strict signature
+verification. Its executable SHA-256 starts with `796094adc0f23a8c`.
+`bun run desktop:install --no-build` reported that the installed curado was
+still running and left it in place. The build reported the existing debug-strip
+toolchain warning.
+
+**Next.** Set a deck to +12% at ±16%, switch to ±10%, and verify the tempo
+holds and the cap stays at the top. Restore ±16%, cross +12% on the hardware
+and verify capture without a step. Compare the new platter readouts with the
+deck display during a track with a known key.
+
+## DDJ-SB tempo and loop pads, waveform views · 2026-11-22
+
+The maintainer confirmed the adopted DDJ-SB build worked overall and reported
+that the fader stayed at ±10%, SHIFT + KEY LOCK did not cycle the range, and
+pressing the same auto-loop pad again did not leave the loop.
+
+**Controller.** The console and default DDJ-SB tempo faders share a native
+per-deck session range (6%, 10%, 16%, 50%, initially 10%). Changes take effect
+on the next fader move. The manufacturer's DDJ-SB MIDI table documents SHIFT +
+KEY LOCK as note `0x60` on each deck channel. The adapter handles it when the
+factory Key Lock mapping is active and no binding owns the shifted note. The
+existing profile pin and saved mappings need no reset. Stock auto-loop pads
+toggle in engine command order. Repeating the same pad exits and a different
+pad resizes. Duplicate Note On messages before release count once.
+
+**Waveform and preview.** Appearance offers the deck-colored energy map
+(high/mid/low) and original-time or tempo-scaled detail. The latter holds
+eight seconds of output time in view and uses the same coordinates for the
+waveform, beat grid, loop marks and seek. Overview remains a whole-track
+navigator. Active loops have visible boundary marks, and Touch Preview can
+show stored loops before loading the selected track.
+
+**Loading.** Detailed waveforms render visible tiles on demand with four
+cached tiles per deck. Stale loads do not announce success, and Touch Preview
+drops late seeks and starts after release or selection changes. A renderer
+regression compared the playing deck's samples and position with and without
+loading the paused deck and got identical output.
+
+**Verification and install.** `bun run check` passed 138 tests. Locked
+workspace tests passed 247 with 11 ignored, including native range cycling,
+stock MIDI dispatch behavior, queued loop toggles and the playing-deck
+comparison. Rust formatting, Clippy, frontend build and both core checks
+passed at `1114e0244f49`. Global formatting still reports the three existing
+Markdown files. The ARM64 bundle built and was installed at
+`~/Applications/curado.app` with deep strict signature verification. The
+built and installed executable hashes match (`79a55cad361da2e1` prefix).
+The build reported the existing toolchain debug-strip warning. The app was
+left closed.
+
+**Hardware limits.** CoreMIDI connected to the DDJ-SB during a 90-second
+capture and received no gestures. The latest SHIFT, fader, loop pads and
+loading changes need a physical pass, including a listen while loading the
+other deck. Check short loops and both waveform scales against the same
+recorded cue points when visually testing is authorised.
+
+## Shared MIDI adoption · 2026-11-22
+
+Pinned `1114e0244f496bb62367e3097935061776e69c97` from the local nu9ve/core
+checkout. curado uses `nu9ve-midi` v0.1.0 as a path dependency and joins its
+DDJ-SB v1 profile with 95 local action mappings by stable ID. Compared all 125
+addresses, modes, LSBs and verification flags with the pre-adoption preset.
+The 95 actions retain their order, targets, values and transforms, including
+both LOAD slots, jog encodings and scale, and the tempo range and deadband.
+The shared profile labels CH 7 note 0x65 as unidentified. Both Browse press and
+note 0x65 still have no default action.
+
+**Verified on macOS.** The capture hash matches the baseline. The probe replay
+produces identical output for all 1,165 messages and 18 gestures. CoreMIDI
+listed the DDJ-SB with its preset, and a two-second live probe with logging
+opened it and completed with no incoming messages. Native tests cover both
+LOAD bindings and their deck slots, jog note releases and encoder steps, and
+filter initialization on both decks across simulated output generations.
+Deck B waits for Mix. SQLite tests read a remembered port, a legacy row and
+a custom binding and exercise default selection for existing and new ports.
+
+**Gates.** `bun run check` (137 tests), `bun run core:check`, strict pin
+verification, `bun run build`, Rust formatting, locked workspace tests
+(243 passed, 11 ignored), and workspace Clippy passed. The isolated vendored
+crate passed all 19 tests. The repository-wide `bun run format:check` still
+reports the same pre-existing Prettier findings in `CONTROLS.md`,
+`QUALITY.md` and `STATUS.md`.
+
+**Bundle.** `bun run desktop:build` produced a 15.49 MiB macOS app that
+passed ad hoc signature verification. `bun run desktop:install --no-build`
+installed and registered `~/Applications/curado.app` without launching it.
+Installed executable SHA-256:
+`e8df0f2ad5283fd61de9c787d377debe076ee108075b0a9de43b59a06884d82b`.
+
+**Next.** Follow the [DDJ-SB hardware checklist](MIDI.md#macos-hardware-check):
+listen on master and cue, try Browse and both LOAD buttons, compare scratch
+and bend and measure a full jog turn, check Filter after changing outputs and
+entering Mix, then unplug/replug and relaunch to check restoration of the
+remembered port and bindings. Identify the physical gesture for CH 7 note
+0x65 in WinMM. Windows and Linux were outside this adoption's verification.
+
+## Shared MIDI handoff prepared · 2026-11-22
+
+The [handoff](SUITE.md#shared-midi-handoff) identifies the exact source
+working tree, the fixture, what moves to core and what curado must preserve
+when adopting it. The source MIDI baseline passed 17 crate tests, seven
+Tauri adapter tests and four frontend tests. The pin and strict check pass
+at `2d45333`. The frontend gate (137 tests), build, Rust formatting, workspace
+tests (254 passed, 11 ignored) and Clippy also passed. This baseline preceded the shared crate and its pin.
+
+## macOS hardware baseline and suite review · 2026-11-22
+
+**Suite.** Updated the core checkout and pinned its latest fetched commit
+`2d453339c711`. The declared paths have the same content as the old pin
+`9cd8a82`. `bun run core:check` and `sync-core.sh --strict` pass. The
+[suite review](SUITE.md) records what curado already uses and how to bring
+the shared roles and skins to TypeScript while preserving the native window.
+English is partial. The core adoption records track the same gaps.
+
+**Pioneer DDJ-SB on Apple Silicon, macOS 26.5 (25F71).** CoreMIDI listed the
+Pioneer with its preset and the Komplete Audio 6 MK2. A 180 s live capture
+received 10,219 MIDI messages with 10 s of initial silence. The capture
+includes the right PLAY/PAUSE, both jogs, 14-bit faders and EQ, pads and
+Browse. Corrected replay matched 33 of 34 detected controls. Pressing Browse
+sent CH 7 note 0x41. The preset now records it and
+keeps 0x65 from Windows as an unassigned center control pending confirmation.
+CH 2 note 0x47 was seen without an identified gesture. The left PLAY/PAUSE
+and right LOAD were not observed. A silent probe using curado's CPAL output
+opened the Pioneer in CoreAudio with four channels at 44.1 kHz and received
+callback acknowledgement for channel CUE.
+
+**Setup fixes.** Audio settings now show the active device and channel count
+and explain the master and cue output pairs in Spanish and English. A MIDI
+preset's initial actions reach a replacement audio engine. Deck B defaults
+wait for Mix mode, so selecting the Pioneer output or opening the app in
+Player mode no longer loses the DDJ-SB's Filter selection.
+
+**MIDI regression.** The Windows session's integration test referenced an
+ignored fixture absent from Git, so the initial workspace test could not
+compile from this checkout. A timestamped subset of the Mac capture is now
+included. Replay begins the quiet baseline at connection time, so initial
+silence does not cause real gestures to be treated as noise. The fixture
+checks 14-bit pairing, FX mirrors, jog and browse encodings, and button notes.
+The unit test for the tempo noise gate still passes. A controlled longer
+idle test is needed to compare the Windows fader drift with this session.
+
+**LPLBZ (USB FAT32).** `real_device`, `real_import`, `real_artwork` and
+`real_xml` ran against the mounted drive. The parser found 2,800 tracks with
+audio and analysis files, 51 playlists, one playlist folder and no dangling
+playlist entries. In-memory registration imported 2,780 grids, 2,771 keys
+and 157 hot cues. The artwork test found 1,120 JPEG covers. The export wrote
+200 test track edits to a temporary XML outside the USB, and `xmllint --noout`
+accepted it. All edits stayed in the test database and temporary XML.
+Two MP3s from the drive also decoded into paused decks with the DDJ-SB
+stream active. The native callback acknowledged both loads and channel CUE.
+Importing the XML in rekordbox remains open.
+
+**Automated checks.** `bun run check` (137), `bun run core:check`, the
+strict core check, `bun run build`, `cargo fmt --all -- --check`,
+`cargo test --workspace --locked` (254 passed, 11 ignored) and
+`cargo clippy --workspace --all-targets --locked -- -D warnings` passed.
+In core, the sync script tests and the device, volume and data example
+validators passed. `bun run format:check` still reports the same existing
+three Markdown files: CONTROLS, QUALITY and STATUS.
+
+**Installed.** `bun run desktop:build` produced the 15.52 MiB ARM64 bundle.
+`bun run desktop:install --no-build` installed and registered it in
+`~/Applications/curado.app`. The installed and built executables match
+(SHA-256 starts with `93ae99685b722b54`), and the installed bundle passed
+deep, strict signature verification. The release build warned that local
+`rust-objcopy` could not load `libLLVM.dylib` to strip debug information.
+The app was left closed. Playback and visual inspection remain open.
+
+**Next.** Follow the [DDJ-SB and LPLBZ hardware checklist](MIDI.md#macos-hardware-check)
+in the installed app. Verify left PLAY/PAUSE, both LOAD buttons, separate
+master and headphone audio, jog calibration and tempo direction, then controller
+reconnect and audio recovery. Repeat the physical checklist on Windows. Suite
+priority after that is `nu9ve-loudness` for offline metering, followed by
+shared theme roles and the bilingual UI/native boundary.
+
 ## MIDI controllers explored, detected and preset · 2026-11-17
 
 The maintainer asked to try a DJ controller on Windows, control the mixer from it, learn ranges and buttons on any controller (including keyboards), and keep known controllers easy to set up. The unit at hand is a Pioneer DDJ-SB. See [MIDI](MIDI.md) and [ADR-037](DECISIONS.md).

@@ -844,6 +844,7 @@ name = "curado-midi"
 version = "0.1.0"
 dependencies = [
  "midir",
+ "nu9ve-midi",
  "serde",
  "serde_json",
 ]
@@ -2611,6 +2612,14 @@ dependencies = [
  "serde_json",
  "sha2",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "nu9ve-midi"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

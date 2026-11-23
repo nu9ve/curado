@@ -4,7 +4,8 @@ export type ThemeVariant = 'neutral' | 'tinted' | 'contrast';
 export type ThemeStyle = 'curado' | 'pixel' | 'gothic' | 'y2k' | 'minimal';
 export type Typography = 'auto' | 'display' | 'pixel' | 'system' | 'mono';
 export type Texture = 'auto' | 'dither' | 'smooth' | 'flat';
-export type WaveStyle = 'bands' | 'rgb' | 'mono';
+export type WaveStyle = 'bands' | 'rgb' | 'mono' | 'heatmap';
+export type WaveTime = 'source' | 'playback';
 export interface ThemeSettings {
   version: 2;
   mode: ThemeMode;
@@ -14,6 +15,7 @@ export interface ThemeSettings {
   typography: Typography;
   texture: Texture;
   waveform: WaveStyle;
+  waveTime: WaveTime;
 }
 export interface HSV {
   h: number;
@@ -29,6 +31,7 @@ export const DEFAULT_THEME: ThemeSettings = {
   typography: 'auto',
   texture: 'auto',
   waveform: 'bands',
+  waveTime: 'playback',
 };
 export const COLOR_PRESETS = [
   { name: 'Coral', value: '#d66154' },
@@ -120,7 +123,8 @@ const MODES: ThemeMode[] = ['dark', 'light', 'system'];
 const VARIANTS: ThemeVariant[] = ['neutral', 'tinted', 'contrast'];
 const TYPOGRAPHY: Typography[] = ['auto', 'display', 'pixel', 'system', 'mono'];
 const TEXTURES: Texture[] = ['auto', 'dither', 'smooth', 'flat'];
-const WAVES: WaveStyle[] = ['bands', 'rgb', 'mono'];
+const WAVES: WaveStyle[] = ['bands', 'rgb', 'mono', 'heatmap'];
+const WAVE_TIMES: WaveTime[] = ['source', 'playback'];
 
 const clamp = (n: number, min = 0, max = 1) =>
   Math.min(max, Math.max(min, Number.isFinite(n) ? n : min));
@@ -237,6 +241,7 @@ export function validateTheme(value: unknown): ThemeSettings {
     typography: pick(v.typography, TYPOGRAPHY, DEFAULT_THEME.typography),
     texture: pick(v.texture, TEXTURES, DEFAULT_THEME.texture),
     waveform: pick(v.waveform, WAVES, DEFAULT_THEME.waveform),
+    waveTime: pick(v.waveTime, WAVE_TIMES, DEFAULT_THEME.waveTime),
   };
 }
 export function nativeWindowTheme(settings: ThemeSettings): 'dark' | 'light' | null {

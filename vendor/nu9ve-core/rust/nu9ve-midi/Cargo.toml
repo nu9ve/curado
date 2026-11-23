@@ -1,0 +1,17 @@
+[package]
+name = "nu9ve-midi"
+description = "Portable MIDI control reading, gesture detection and hardware profiles"
+edition = "2024"
+rust-version = "1.89"
+version = "0.1.0"
+license = "UNLICENSED"
+publish = false
+
+[dependencies]
+# MIDI control metadata and compatibility with serialized event descriptions.
+serde = { version = "=1.0.229", features = ["derive"] }
+# Read versioned physical controller profiles.
+serde_json = "=1.0.154"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

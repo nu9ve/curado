@@ -1,5 +1,5 @@
 import { ArrowUpRight, ChevronDown, ChevronRight } from 'lucide-react';
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { call, control, useSnapshot } from '../lib/bridge';
 import { PREVIEW_SLOT } from '../lib/console-pads';
 import { WaveOverview } from './Waveform';
@@ -32,19 +32,28 @@ function matchText(track: Track, master: Slot) {
  */
 function TouchPreview({ track }: { track: Track }) {
   const { audio, output } = useSnapshot();
-  const held = useRef(false);
+  const request = useRef(0);
   const slot = audio?.slots[PREVIEW_SLOT] ?? EMPTY_SLOT;
+  const markers = audio?.slots.slice(0, 2).find((deck) => deck.id === track.id);
   const cue = (output?.channels ?? 2) >= 4;
-  const start = async (seconds: number) => {
-    held.current = true;
-    if (slot.id !== track.id) await call('load_track', { slot: PREVIEW_SLOT, id: track.id });
-    if (!held.current) return;
-    await control(PREVIEW_SLOT, 'seek', seconds);
-    await control(PREVIEW_SLOT, 'play');
-  };
-  const stop = () => {
-    held.current = false;
+  const stop = useCallback(() => {
+    request.current++;
     void control(PREVIEW_SLOT, 'pause').catch(() => {});
+  }, []);
+  useEffect(() => stop, [stop, track.id]);
+  const start = async (seconds: number) => {
+    const ticket = ++request.current;
+    try {
+      if (slot.id !== track.id) {
+        const loaded = await call<boolean>('load_track', { slot: PREVIEW_SLOT, id: track.id });
+        if (!loaded) return;
+      }
+      if (request.current !== ticket) return;
+      await control(PREVIEW_SLOT, 'seek', seconds);
+      if (request.current === ticket) await control(PREVIEW_SLOT, 'play');
+    } catch {
+      if (request.current === ticket) stop();
+    }
   };
   return (
     <div
@@ -61,16 +70,18 @@ function TouchPreview({ track }: { track: Track }) {
         e.currentTarget.setPointerCapture(e.pointerId);
         const bounds = e.currentTarget.getBoundingClientRect();
         const place = Math.max(0, Math.min(1, (e.clientX - bounds.left) / bounds.width));
-        void start(place * track.duration).catch(stop);
+        void start(place * track.duration);
       }}
       onPointerUp={stop}
       onPointerCancel={stop}
+      onLostPointerCapture={stop}
     >
       <WaveOverview
         compact
         trackId={track.id}
+        storedCues={!markers}
         slot={{
-          ...EMPTY_SLOT,
+          ...(markers ?? EMPTY_SLOT),
           duration: track.duration,
           position: slot.id === track.id ? slot.position : 0,
         }}

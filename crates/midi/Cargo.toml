@@ -3,9 +3,9 @@ name = "curado-midi"
 version = "0.1.0"
 edition = "2021"
 
-# Reading a controller without Tauri or the engine: messages, what kind of control sent them,
-# and bundled presets. See docs/MIDI.md.
+# Shared MIDI decoding and curado-specific presets. See docs/MIDI.md.
 [dependencies]
+nu9ve-midi = { path = "../../vendor/nu9ve-core/rust/nu9ve-midi" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

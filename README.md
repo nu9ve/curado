@@ -42,7 +42,7 @@ _A separate window on macOS with seven scenes, including a spectral city and a c
 ## Everything it does
 
 - **Listen:** search your library, sort it by any column, save favorites and playlists, play a queue with repeat, or switch to an always-on-top mini player. Covers come from rekordbox or the file, with a dithered pattern otherwise.
-- **Mix:** two decks and a choice of console or curado's classic layout, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
+- **Mix:** two decks and RX3, DDJ-SB, curado, Compact and Monitor views, eight hot cues per track, beat loops, tempo and phase sync, three-band EQ, filters, trim, crossfader curves and eight samples.
 - **Collect:** tracks, loops and stems in one library, with tags, saved searches and a quick select for the pads, with banks. Save a loop without copying audio, mark anything as a sample, and separate tracks into stems with Demucs, optionally, under a space limit you set.
 - **Never lose track:** files are recognized when moved or when a drive comes back, and the same content is not listed twice.
 - **Match keys at a glance:** each deck's key in color on the screen, with the semitones to the other deck, one press away.
@@ -106,6 +106,8 @@ bun run desktop
 3. Press `B` for a four-beat auto loop and `B` again to leave it. Point to any control to read its hint in the footer.
 4. Import your own music when you are ready. Import registers file references; removing library entries never deletes originals.
 
+For a Pioneer DDJ-SB and rekordbox USB on Mac, follow the [MIDI and audio setup and checks](docs/MIDI.md#macos-hardware-check).
+
 Each hand plays its own deck, with the same finger for the same job:
 
 | Action         | Deck 1    | Deck 2    | With Shift  | With Control |
@@ -128,7 +130,7 @@ Each hand plays its own deck, with the same finger for the same job:
 
 - Tracks load fully into memory, about 21 MiB per minute: up to about **90 minutes per track** and 3 GiB in total. Nothing depends on the disk during a set.
 - Effects are measured. Playback and mixing have been heard on the maintainer's system, but nothing was compared side by side with the hardware it takes after.
-- The cue bus has not been tried on a real 4-channel interface, nor the camera with a real camera, nor touch and pressure on a trackpad. Without four output channels there is no separate headphone cue. A device lost during a set is recovered by hand; with no output at launch, the engine starts once one appears.
+- The DDJ-SB opened a four-channel CoreAudio stream and acknowledged a cue command in a silent test. Listening to separate master and headphones, camera tracking with a real camera, and trackpad pressure still need hardware checks. A device lost during a set is recovered by hand. With no output at launch, the engine starts once one appears.
 - rekordbox USBs are read only, and USBs with only the newer OneLibrary database show as plain files. Cues reach rekordbox through an XML export that has not been tried in rekordbox yet, so back up its library first. USB tracks with no certain original on the computer arrive there as other tracks.
 - BPM, grid and key estimates are measured against rekordbox's and can be wrong: check them before mixing. Tempo-following is opt-in per track because it fires on some steady ones. On a transposed track, very low notes can sit slightly sharp.
 - Web playback and login inside the app still need real validation. Web audio bypasses the local master, effects, sync and panic.

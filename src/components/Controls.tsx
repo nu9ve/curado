@@ -308,15 +308,22 @@ export function Slider({
   tone,
   className = '',
   vertical = true,
-}: RangeProps & { vertical?: boolean }) {
+  anchored = false,
+}: RangeProps & { vertical?: boolean; anchored?: boolean }) {
   const { shown, hold, letGo } = useLiveValue(value);
   const track = useRef<HTMLDivElement>(null);
   const active = useRef(false);
   const shownNow = useRef(shown);
   shownNow.current = shown;
   const fine = useRef<{ at: number; value: number } | null>(null);
+  const bounds = () =>
+    anchored
+      ? ([Math.min(min, shownNow.current), Math.max(max, shownNow.current)] as const)
+      : ([min, max] as const);
   const set = (v: number) => {
-    const next = clampTo(v, min, max);
+    const [low, high] = bounds();
+    const next = clampTo(v, low, high);
+    if (anchored && next === shownNow.current) return;
     const feel = detent(shownNow.current, next, min, max, origin, SLIDER_STEPS);
     if (feel) haptic(feel);
     shownNow.current = next;
@@ -330,22 +337,21 @@ export function Slider({
     const factor = fineFactor(currentPressure(), shift);
     // Normally the cap goes to the pointer. Once fine, it moves by less than the pointer does,
     // and stays that way until let go, since going back to the pointer would jump.
-    if (factor > 1.2 || fine.current) {
+    if (anchored || factor > 1.2 || fine.current) {
       if (!fine.current) {
         fine.current = { at: along, value: shownNow.current };
-        haptic('alignment');
+        if (!anchored) haptic('alignment');
+        return;
       }
       const change = ((along - fine.current.at) / factor) * (max - min);
-      fine.current = {
-        at: along,
-        value: clampTo(fine.current.value + change, min, max),
-      };
-      set(fine.current.value);
+      set(fine.current.value + change);
+      fine.current = { at: along, value: shownNow.current };
       return;
     }
     set(min + clampTo(along, 0, 1) * (max - min));
   };
-  const t = (shown - min) / (max - min);
+  const clamped = clampTo(shown, min, max);
+  const t = (clamped - min) / (max - min);
   const o = (origin - min) / (max - min);
   return (
     <div
@@ -361,7 +367,7 @@ export function Slider({
         aria-orientation={vertical ? 'vertical' : 'horizontal'}
         aria-valuemin={min}
         aria-valuemax={max}
-        aria-valuenow={Math.round(shown * 100) / 100}
+        aria-valuenow={Math.round(clamped * 100) / 100}
         aria-valuetext={format?.(shown)}
         data-action={action}
         onPointerDown={(e) => {
@@ -385,7 +391,8 @@ export function Slider({
           letGo();
         }}
         onKeyDown={(e) => {
-          const next = keyStep(e, shown, min, max, defaultValue);
+          const [low, high] = bounds();
+          const next = keyStep(e, shown, low, high, defaultValue);
           if (next === null) return;
           e.preventDefault();
           e.stopPropagation();

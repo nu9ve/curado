@@ -40,7 +40,7 @@ _Una ventana aparte en macOS con siete escenas, como la ciudad espectral y el os
 ## Todo lo que hace
 
 - **Escuchar:** busca en tu biblioteca, ordénala por cualquier columna, guarda favoritos y playlists, usa una cola con repetición o cambia a una vista mini siempre encima. Los covers vienen de rekordbox o del archivo; si no hay, se ve un patrón con dither.
-- **Mezclar:** dos decks con vista de consola o la clásica de curado, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
+- **Mezclar:** dos decks con vistas RX3, DDJ-SB, curado, Compacta y Monitor, ocho hot cues por pista, loops por beats, sync de tempo y fase, EQ de tres bandas, filtros, trim, curvas de crossfader y ocho samples.
 - **Colecciona:** pistas, loops y stems en una sola biblioteca, con etiquetas, búsquedas guardadas y una selección rápida para los pads, con bancos. Guarda un loop sin copiar audio, marca cualquier cosa como sample y separa pistas en stems con Demucs, de forma opcional, bajo un límite de espacio que tú eliges.
 - **Sin perder nada:** los archivos se reconocen cuando se mueven o cuando vuelve un disco, y el mismo contenido no se lista dos veces.
 - **Iguala tonalidades de un vistazo:** la tonalidad de cada deck en color en la pantalla, con los semitonos hasta el otro, a una pulsación.
@@ -96,6 +96,8 @@ Después de cambiar código, `bun run desktop:install` recompila y actualiza tu 
 3. Presiona `B` para un auto loop de cuatro beats y `B` otra vez para salir. Señala cualquier control para ver su ayuda en el footer.
 4. Importa tu música cuando quieras. Importar registra referencias a los archivos; retirar una pista nunca borra su original.
 
+Para usar un Pioneer DDJ-SB y un USB de rekordbox en Mac, sigue la [configuración y las pruebas de MIDI y audio](docs/MIDI.md#macos-hardware-check).
+
 Cada mano toca su deck, con el mismo dedo para la misma función:
 
 | Acción         | Deck 1    | Deck 2    | Con Shift   | Con Control  |
@@ -118,7 +120,7 @@ Cada mano toca su deck, con el mismo dedo para la misma función:
 
 - Las pistas se cargan completas en memoria, unos 21 MiB por minuto: hasta unos **90 minutos por pista** y 3 GiB en total. Durante la sesión nada depende del disco.
 - Los efectos están medidos. La reproducción y la mezcla se escucharon en el sistema del mantenedor, pero nada se comparó lado a lado con el hardware en el que se inspira.
-- El bus de cue no se ha probado en una interfaz real de 4 canales, ni la cámara con una cámara real, ni los toques y la presión en un trackpad. Sin cuatro canales de salida no hay cue aparte en audífonos. Un dispositivo perdido durante una sesión se recupera a mano; si no hay salida al abrir, el motor arranca en cuanto aparece una.
+- El DDJ-SB abrió una salida CoreAudio de cuatro canales y el motor recibió un comando de cue en una prueba silenciosa. Faltan escuchar el master y los audífonos por separado y probar la cámara y la presión del trackpad. Un dispositivo perdido durante una sesión se recupera a mano. Si no hay salida al abrir, el motor arranca en cuanto aparece una.
 - Los USB de rekordbox son de solo lectura, y los que solo tienen la base OneLibrary se ven como archivos normales. Los cues llegan a rekordbox con un XML que aún no se ha probado en rekordbox, así que primero respalda su biblioteca. Las pistas del USB sin un original seguro en la computadora llegan allí como otras pistas.
 - BPM, grid y tonalidad son estimaciones medidas contra las de rekordbox y pueden fallar: revísalos antes de mezclar. Seguir el tempo es opcional por pista porque se activa en algunas estables. En una pista transpuesta, las notas muy graves pueden quedar algo altas.
 - La reproducción y el login web dentro de la app aún necesitan validación real. El audio web no responde al master, los efectos, el sync ni el pánico locales.

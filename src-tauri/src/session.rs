@@ -1,5 +1,28 @@
 use curado_audio::Action;
 use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+
+const TEMPO_RANGES: [f64; 4] = [0.06, 0.10, 0.16, 0.50];
+
+pub struct TempoRanges([AtomicUsize; 2]);
+
+impl Default for TempoRanges {
+    fn default() -> Self {
+        Self(std::array::from_fn(|_| AtomicUsize::new(1)))
+    }
+}
+
+impl TempoRanges {
+    pub fn get(&self, slot: usize) -> f64 {
+        TEMPO_RANGES[self.0[slot].load(Relaxed) % TEMPO_RANGES.len()]
+    }
+
+    pub fn cycle(&self, slot: usize) -> Result<(), String> {
+        let index = self.0.get(slot).ok_or("Deck inválido")?;
+        index.fetch_add(1, Relaxed);
+        Ok(())
+    }
+}
 #[derive(Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
 pub enum Mode {
@@ -25,6 +48,17 @@ impl Mode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn tempo_ranges_cycle_independently() {
+        let ranges = TempoRanges::default();
+        for expected in [0.16, 0.50, 0.06, 0.10] {
+            ranges.cycle(0).unwrap();
+            assert_eq!(ranges.get(0), expected);
+            assert_eq!(ranges.get(1), 0.10);
+        }
+        assert!(ranges.cycle(2).is_err());
+    }
+
     #[test]
     fn one_policy_for_ui_keyboard_and_midi() {
         let a = |slot, kind: &str, value| Action {

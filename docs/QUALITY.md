@@ -20,6 +20,7 @@ curado 0.1 is a functional local-testing foundation. Production readiness requir
 
 ```sh
 bun run check
+bun run core:check
 bun run build
 bun run format:check
 cargo fmt --all -- --check
@@ -45,7 +46,7 @@ The following is a **plan**, not a completed test record. Respect current author
 6. Queue EOF/advance with hidden window; pause must not advance, panic must stop queue.
 7. Open/minimize/close/reopen Metal, compare CPU/GPU/audio; close main and use tray.
 8. Change output/buffer; failed configuration preserves prior output, success unloads/reloads slots.
-9. Real MIDI learn/restart/disconnect/reconnect; inspect dropped/error state.
+9. Real MIDI learn/restart/disconnect/reconnect; inspect dropped/error state. Follow the [DDJ-SB Mac checklist](MIDI.md#macos-hardware-check) for transport, jogs, the two output pairs and the LPLBZ flow. See STATUS for terminal and silent-stream evidence.
 10. Integrated browser: native panel bounds/focus, resize/footer expansion, dialog hide/restore, switch/leave/mini stopping audio, blocked navigation/popups and player/login compatibility.
 
 11. Connect a rekordbox USB: sidebar entry, playlists in order, load with grid and cues, pads and colors; unplug during playback; plug in another with the same name.

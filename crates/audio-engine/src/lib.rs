@@ -94,6 +94,7 @@ pub enum Control {
     CueBoth(usize),
     Quantize(bool),
     LoopBeats(f64),
+    ToggleLoopBeats(f64),
     /// Saves the loop playing as a hot cue, or a new one of the last length from here without
     /// entering it, so the track carries on.
     SetLoopCue(usize),
@@ -110,6 +111,7 @@ pub enum Control {
     EchoBeats(f32),
     Gain(f32),
     Rate(f32),
+    TempoFader(f32, u64),
     Low(f32),
     Mid(f32),
     High(f32),
@@ -198,6 +200,11 @@ impl Action {
             "autoLoop" if self.slot < 2 => Control::AutoLoop,
             "loopBeats" if BEAT_DIVISIONS.contains(&self.value) && self.value != 0.75 => {
                 Control::LoopBeats(self.value)
+            }
+            "toggleLoopBeats"
+                if self.slot < 2 && BEAT_DIVISIONS.contains(&self.value) && self.value != 0.75 =>
+            {
+                Control::ToggleLoopBeats(self.value)
             }
             "roll" if self.slot < 2 && BEAT_DIVISIONS.contains(&self.value) => {
                 Control::Roll(self.value)
@@ -320,6 +327,8 @@ struct Meter {
     peak: AtomicU32,
     gain: AtomicU32,
     rate: AtomicU32,
+    output_bpm: AtomicU64,
+    tempo_revision: AtomicU64,
     low: AtomicU32,
     mid: AtomicU32,
     high: AtomicU32,
@@ -397,6 +406,7 @@ pub struct SlotSnapshot {
     pub peak: f32,
     pub gain: f32,
     pub rate: f32,
+    pub output_bpm: Option<f64>,
     pub low: f32,
     pub mid: f32,
     pub high: f32,
@@ -491,6 +501,21 @@ impl EngineHandle {
             .store(0, std::sync::atomic::Ordering::Release);
     }
     pub fn action(&self, action: Action) -> Result<(), String> {
+        self.apply_action(action, None)
+    }
+    /// The fader target and the revision that a queued fader command must still match.
+    pub fn tempo_target(&self, slot: usize) -> Option<(f64, u64)> {
+        let meter = self.0.meters.get(slot)?;
+        let revision = meter
+            .tempo_revision
+            .load(std::sync::atomic::Ordering::Acquire);
+        let rate = f32::from_bits(meter.rate.load(Relaxed)) as f64;
+        Some((if rate > 0. { rate } else { 1. }, revision))
+    }
+    pub fn tempo_fader(&self, action: Action, revision: u64) -> Result<(), String> {
+        self.apply_action(action, Some(revision))
+    }
+    fn apply_action(&self, action: Action, revision: Option<u64>) -> Result<(), String> {
         let c = action.validate()?;
         if let Control::Rate(rate) = c {
             let s = self.snapshot();
@@ -508,10 +533,13 @@ impl EngineHandle {
                 }
             }
         }
-        if let Control::LoopBeats(beats) = c {
+        if let Control::LoopBeats(beats) | Control::ToggleLoopBeats(beats) = c {
             let s = self.snapshot();
             let d = &s.slots[action.slot];
-            if d.quantize
+            let stopping =
+                matches!(c, Control::ToggleLoopBeats(_)) && d.looping && d.loop_beats == beats;
+            if !stopping
+                && d.quantize
                 && d.music
                     .bpm
                     .is_some_and(|b| d.duration + 1e-6 < d.music.beat_offset + beats * 60. / b)
@@ -547,7 +575,12 @@ impl EngineHandle {
                 _=>{}
             }
         }
-        self.control(action.slot, c)
+        let control = match (c, revision) {
+            (Control::Rate(rate), Some(revision)) => Control::TempoFader(rate, revision),
+            (control, None) => control,
+            _ => return Err("Control de tempo inválido".into()),
+        };
+        self.control(action.slot, control)
     }
     pub fn set_music(&self, id: u64, music: MusicAnalysis) -> Result<(), String> {
         if !music.valid() {
@@ -567,6 +600,7 @@ impl EngineHandle {
                     Control::MasterDeck
                         | Control::Sync(_)
                         | Control::Tempo(_)
+                        | Control::TempoFader(_, _)
                         | Control::Transpose(_)
                         | Control::TransposeStep(_)
                         | Control::KeyLock(_)
@@ -578,6 +612,7 @@ impl EngineHandle {
                         | Control::BeatJump(_)
                         | Control::LoopScale(_)
                         | Control::AutoLoop
+                        | Control::ToggleLoopBeats(_)
                         | Control::JogTouch(_)
                         | Control::JogMove(_)
                         | Control::JogBend(_)
@@ -674,6 +709,10 @@ impl EngineHandle {
                     peak: f(&m.peak),
                     gain: f(&m.gain),
                     rate: f(&m.rate),
+                    output_bpm: {
+                        let bpm = f64::from_bits(m.output_bpm.load(Relaxed));
+                        (bpm > 0.).then_some(bpm)
+                    },
                     low: f(&m.low),
                     mid: f(&m.mid),
                     high: f(&m.high),
@@ -750,6 +789,7 @@ impl EngineHandle {
 struct Deck {
     clip: Option<Arc<Clip>>,
     load_ticket: u64,
+    tempo_revision: u64,
     position: f64,
     playing: bool,
     params: Params,
@@ -1200,6 +1240,7 @@ impl Deck {
         Self {
             clip: None,
             load_ticket: 0,
+            tempo_revision: 0,
             position: 0.,
             playing: false,
             params: Params::default(),
@@ -1666,7 +1707,10 @@ impl Deck {
             Control::Gain(v) => self.params.gain = v,
             Control::Rate(v) => self.params.rate = v,
             Control::Quantize(q) => self.quantize = q,
-            Control::LoopBeats(beats) => {
+            Control::ToggleLoopBeats(beats) if self.looping && self.loop_beats == beats => {
+                self.looping = false;
+            }
+            Control::LoopBeats(beats) | Control::ToggleLoopBeats(beats) => {
                 self.loop_beats = beats;
                 if !self.resize_loop(beats, len, rate) {
                     self.make_loop(beats, len, rate);
@@ -1883,6 +1927,7 @@ impl Renderer {
                     }
                     d.install_clip(clip, &self.shared.retired, self.sample_rate);
                     d.load_ticket = ticket;
+                    d.tempo_revision = d.tempo_revision.wrapping_add(1);
                     d.music = d.clip.as_ref().unwrap().music;
                     d.tuning = Default::default();
                     d.params.rate = 1.;
@@ -1929,7 +1974,9 @@ impl Renderer {
                 }
                 Command::Control(slot, Control::Sync(enabled)) => {
                     self.decks[slot].scheduled = None;
-                    self.decks[slot].sync = enabled && slot != self.master_deck;
+                    let deck = &mut self.decks[slot];
+                    deck.sync = enabled && slot != self.master_deck;
+                    deck.tempo_revision = deck.tempo_revision.wrapping_add(1);
                     align = enabled;
                 }
                 Command::Control(slot, Control::Tempo(bpm)) => {
@@ -1940,18 +1987,33 @@ impl Renderer {
                                 rate,
                                 ..self.decks[slot].tuning
                             };
-                            self.decks[slot].apply_tuning(t, self.sample_rate);
+                            let deck = &mut self.decks[slot];
+                            deck.apply_tuning(t, self.sample_rate);
+                            deck.tempo_revision = deck.tempo_revision.wrapping_add(1);
                         }
                     }
                 }
-                Command::Control(slot, Control::Rate(rate)) if slot < 2 => {
-                    self.decks[slot].scheduled = None;
-                    let t = Tuning {
-                        rate,
-                        ..self.decks[slot].tuning
-                    };
-                    self.decks[slot].sync = false;
-                    self.decks[slot].apply_tuning(t, self.sample_rate);
+                Command::Control(
+                    slot,
+                    c @ (Control::Rate(rate) | Control::TempoFader(rate, _)),
+                ) if slot < 2 => {
+                    let deck = &mut self.decks[slot];
+                    if let Control::TempoFader(_, revision) = c {
+                        if revision != deck.tempo_revision {
+                            continue;
+                        }
+                    } else {
+                        deck.tempo_revision = deck.tempo_revision.wrapping_add(1);
+                    }
+                    deck.scheduled = None;
+                    deck.sync = false;
+                    deck.apply_tuning(
+                        Tuning {
+                            rate,
+                            ..deck.tuning
+                        },
+                        self.sample_rate,
+                    );
                 }
                 Command::Control(slot, Control::TransposeStep(step)) => {
                     let t = Tuning {
@@ -2358,6 +2420,10 @@ impl Renderer {
             m.playing.store(d.playing, Relaxed);
             m.looping.store(d.looping, Relaxed);
             m.peak.store(d.peak.to_bits(), Relaxed);
+            if i < 2 {
+                let bpm = d.local_bpm().unwrap_or(0.) * d.tuning.rate as f64;
+                m.output_bpm.store(bpm.to_bits(), Relaxed);
+            }
             for (atomic, value) in [
                 (&m.gain, d.params.gain),
                 (&m.rate, d.params.rate),
@@ -2371,6 +2437,8 @@ impl Renderer {
             ] {
                 atomic.store(value.to_bits(), Relaxed);
             }
+            m.tempo_revision
+                .store(d.tempo_revision, std::sync::atomic::Ordering::Release);
             for j in 0..HOT_CUES {
                 let cues = d.clip.as_ref().map(|c| &c.cues);
                 m.cues[j].store(cues.map_or(0., |c| c.get(j)).to_bits(), Relaxed);

@@ -14,7 +14,6 @@ import {
   jogSeconds,
   LOOP_PADS,
   nextDivision,
-  nextTempoRange,
   PITCH_STEPS,
   pitchLabel,
   ROLL_PADS,
@@ -61,8 +60,6 @@ test('division steps stay in range and read as a musician would write them', () 
     '16',
     '32',
   ]);
-  expect(nextTempoRange(0.06)).toBe(0.1);
-  expect(nextTempoRange(0.5)).toBe(0.06);
 });
 
 test('platter angles take the short way across the wrap', () => {

@@ -78,7 +78,12 @@ export function useJog(
     element.addEventListener('wheel', wheel, { passive: false });
     return () => {
       element.removeEventListener('wheel', wheel);
-      cancelAnimationFrame(drag.current?.frame ?? 0);
+      const state = drag.current;
+      drag.current = null;
+      cancelAnimationFrame(state?.frame ?? 0);
+      if (state?.moved) {
+        control(index, state.touching ? 'jogTouch' : 'jogBend', 0).catch(onError);
+      }
     };
   }, [index, onError]);
   return {
@@ -266,8 +271,8 @@ export function PerformancePads({
           disabled={disabled}
           aria-pressed={active}
           aria-label={`Deck ${name} · ${tr('Loop de', 'Loop of')} ${beatLabel(beats)} ${tr('beats', 'beats')}`}
-          data-action={act(index, 'loopBeats', beats)}
-          onClick={() => (active ? send('loop') : send('loopBeats', beats))}
+          data-action={act(index, 'toggleLoopBeats', beats)}
+          onClick={() => send('toggleLoopBeats', beats)}
         >
           <span>{beatLabel(beats)}</span>
         </button>
