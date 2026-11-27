@@ -5,6 +5,10 @@ edition = "2021"
 
 [dependencies]
 cpal = "0.16"
+# BS.1770 integrated loudness shared by the suite, from the pinned nu9ve/core copy.
+nu9ve-loudness = { path = "../../vendor/nu9ve-core/rust/nu9ve-loudness" }
+# Offline beat grid, tempo map and key; curado's analysis moved there unchanged (ANALYSIS_VERSION 3).
+nu9ve-music = { path = "../../vendor/nu9ve-core/rust/nu9ve-music" }
 crossbeam-queue = "0.3"
 serde = { version = "1", features = ["derive"] }
 signalsmith-stretch = "=0.1.3"

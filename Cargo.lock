@@ -816,6 +816,7 @@ dependencies = [
  "curado-midi",
  "midir",
  "nu9ve-fs",
+ "nu9ve-jobs",
  "rfd",
  "rusqlite",
  "serde",
@@ -834,6 +835,8 @@ dependencies = [
  "cpal",
  "crossbeam-queue",
  "hound",
+ "nu9ve-loudness",
+ "nu9ve-music",
  "serde",
  "signalsmith-stretch",
  "symphonia",
@@ -2606,6 +2609,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nu9ve-jobs"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "nu9ve-json"
 version = "0.1.0"
 dependencies = [
@@ -2615,11 +2625,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nu9ve-loudness"
+version = "0.1.0"
+
+[[package]]
 name = "nu9ve-midi"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "nu9ve-music"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

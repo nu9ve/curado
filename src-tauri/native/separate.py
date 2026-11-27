@@ -1,8 +1,9 @@
 """Local stem separation for curado. JSON events on stdout; library logs on stderr.
 
 Pinned adapters: demucs-mlx 1.6.1, or an installed Demucs 4 on PyTorch. Started by curado with
-structured arguments; it exits when its standard input closes, or on Windows when curado's process
-ends, so it cannot outlive the app.
+structured arguments. On macOS and Linux it runs in a process group whose watchdog ends it when
+curado goes away (--group); otherwise it exits when its standard input closes, or on Windows when
+curado's process ends. It cannot outlive the app.
 """
 import argparse
 import contextlib
@@ -116,7 +117,10 @@ def demucs_torch(args):
     return {name: stems[i].numpy() for i, name in enumerate(model.sources)}, model.samplerate
 
 
-def leave_with_parent(parent):
+def leave_with_parent(parent, group):
+    if group:
+        # curado's process-group watchdog ends the whole group, so stdin (closed) is not watched.
+        return
     if os.name == "nt" and parent:
         # Not stdin on Windows: while a thread blocks reading a synchronous pipe, any DLL whose C
         # runtime asks GetFileType about stdin waits too, and numpy's import then never returns.
@@ -153,13 +157,14 @@ def main():
     parser.add_argument("--output")
     parser.add_argument("--cache")
     parser.add_argument("--parent", type=int, help="curado's process id, watched on Windows")
+    parser.add_argument("--group", action="store_true", help="supervised by a process-group watchdog")
     args = parser.parse_args()
     if args.probe:
         probe()
         return
     if not all([args.engine, args.model, args.input, args.output, args.cache]):
         parser.error("Missing separation arguments")
-    leave_with_parent(args.parent)
+    leave_with_parent(args.parent, args.group)
     Path(args.output).mkdir(parents=True, exist_ok=True)
     Path(args.cache).mkdir(parents=True, exist_ok=True)
     os.environ["DEMUCS_MLX_CACHE_DIR"] = str(Path(args.cache) / "demucs-mlx")

@@ -27,6 +27,10 @@ sha2 = "0.10"
 midir = "0.10"
 crossbeam-queue = "0.3"
 
+# Supervises the stem separation process group (macOS and Linux; the crate is empty on Windows).
+[target.'cfg(unix)'.dependencies]
+nu9ve-jobs = { path = "../vendor/nu9ve-core/rust/nu9ve-jobs" }
+
 # Free space and volume serials (identity.rs). Already in Cargo.lock through Tauri/CPAL.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Storage_FileSystem"] }

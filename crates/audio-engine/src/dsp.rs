@@ -73,63 +73,6 @@ impl Svf {
         (v2, v1, x - c.k * v1 - v2)
     }
 }
-/// RBJ cookbook biquad, for fixed filters that an analysis specifies by frequency and gain.
-#[derive(Clone, Copy)]
-pub struct BiquadCoef {
-    b: [f64; 3],
-    a: [f64; 2],
-}
-impl BiquadCoef {
-    fn normalized(b: [f64; 3], a: [f64; 3]) -> Self {
-        Self {
-            b: b.map(|value| value / a[0]),
-            a: [a[1] / a[0], a[2] / a[0]],
-        }
-    }
-    pub fn high_shelf(hz: f64, gain_db: f64, q: f64, sr: f64) -> Self {
-        let amplitude = 10_f64.powf(gain_db / 40.);
-        let w = std::f64::consts::TAU * hz / sr;
-        let (sin, cos) = w.sin_cos();
-        let alpha = sin / (2. * q);
-        let root = 2. * amplitude.sqrt() * alpha;
-        let (up, down) = (amplitude + 1., amplitude - 1.);
-        Self::normalized(
-            [
-                amplitude * (up + down * cos + root),
-                -2. * amplitude * (down + up * cos),
-                amplitude * (up + down * cos - root),
-            ],
-            [
-                up - down * cos + root,
-                2. * (down - up * cos),
-                up - down * cos - root,
-            ],
-        )
-    }
-    pub fn high_pass(hz: f64, q: f64, sr: f64) -> Self {
-        let w = std::f64::consts::TAU * hz / sr;
-        let (sin, cos) = w.sin_cos();
-        let alpha = sin / (2. * q);
-        Self::normalized(
-            [(1. + cos) / 2., -(1. + cos), (1. + cos) / 2.],
-            [1. + alpha, -2. * cos, 1. - alpha],
-        )
-    }
-}
-#[derive(Clone, Copy, Default)]
-pub struct Biquad {
-    z: [f64; 2],
-}
-impl Biquad {
-    #[inline]
-    pub fn tick(&mut self, c: &BiquadCoef, x: f64) -> f64 {
-        let y = c.b[0] * x + self.z[0];
-        self.z[0] = c.b[1] * x - c.a[0] * y + self.z[1];
-        self.z[1] = c.b[2] * x - c.a[1] * y;
-        y
-    }
-}
-
 const LOW_CROSSOVER: f32 = 220.;
 const HIGH_CROSSOVER: f32 = 2600.;
 /// Band splits at this Q in pairs are Linkwitz-Riley: flat when summed, with a true kill.

@@ -1,12 +1,13 @@
 pub mod analysis;
 pub mod annotations;
-mod beat;
+// Beat grid, tempo map, first sound and key: the suite's nu9ve-music, which started as these modules.
+use nu9ve_music::beat;
 pub mod decode;
 mod dsp;
 pub mod fx;
 pub mod limiter;
 pub mod loudness;
-pub mod music;
+pub use nu9ve_music::music;
 pub mod output;
 mod pitch;
 pub mod resample;

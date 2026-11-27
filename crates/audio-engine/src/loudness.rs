@@ -1,57 +1,12 @@
 //! Integrated loudness after ITU-R BS.1770 with its gating, for matching levels between tracks.
-//! Runs on the loading worker.
-use crate::dsp::{Biquad, BiquadCoef};
+//! Runs on the loading worker. The measurement is the suite's `nu9ve-loudness`, so every
+//! nu9ve app reads the same number from the same PCM.
 
-const BLOCK_SECONDS: f64 = 0.4;
-const STEP_SECONDS: f64 = 0.1;
-const ABSOLUTE_GATE: f64 = -70.;
-
-fn lufs(energy: f64) -> f64 {
-    -0.691 + 10. * energy.max(1e-12).log10()
-}
-
-/// LUFS, or nothing for a track with no blocks above the gate.
+/// LUFS, or nothing for a track with no blocks above the gate or an unsupported sample rate.
 pub fn integrated(samples: &[[f32; 2]], sample_rate: u32) -> Option<f32> {
-    let sr = sample_rate as f64;
-    // The standard's K-weighting: a shelf for the head, then a high-pass.
-    let shelf = BiquadCoef::high_shelf(1681.97, 3.9998, 0.7072, sr);
-    let high_pass = BiquadCoef::high_pass(38.13, 0.5003, sr);
-    let mut filters = [[Biquad::default(); 2]; 2];
-    let step = (sr * STEP_SECONDS) as usize;
-    let per_block = (BLOCK_SECONDS / STEP_SECONDS) as usize;
-    if step == 0 {
-        return None;
-    }
-    let mut steps = Vec::with_capacity(samples.len() / step + 1);
-    for chunk in samples.chunks(step) {
-        let mut energy = 0.;
-        for frame in chunk {
-            for (c, filter) in filters.iter_mut().enumerate() {
-                let shelved = filter[0].tick(&shelf, frame[c] as f64);
-                let weighted = filter[1].tick(&high_pass, shelved);
-                energy += weighted * weighted;
-            }
-        }
-        steps.push(energy / chunk.len() as f64);
-    }
-    let blocks: Vec<f64> = steps
-        .windows(per_block)
-        .map(|window| window.iter().sum::<f64>() / per_block as f64)
-        .filter(|energy| lufs(*energy) > ABSOLUTE_GATE)
-        .collect();
-    if blocks.is_empty() {
-        return None;
-    }
-    let mean = blocks.iter().sum::<f64>() / blocks.len() as f64;
-    let relative = lufs(mean) - 10.;
-    let kept: Vec<f64> = blocks
-        .into_iter()
-        .filter(|energy| lufs(*energy) > relative)
-        .collect();
-    if kept.is_empty() {
-        return None;
-    }
-    Some(lufs(kept.iter().sum::<f64>() / kept.len() as f64) as f32)
+    let mut meter = nu9ve_loudness::Meter::new(sample_rate, 2).ok()?;
+    meter.add_interleaved(samples.as_flattened()).ok()?;
+    meter.report().integrated_lufs.map(|lufs| lufs as f32)
 }
 
 #[cfg(test)]

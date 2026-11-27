@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     fs::{self, File},
-    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
+    io::{BufReader, Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     process::{Child, Command, Stdio},
     sync::{
@@ -261,8 +261,158 @@ impl Stems {
 pub fn finished(stage: &str) -> bool {
     matches!(stage, "done" | "cancelled" | "error")
 }
-/// Runs the worker until it ends. Ends with it on cancel, and if curado goes away, its input
-/// closes and it leaves too.
+/// What makes curado's own executable the watchdog of a separation's process group. `main` routes
+/// it to [`nu9ve_jobs::watch`] before anything else starts. Tests run their own binary, so there
+/// the arguments pick the test that does the same.
+#[cfg(all(unix, not(test)))]
+const WATCHDOG_ARGS: &[&str] = &[WATCHDOG_ARG];
+#[cfg(all(unix, test))]
+const WATCHDOG_ARGS: &[&str] = &[
+    "stems::tests::job_watchdog",
+    "--exact",
+    "--quiet",
+    TEST_WATCHDOG,
+];
+/// A second test filter that matches nothing: libtest refuses unknown options.
+#[cfg(all(unix, test))]
+const TEST_WATCHDOG: &str = "curado_job_watchdog";
+#[cfg(unix)]
+pub const WATCHDOG_ARG: &str = "--curado-job-watchdog";
+
+/// The worker's events, read while `nu9ve-jobs` supervises it.
+#[cfg(unix)]
+struct WorkerMonitor<'a, F: FnMut(&str)> {
+    lines: std::sync::mpsc::Receiver<String>,
+    cancelled: &'a AtomicBool,
+    stage: F,
+    failure: Option<String>,
+    complete: bool,
+}
+#[cfg(unix)]
+impl<F: FnMut(&str)> WorkerMonitor<'_, F> {
+    fn read(&mut self, line: &str) {
+        let Ok(event) = serde_json::from_str::<WorkerEvent>(line) else {
+            return;
+        };
+        match event.stage.as_str() {
+            "error" => self.failure = event.message.or(Some("Falló la separación".into())),
+            "complete" => self.complete = true,
+            other => (self.stage)(other),
+        }
+    }
+}
+#[cfg(unix)]
+impl<F: FnMut(&str)> nu9ve_jobs::Monitor for WorkerMonitor<'_, F> {
+    fn poll(&mut self, _: &mut nu9ve_jobs::Events) {
+        while let Ok(line) = self.lines.try_recv() {
+            self.read(&line);
+        }
+    }
+    fn heartbeat(&mut self, _: &mut nu9ve_jobs::Events) {}
+    fn cancel_reason(&self) -> Option<&'static str> {
+        self.cancelled.load(Ordering::SeqCst).then_some("cancel")
+    }
+    fn advanced_at(&self) -> Option<Instant> {
+        None
+    }
+}
+
+/// Runs the worker until it ends, in its own process group under `nu9ve-jobs`. Cancelling sends
+/// the group SIGTERM, then SIGKILL; if curado goes away, even killed, the group's watchdog takes
+/// every process of the group with it.
+#[cfg(unix)]
+#[allow(clippy::too_many_arguments)]
+fn run_worker(
+    runtime: &Runtime,
+    worker: &Path,
+    model: &str,
+    input: &Path,
+    output: &Path,
+    cache: &Path,
+    _slot: &Mutex<Option<Child>>,
+    cancelled: &AtomicBool,
+    stage: impl FnMut(&str),
+) -> Result<(), String> {
+    let text = |path: &Path| {
+        path.to_str()
+            .map(str::to_owned)
+            .ok_or_else(|| format!("Ruta no válida: {}", path.display()))
+    };
+    let args = vec![
+        text(worker)?,
+        "--engine".into(),
+        runtime.engine.clone(),
+        "--model".into(),
+        model.into(),
+        "--input".into(),
+        text(input)?,
+        "--output".into(),
+        text(output)?,
+        "--cache".into(),
+        text(cache)?,
+        "--group".into(),
+    ];
+    // The worker runs as before, with curado's environment; stderr goes to a log in the job folder.
+    let env: Vec<(String, String)> = std::env::vars().collect();
+    let log = output.join("worker.log");
+    let spec = nu9ve_jobs::Spawn {
+        command: &text(Path::new(&runtime.python))?,
+        args: &args,
+        cwd: &text(output)?,
+        env: &env,
+        log: Some(&log),
+        log_append: false,
+        stdout: None,
+        pipe_stdout: true,
+        feeder: None,
+    };
+    let started = Instant::now();
+    let (child, group, lines, feeder) = nu9ve_jobs::spawn(&spec, &[], WATCHDOG_ARGS)
+        .map_err(|e| format!("No se pudo iniciar Python: {e}"))?;
+    let mut monitor = WorkerMonitor {
+        lines: lines.ok_or("Sin salida del proceso")?,
+        cancelled,
+        stage,
+        failure: None,
+        complete: false,
+    };
+    let limits = nu9ve_jobs::Limits {
+        timeout: None,
+        stall: None,
+        grace: 5.,
+        poll: 0.05,
+        heartbeat: 3600.,
+        cancel_file: None,
+    };
+    let mut events = nu9ve_jobs::Events::new(nu9ve_jobs::plain_number);
+    events.sink = Some(Box::new(|_, _| {}));
+    let (status, stop, _) = nu9ve_jobs::supervise(
+        child,
+        group,
+        feeder,
+        started,
+        &limits,
+        &mut monitor,
+        &mut events,
+    );
+    // The group is gone, so its output ends; read what is left of it.
+    while let Ok(line) = monitor.lines.recv_timeout(Duration::from_secs(2)) {
+        monitor.read(&line);
+    }
+    if cancelled.load(Ordering::SeqCst) || matches!(stop, Some(nu9ve_jobs::Stop::Cancelled(_))) {
+        return Err(CANCELLED.into());
+    }
+    if let Some(failure) = monitor.failure {
+        return Err(failure);
+    }
+    if !monitor.complete || !status.is_ok_and(|status| status.success()) {
+        return Err("El proceso de separación terminó antes de tiempo".into());
+    }
+    Ok(())
+}
+/// Runs the worker until it ends. Ends with it on cancel, and if curado goes away, it sees
+/// curado's process end and leaves too. `nu9ve-jobs` has no Windows supervisor yet.
+#[cfg(windows)]
 #[allow(clippy::too_many_arguments)]
 fn run_worker(
     runtime: &Runtime,
@@ -275,6 +425,7 @@ fn run_worker(
     cancelled: &AtomicBool,
     mut stage: impl FnMut(&str),
 ) -> Result<(), String> {
+    use std::io::BufRead;
     let mut child = python(&runtime.python)
         .arg(worker)
         .args(["--engine", &runtime.engine, "--model", model])
@@ -791,6 +942,16 @@ pub fn wait_until_idle(stems: &Stems, max: Duration) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The watchdog of every separation these tests start ([`WATCHDOG_ARGS`]). In a normal run
+    /// it does nothing.
+    #[cfg(unix)]
+    #[test]
+    fn job_watchdog() {
+        if std::env::args().any(|arg| arg == TEST_WATCHDOG) {
+            std::process::exit(nu9ve_jobs::watch());
+        }
+    }
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
     fn folder(name: &str) -> PathBuf {
@@ -1043,11 +1204,16 @@ mod tests {
     #[cfg(unix)]
     fn cancelling_ends_the_process_and_cleans_up() {
         let (store, cache) = (folder("cancel"), folder("cancel-cache"));
-        let python = fake_python("cancel-py", r#"echo '{"stage":"loading"}'; exec sleep 30"#);
+        // The worker runs in the job folder and says it started there; it would sleep for 30 s.
+        let python = fake_python(
+            "cancel-py",
+            r#"echo '{"stage":"loading"}'; touch "$PWD/started"; exec sleep 30"#,
+        );
         let stems = Arc::new(Stems::default());
         let other = stems.clone();
+        let started_marker = job_folder(&store, 1).join("started");
         let canceller = std::thread::spawn(move || {
-            while other.child.lock().unwrap().is_none() {
+            while !started_marker.exists() {
                 std::thread::sleep(Duration::from_millis(5));
             }
             other.cancel();

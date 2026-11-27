@@ -1321,6 +1321,16 @@ fn tray(app: &tauri::App) -> tauri::Result<()> {
     builder.build(app)?;
     Ok(())
 }
+/// When curado was started as a separation's process-group watchdog, runs it and returns its exit
+/// code. Checked before Tauri, so the single-instance plugin never sees that process.
+pub fn job_watchdog() -> Option<i32> {
+    #[cfg(unix)]
+    if std::env::args().nth(1).as_deref() == Some(stems::WATCHDOG_ARG) {
+        return Some(nu9ve_jobs::watch());
+    }
+    None
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
