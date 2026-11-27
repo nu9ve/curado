@@ -9,3 +9,7 @@ rust/nu9ve-json
 rust/nu9ve-fs
 rust/nu9ve-midi
 data/midi/pioneer-ddj-sb-v1.json
+rust/nu9ve-loudness
+rust/nu9ve-music
+rust/nu9ve-jobs
+data/theme-era-vectors-v1.json

@@ -1,0 +1,23 @@
+[package]
+name = "nu9ve-jobs"
+description = "Supervise a job's process: process group with a watchdog, cancel, timeout, stall, NDJSON events, atomic publication"
+edition = "2024"
+rust-version = "1.89"
+version = "0.1.0"
+license = "UNLICENSED"
+publish = false
+
+[dependencies]
+# The event stream's fields. Same version as nu9ve-engine.
+serde_json = "=1.0.154"
+
+[[test]]
+# Its own main: the test binary re-runs itself as the group's watchdog (`--watchdog`).
+name = "supervise"
+harness = false
+
+[lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }

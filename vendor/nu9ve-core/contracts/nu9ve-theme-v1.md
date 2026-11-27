@@ -11,7 +11,7 @@ Referencias leídas en el código el 2026-11-06:
 | Fractos (Mac) | `ios-fractos/Packages/FractosKit/Sources/FractosDesign`, `NuMacShell`, `docs/DESIGN_SYSTEM.md`; canon web en `nu9ve.xyz/packages/styles` y `nu9ve.xyz/docs/themes.md` | Las tres capas, los materiales, el vocabulario de señales de interacción y la regla de ornamento «uno por contexto» |
 | curado | `src/lib/theme.ts`, `src/lib/dither.ts`, `docs/THEMES.md` | La paleta como función pura, las opciones de Apariencia, la matriz de pruebas de contraste y el dither Bayer |
 | SoundShop | `Sources/SoundShop/Appearance.swift` | Los roles de dominio, `readable(on:)` y la rampa que sale del acento |
-| nüün | [Appearance.swift](https://github.com/nu9ve/n-creator-utils/blob/master/native/MediaMenu/Sources/MediaMenu/Appearance.swift) | El tema aplicado a la ventana, el vidrio con respaldo sólido y un único botón principal por vista |
+| nüün | [Appearance.swift](https://github.com/nu9ve/n-creator-utils/blob/master/native/Nuun/Sources/Nuun/Appearance.swift) | El tema aplicado a la ventana, el vidrio con respaldo sólido y un único botón principal por vista |
 | kyu | `apps/macos/Sources/Kyu/Theme.swift` | Los presets culturales y el entorno neutro para las fotos |
 
 Fractos es la expresión máxima y la referencia. Es la única app que lleva el lenguaje hasta sonido y háptica por tema, y la que define los materiales con ventana cuadrada; nüün los replica como skins opcionales. Las demás toman de ella poco a poco, sin perder usabilidad.
@@ -76,7 +76,7 @@ Una sola implementación por plataforma, pura y probada:
 
 - **Debe:** luminancia relativa WCAG (sRGB lineal, coeficientes 0.2126/0.7152/0.0722) y la razón `(L1 + 0.05) / (L2 + 0.05)`.
 - **Debe:** probar la matriz completa: skins × al menos 10 colores × 3 modos × 3 contrastes. Los colores incluyen gris, amarillo puro, un casi negro, un casi blanco y los presets de la app (curado ya lo hace con 5×10×3×3).
-- **Conviene:** compartir vectores de prueba (base y opciones de entrada, hex esperado por rol) entre Swift, C# y TypeScript, para que las implementaciones den el mismo color. Existe desde 2026-11-09: [`theme-vectors-v1.json`](../data/theme-vectors-v1.json), 110 casos (5 skins × 2 modos × 11 bases), generado y verificado por el port de C# (`native/windows`, `ThemeVectorsTests`). Swift también los comprueba en `ThemeVectorsTests.swift`; la matriz de contraste se conserva en `ThemeRolesTests.swift`. Los estilos propios pueden usar las bases en su matriz de contraste y comparar los roles independientes del skin (`accent` y `onAccent`).
+- **Conviene:** compartir vectores de prueba (base y opciones de entrada, hex esperado por rol) entre Swift, C# y TypeScript, para que las implementaciones den el mismo color. Existe desde 2026-11-09: [`theme-vectors-v1.json`](../data/theme-vectors-v1.json), 110 casos (5 skins × 2 modos × 11 bases), generado y verificado por el port de C# (`native/windows`, `ThemeVectorsTests`). La época `tinted` (§5) tiene los suyos desde el 2026-11-22: [`theme-era-vectors-v1.json`](../data/theme-era-vectors-v1.json), 44 casos, generados por Swift (`ThemeEraTests`) y por comprobar en C# (`ThemeEraVectorsTests`) en Windows. Swift también los comprueba en `ThemeVectorsTests.swift`; la matriz de contraste se conserva en `ThemeRolesTests.swift`. Los estilos propios pueden usar las bases en su matriz de contraste y comparar los roles independientes del skin (`accent` y `onAccent`).
 
 ## 4. Lo que el usuario configura
 
@@ -85,6 +85,7 @@ Una sola implementación por plataforma, pura y probada:
 | Opción | Valores | Por defecto |
 | --- | --- | --- |
 | Skin | Los de la [§5](#5-catálogo-de-skins) que la app soporte | El de su identidad |
+| Época | Original, Con tu color. Sólo con Macintosh y Windows 9x ([§5](#época-de-los-skins-de-época)) | Original |
 | Color | Presets de la app, selector HSV y hex | El de su identidad |
 | Modo | Claro, Oscuro, Sistema | El de su identidad; Sistema si no hay razón para otro |
 | Contraste | Neutro, Tonal, Alto | Neutro |
@@ -108,6 +109,7 @@ Una sola implementación por plataforma, pura y probada:
   "contrast": "neutral",
   "texture": "auto",
   "typography": "auto",
+  "era": "original",
   "app": { "waveform": "bands" }
 }
 ```
@@ -130,7 +132,25 @@ Un skin es un conjunto de medidas, no una paleta. Medidas en pt (Swift) y px (we
 
 Solo en Fractos: `neon`, `parchment` y `ledger`; `terminal` es uno de los comunes y le falta a las demás apps. El material que Fractos llama `chrome` es el `y2k` de esta tabla, y Fractos no tiene `pixel`, `dither` ni `minimal`: su tema Pixel usa `classicMac` (leído en `ios-fractos`: `docs/DESIGN_SYSTEM.md` el 2026-11-10; unificar los nombres es un pendiente). `win9x` y `classicMac` (el Macintosh de `pixel`) también están en nüün desde 2026-11-07, copiados de `ThemeMaterial` y `ThemedWindowBar`. Otra app puede adoptar uno de estos materiales solo si sigue la especificación de Fractos.
 
-**Skins opcionales.** Una app puede ofrecer skins de época como extra para quien quiera personalizar su espacio. El skin por defecto sigue siendo el sobrio (Cristal), y elegir otro siempre es reversible desde Apariencia. Un skin de época **puede** fijar su modo (Macintosh y Windows 9x claros, Gótico oscuro). En ese caso Apariencia lo dice y conserva la preferencia de modo del usuario para cuando vuelva a otro skin.
+**Skins opcionales.** Una app puede ofrecer skins de época como extra para quien quiera personalizar su espacio. El skin por defecto sigue siendo el sobrio (Cristal), y elegir otro siempre es reversible desde Apariencia. Un skin de época **puede** fijar su modo (Macintosh y Windows 9x claros en su época original, Gótico oscuro). En ese caso Apariencia lo dice y conserva la preferencia de modo del usuario para cuando vuelva a otro skin.
+
+<a id="época-de-los-skins-de-época"></a>
+**Época de los skins de época** (2026-11-22, pedido del usuario). Macintosh y Windows 9x tienen dos paletas, y la persona elige en Apariencia → Época:
+
+| Época | Macintosh | Windows 9x |
+| --- | --- | --- |
+| `original` | 1 bit: papel blanco, tinta y reglas negras, el color sólo en el acento. Siempre claro | La plata clásica, con su bisel. Siempre claro |
+| `tinted` · Con tu color (por omisión desde el 2026-11-26) | El papel y la tinta salen del color de la persona, como en un Macintosh II con tarjeta de color, y las rayas, las reglas y los bordes llevan ese color. Empieza en claro: papel claro y líneas oscuras, al revés que Terminal. La persona puede elegir oscuro | La cara, el brillo y la sombra del bisel salen del color de la persona, como los esquemas de apariencia de Windows 98, también en los botones × − + y los paneles. Sigue el modo de la persona |
+
+- **Debe:** la época cambia sólo la paleta. Radios, bordes, grosores, texturas, tipografía, barra y controles de ventana son los mismos.
+- **Debe** (2026-11-26, decisión del usuario): **sin `era` guardado, la app usa `tinted`**. «Original» queda como opción que la persona elige. Es una regla de la preferencia, no de la receta: el módulo de tema sigue pidiendo la época explícita (`ThemeRoles(skin:dark:base:era:)` con `.original` por omisión), así que [`theme-vectors-v1.json`](../data/theme-vectors-v1.json) no cambia. Cada app cambia su valor por omisión al volver a fijar el core. Quien ya guardó `original` lo conserva.
+- **Debe:** `original` es exactamente la paleta de siempre: elegirla da los mismos colores que antes de existir la opción.
+- **Debe:** sin un modo elegido para el skin, la app empieza Macintosh con `tinted` en claro: papel claro y líneas oscuras de su color, el contrario de Terminal (pantalla oscura y trazos brillantes). Windows 9x con `tinted` sigue el modo de la persona. `ThemeSkin.defaultDark(era:)` (`DefaultDark` en C#) da ese modo inicial.
+- **Debe:** en Macintosh con `tinted`, las rayas, las reglas, los bordes de × − +, la caja de agarre y el marco de la ventana se dibujan con `line`, que lleva el color de la persona (65 %) con un contraste de al menos 3:1 sobre el papel (`canvas`, `surface` y `raised`), el mínimo para gráficos. La tinta (`ink`) queda para el texto. Con `original`, `line` es negro, como la tinta, y nada cambia.
+- **Debe:** con `tinted` valen todos los mínimos de la §2, con cualquier color y en los dos modos; si el color no los da, `readable` ajusta el texto (§3). Windows 9x conserva el orden del bisel: el brillo (`raised`) más claro que la cara (`canvas`) y la sombra (`line`) más oscura.
+- **Debe:** la receta de `tinted` es una sola y vive en el módulo de tema (`Nu9veTheme` `ThemeSurfaces`, `Nu9ve.Core` `ThemeSurfaces.Tinted`). Sus vectores están en [`theme-era-vectors-v1.json`](../data/theme-era-vectors-v1.json): Macintosh y Windows 9x × 2 modos × las 11 bases.
+- **Debe:** lo que hoy dibuja blanco o negro fijo en esos skins (barra de época, cromo de controles, bisel) lo toma de los roles: `surface` por papel, `ink` por tinta, `raised` y `line` por el brillo y la sombra. Con `original` son blanco, negro, blanco y gris 128, como antes.
+- Los demás skins no tienen época: Terminal y Gótico ya toman el color de la persona, y Cristal lo usa en todo. Apariencia oculta la opción con ellos (§4).
 
 ### Juego de skins por app
 
@@ -219,6 +239,7 @@ El comportamiento está en [macos-app-v1](macos-app-v1.md). Aquí va solo el asp
 
 - **Barra de título:** a la izquierda, la marca a 20 pt y el nombre en minúsculas a 14 pt semibold con la fuente de identidad de la app. En el centro, la navegación como cápsula sobre vidrio (`GlassSurface`), con el elemento activo en `accentSoft` y semibold. A la derecha, las acciones, con un único relleno de acento. Todo con el tema de la app, también en pantalla completa.
 - **Controles de ventana propios** (skins con ventana cuadrada): **deben** ir en el orden y lugar de macOS, es decir cerrar, minimizar y ampliar a la izquierda, con ×, − y + siempre visibles, para que quien nunca usó un Mac los entienda. La época cambia solo su dibujo (caja de 1 bit, bisel gris, losa gótica). Cada uno lleva nombre para VoiceOver y ayuda al pasar el puntero; Opción + ampliar entra a pantalla completa. Fractos conserva por ahora los glifos y lugares de cada época (Win9x a la derecha, cajas vacías en Macintosh) como excepción documentada.
+- **Una fila o dos en Macintosh y Windows 9x** (2026-11-26, [propuesta de nüün](../docs/period-single-bar-next.md)): **debe** usarse **una sola fila** en la ventana principal o en cualquiera con navegación, para no decir el nombre dos veces. × − +, el nombre una vez y la fila de la app van sobre la barra de la época: en Macintosh sobre las rayas, con el nombre y cada grupo en un margen de papel que las rayas no tocan; en Windows 9x sobre el degradado, con el nombre en blanco y cada grupo en un panel en relieve de la cara de la época. Las ventanas sin navegación (Ajustes, Acerca de, Ayuda) **deben** conservar las **dos filas**: la barra de la época con el nombre y, si la hay, la fila de sus acciones. Con «Con tu color», la cara de Windows 9x (botones y paneles) toma el tinte, como el resto. Terminal tiene siempre una sola fila. En `NuMacShell`: `PeriodWindowBar(singleRow: true)` y los modificadores `periodClearing()` y `periodPlate()`.
 - **Botones:** un solo botón principal (relleno `accent`, texto `onAccent`) por vista. Los secundarios son claros sobre `surface`, con borde `line` tenue. El destructivo usa `danger`. Los radios salen del skin.
 - **Ajustes:** barra lateral con secciones; la sección activa en `accentSoft`. Apariencia e Idioma son secciones separadas.
 - **Menús (`NSMenu`) y menús contextuales:** nativos y sin tema. Los popovers propios siguen el skin.
@@ -276,3 +297,6 @@ Quién adoptó qué está en [adopción por app](../docs/adoption.md#nu9ve-theme
 ## Cambios
 
 Regla nueva o más estricta: añadirla, actualizar su tabla en [adopción por app](../docs/adoption.md#nu9ve-theme-v1) y avisar en cada app afectada. Cambiar la medida de un skin la cambia en todas las apps que lo soportan.
+
+- **2026-11-22:** opción **Época** (§4 y [§5](#época-de-los-skins-de-época)) para Macintosh y Windows 9x: `original`, por omisión e igual que antes, o `tinted`, con el color y el modo de la persona. Campo `era` en el formato guardado; un valor desconocido toma el de la app. No rompe nada: sin `era`, todo se ve como antes.
+- **2026-11-26** (decisiones del usuario): `tinted` pasa a ser la época por omisión de la preferencia; Macintosh con `tinted` empieza en claro; sus líneas llevan el color (`line` al 65 % y 3:1 como mínimo, antes 22 %), lo que cambia `line` de Macintosh en [`theme-era-vectors-v1.json`](../data/theme-era-vectors-v1.json). Una sola fila en la ventana principal ([§8](#8-barras-del-sistema-menús-y-controles)). Cambia el aspecto por omisión de las apps al volver a fijar; la receta original no cambia.

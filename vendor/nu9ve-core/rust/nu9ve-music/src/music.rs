@@ -287,22 +287,28 @@ mod tests {
             ..Default::default()
         };
         assert!(!estimate.is_current());
-        assert!(MusicAnalysis {
-            manual: true,
-            ..estimate
-        }
-        .is_current());
+        assert!(
+            MusicAnalysis {
+                manual: true,
+                ..estimate
+            }
+            .is_current()
+        );
         for invalid in [f64::NAN, -1.] {
-            assert!(!MusicAnalysis {
-                downbeat: invalid,
-                ..estimate
-            }
-            .valid());
-            assert!(!MusicAnalysis {
-                first_sound: invalid,
-                ..estimate
-            }
-            .valid());
+            assert!(
+                !MusicAnalysis {
+                    downbeat: invalid,
+                    ..estimate
+                }
+                .valid()
+            );
+            assert!(
+                !MusicAnalysis {
+                    first_sound: invalid,
+                    ..estimate
+                }
+                .valid()
+            );
         }
     }
     #[test]
