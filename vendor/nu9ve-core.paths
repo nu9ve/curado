@@ -13,3 +13,5 @@ rust/nu9ve-loudness
 rust/nu9ve-music
 rust/nu9ve-jobs
 data/theme-era-vectors-v1.json
+contracts/nu9ve-action-v1.md
+data/action-examples-v1.json

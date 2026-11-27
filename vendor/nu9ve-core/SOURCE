@@ -1,11 +1,13 @@
 # Copia fijada de nu9ve/core. No se edita: el cambio va a nu9ve/core y se vuelve a sincronizar.
 repo=nu9ve/core
-commit=6d1d85a1cc3e852d45f6f333025b5284188a770f
+commit=bb3a16e00f93c900a221c775f9a9dd97d1adf439
 date=2026-11-27
 path=contracts/macos-app-v1.md
+path=contracts/nu9ve-action-v1.md
 path=contracts/nu9ve-interaction-v1.md
 path=contracts/nu9ve-theme-v1.md
 path=contracts/windows-app-v1.md
+path=data/action-examples-v1.json
 path=data/midi/pioneer-ddj-sb-v1.json
 path=data/theme-era-vectors-v1.json
 path=data/theme-vectors-v1.json
