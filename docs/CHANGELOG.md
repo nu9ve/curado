@@ -1,5 +1,16 @@
 # Change history
 
+## 2026-11-27 · Suite catch-up
+
+Pinned nu9ve/core at `6d1d85a`. Loudness is measured with `nu9ve-loudness`.
+**Levels move by 0.04–0.3 LU** (the old meter read low), so auto gain can turn a
+track down by up to about 0.3 dB more. Grid and key analysis come from
+`nu9ve-music` (curado's own code, unchanged, `ANALYSIS_VERSION` 3). On macOS and
+Linux the stems worker runs in a process group supervised by `nu9ve-jobs`.
+`suite-theme.ts` reproduces every shared theme role. Option fine-tunes knobs,
+sliders and waveform arrows, and Shift takes large steps. See ADR-038 and
+[Status](STATUS.md).
+
 ## 2026-11-27 · CI by hand only
 
 The three-OS `check.yml` workflow is added to the repository with a

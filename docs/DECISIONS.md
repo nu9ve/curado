@@ -1,5 +1,16 @@
 # Technical decisions
 
+## ADR-038 · Loudness, musical analysis and the stems process from nu9ve/core — accepted (2026-11-27)
+
+The suite extracted three pieces curado had of its own, and this session adopts them from the pin `6d1d85a`.
+
+- **Loudness.** `loudness::integrated` is now `nu9ve-loudness`'s BS.1770-4 meter, so every nu9ve app reads the same number from the same PCM. The old meter used RBJ cookbook biquads for the K-weighting and read low: on synthetic noise, a kick and bass and a 1 kHz tone at 44.1 and 48 kHz the shared meter reads 0.07 to 0.26 LU higher, inside the 0.04–0.3 LU the suite measured on its 23 fixtures. Loudness is measured on each load and never stored, so no saved value mixes the two. **Auto gain** keeps its −14 LUFS target: a track can now be turned down up to about 0.3 dB more. The real-time limiter and its true-peak detector are unchanged (the crate's detector came from it).
+- **Musical analysis.** `beat.rs` and `music.rs` moved to `nu9ve-music` unchanged; the crate's sources are curado's, byte for byte apart from formatting. `ANALYSIS_VERSION` stays 3, so no stored grid or key is recalculated. Their 13 tests live in the crate.
+- **Stems on macOS and Linux.** The separation worker runs under `nu9ve-jobs`: its own process group with a watchdog that is curado's executable started with `--curado-job-watchdog` (routed in `main` before Tauri, so the single-instance plugin never sees it). Cancelling sends the group SIGTERM, then SIGKILL after 5 s; if curado dies, even by SIGKILL, the watchdog's lifetime pipe closes and the whole group goes, Demucs' children included. The worker gets `--group` and stops watching its stdin, which is now closed. Its stderr goes to `worker.log` in the job folder, which goes with the folder. **Windows** keeps the previous runner (watching curado's process): the crate is empty there.
+- **Tests.** The lib test binary is the watchdog in tests: its arguments pick a test (`stems::tests::job_watchdog`) because libtest refuses unknown options.
+- **Dependencies.** Three path dependencies on the pinned copy; Cargo.lock gains only those entries (serde 1.0.229 and serde_json 1.0.154 were already locked).
+- **Reconsider** the stems runner on Windows when the suite has a Windows supervisor, and auto gain's target if listening shows the change.
+
 ## ADR-037 · Controllers are explored by what they send, and known ones ship as presets — accepted (2026-11-17)
 
 MIDI read Note On and 7-bit CCs only, learned the first message it saw and needed connecting by hand at each launch. A Pioneer DDJ-SB captured on Windows showed why that is not enough: every fader and knob is 14-bit, jogs and browse are relative encoders in two encodings, an FX knob repeats itself on three CCs, and both tempo faders move by themselves.

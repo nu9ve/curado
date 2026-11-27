@@ -75,7 +75,7 @@ Slots 0/1 are A/B; 2–9 are one-shots. Each deck uses immutable stereo PCM, fra
 
 Outputs 3 and 4, on a device with them, are a cue bus: pre-fader channels marked CUE plus slot 10, the preview, mixed with the main by MIXING. On fewer channels the preview goes to the main at half level. Slots 0/1 are decks, 2–9 samples and 10 the preview.
 
-Signal chain: source → trim and auto gain → Linkwitz-Riley EQ at 220/2600 Hz, out of the path when centered → 24 dB LP/HP, likewise → Sound Color FX → gain → beat echo using output BPM (feedback ≤.55) → channel Beat FX → A/B crossfader, or .5 × sampler level for samples → master Beat FX → master → limiter. Gains, crossfader, EQ, wet and filters are smoothed. `fx.rs` holds the effects and `loudness.rs` the BS.1770 measure taken on the loading worker. Slip keeps a shadow position; reverse, scratch and brake use plain playback instead of the stretcher.
+Signal chain: source → trim and auto gain → Linkwitz-Riley EQ at 220/2600 Hz, out of the path when centered → 24 dB LP/HP, likewise → Sound Color FX → gain → beat echo using output BPM (feedback ≤.55) → channel Beat FX → A/B crossfader, or .5 × sampler level for samples → master Beat FX → master → limiter. Gains, crossfader, EQ, wet and filters are smoothed. `fx.rs` holds the effects and `loudness.rs` the BS.1770 measure taken on the loading worker, through the suite's `nu9ve-loudness` (ADR-038). Slip keeps a shadow position; reverse, scratch and brake use plain playback instead of the stretcher.
 
 `limiter.rs` is stereo-linked with a 1.5 ms look-ahead, 120 ms release and −1 dBTP ceiling (0.891). A 12-tap Hann-sinc detector reads three positions between samples, and a sliding minimum followed by a box average guarantees the gain has reached a peak's requirement when that peak leaves the delay line. It adds a constant 77 frames at 48 kHz (1.6 ms). Below the ceiling its gain is exactly 1, so it only delays. Buffers are sized at engine creation; non-finite samples become silence. A final clamp stays as a safety net, and `clipped` counts only samples it touched. Snapshots expose `limited` frames and `limiterDb`, a reduction held for 200 ms so 20 Hz telemetry cannot miss a short event.
 
@@ -92,7 +92,7 @@ Loading retains each slot's FX. A/B reset tempo to 1×, transpose to 0, key lock
 
 ## Musical analysis and control
 
-`music.rs` analyzes the whole track after decoding, as an additional offline pass separate from waveform construction; `beat.rs` owns the grid, and FFT/chroma/major-minor profiles give the key.
+`nu9ve-music` (the suite's crate, formerly curado's `music.rs` and `beat.rs`, ADR-038) analyzes the whole track after decoding, as an additional offline pass separate from waveform construction; its `beat` module owns the grid, and FFT/chroma/major-minor profiles give the key. The engine re-exports it as `curado_audio::music`.
 
 1. **Onsets:** log-energy rise per 5 ms in three bands (below 180 Hz, 180–2200 Hz, above 2200 Hz), each normalized.
 2. **Tempo candidates:** an autocorrelation comb over the combined curve, kept to 70–180 BPM. The comb rejects readings that are too fast and phase coherence rejects those too slow. 70–90 and 140–180 BPM can read either way; the fast reading wins through 165 BPM, and beyond that only with a kick on every beat or a clear backbeat.
@@ -191,7 +191,7 @@ Mode `all` runs both Vision requests on each frame. `Follower` adds `z`, relativ
 
 Schema v4 keeps tracks, loops and stems in `tracks`, with `kind`, `parent`, `clip_start`/`clip_end` and identity columns. Partial unique indexes say what each kind may not repeat. `tags` and `collections` are tables; banks are a setting. `identity.rs` computes size, fingerprint and drive; `relink.rs` reports health, heals and searches outside the database lock, and a background thread fingerprints what has none, 25 ms apart.
 
-`stems.rs` writes the source through curado's own decode to `<store>/.job-<id>/`, runs `native/separate.py` with structured arguments, and on success moves FLACs to `<store>/<fingerprint>/<model>/` beside a `manifest.json`, then commits in one transaction. The worker leaves when its input closes. At launch `tidy` removes job folders and adopts stems whose manifest the database does not know. Nothing here runs near the audio callback: a stem or loop loads as any track.
+`stems.rs` writes the source through curado's own decode to `<store>/.job-<id>/`, runs `native/separate.py` with structured arguments, and on success moves FLACs to `<store>/<fingerprint>/<model>/` beside a `manifest.json`, then commits in one transaction. On macOS and Linux the worker runs under `nu9ve-jobs` in its own process group, whose watchdog (curado's executable with `--curado-job-watchdog`) ends the group if curado goes away; cancel is SIGTERM to the group, then SIGKILL. On Windows it leaves when curado's process ends. At launch `tidy` removes job folders and adopts stems whose manifest the database does not know. Nothing here runs near the audio callback: a stem or loop loads as any track.
 
 ## Track order
 

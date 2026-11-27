@@ -124,7 +124,7 @@ Each hand plays its own deck, with the same finger for the same job:
 | Slip           | `V`       | `M`       | reverse     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads the selected track into deck 1 or 2. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Option` with a control's key and arrows sets the mixer: ↑ top, ↓ silent, ← → center. `Esc` silences the native audio, not web audio. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
+`Space` stops or starts the whole mix. `↑ ↓` moves through the list and `Shift + ← →` loads the selected track into deck 1 or 2. `Control + ← ↓ →` moves the crossfader. `Option` with a hot cue's number fires a sample. `Option` with a control's key and arrows sets the mixer: ↑ top, ↓ silent, ← → center. `Esc` silences the native audio, not web audio. Hold `Option` while you drag a knob or fader to fine-tune it; with arrows, `Shift` takes larger steps. Keys keep working while you drag a control, or right after you touch one. Remap them in **Configuración → Teclado**. See [Controls](docs/CONTROLS.md) for sync, key lock, MIDI and recovery.
 
 ## Before you start
 

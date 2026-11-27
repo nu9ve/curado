@@ -114,7 +114,7 @@ Cada mano toca su deck, con el mismo dedo para la misma función:
 | Slip           | `V`       | `M`       | reversa     |              |
 | Beat FX on/off | `T`       | `Y`       |             |              |
 
-`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga la pista seleccionada en el deck 1 o 2. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Option` con la tecla de un control y flechas ajusta el mixer: ↑ arriba, ↓ silencio, ← → centro. `Esc` silencia el audio nativo, no el web. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
+`Espacio` detiene o inicia toda la mezcla. `↑ ↓` recorre la lista y `Shift + ← →` carga la pista seleccionada en el deck 1 o 2. `Control + ← ↓ →` mueve el crossfader. `Option` con el número de un hot cue dispara un sample. `Option` con la tecla de un control y flechas ajusta el mixer: ↑ arriba, ↓ silencio, ← → centro. `Esc` silencia el audio nativo, no el web. Mantén `Option` al arrastrar una perilla o un fader para afinarlo; con flechas, `Shift` da pasos más grandes. Las teclas siguen funcionando mientras arrastras un control o justo después de tocarlo. Se reasignan en **Configuración → Teclado**. [Controles completos](docs/CONTROLS.md).
 
 ## Antes de empezar
 

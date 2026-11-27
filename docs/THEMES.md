@@ -75,10 +75,14 @@ Math is not a full visual audit. A later authorized web-preview review covered c
 The pinned [theme contract](../vendor/nu9ve-core/contracts/nu9ve-theme-v1.md)
 maps `canvas`, `surface`, `raised`, `ink`, `muted` and `secondary` to
 `--chrome`, `--surface`, `--surface-raised`, `--text`, `--text-muted` and
-`--deck-b`. Start a TypeScript port with the full role vectors for shared
-skins, then map common roles to existing CSS tokens and retain waveform, deck
-and meter colors as domain roles. Macintosh, Windows 9x and Terminal are pending.
-The local pixel style is distinct from the common `classicMac` skin.
+`--deck-b`. `src/lib/suite-theme.ts` is the TypeScript port of the shared
+recipe (`ThemeColor`, `ThemeRoles` and `ThemeSurfaces` from Swift and C#) for the
+five common skins and both eras. Since 2026-11-27 it gives every role of the 110
+shared vectors and the 44 tinted era vectors exactly, by hex. No style uses it
+yet. Next, map common roles to existing CSS tokens and retain waveform, deck
+and meter colors as domain roles. Offering Macintosh, Windows 9x or Terminal as
+styles is a separate decision: the era option and its `tinted` default only apply
+to those skins. The local pixel style is distinct from the common `classicMac` skin.
 
 Keep the current integrated macOS header and native window controls. The frontend
 already applies the resolved appearance to Tauri's window and passes the accent

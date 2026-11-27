@@ -1,5 +1,55 @@
 # curado status
 
+## Suite catch-up: core `6d1d85a`, loudness, analysis, stems, theme roles, Option fine · 2026-11-27
+
+The pin moved from `1114e02` to `6d1d85a` (66 commits). Within the paths
+curado already used, only `macos-app-v1` (a link), `nu9ve-interaction-v1`
+(long actions in three sizes, read from `nu9ve-action-v1`), `nu9ve-theme-v1`
+(era option for Macintosh and Windows 9x, `tinted` by default) and
+`sync-core.sh` (`--repo inner-core`) changed. The era rule does not apply,
+because curado offers neither skin. The long-action rule is a **Debe** curado
+does not meet yet for import, analysis and stems.
+
+- **`nu9ve-loudness`** replaces the offline meter. Own comparison on synthetic
+  noise, kick and bass and a 1 kHz tone at 44.1 and 48 kHz: the shared meter
+  reads 0.07–0.26 LU higher. The old one read low, and a 1 kHz tone at −6 dBFS
+  per channel now gives −6.01 LUFS. Auto gain keeps −14 LUFS and may turn a track
+  down by up to about 0.3 dB more. Not listened to.
+- **`nu9ve-music`** replaces `beat.rs` and `music.rs`, which the crate holds
+  unchanged. `ANALYSIS_VERSION` stays 3, so no stored analysis is redone. Its 13
+  tests pass in the pinned crate (`cargo test --lib` on the copy).
+- **`nu9ve-jobs`** supervises the stems worker on macOS and Linux: a process
+  group, a watchdog (`curado --curado-job-watchdog`, routed before Tauri), and
+  SIGTERM then SIGKILL on cancel. The stems tests pass with it, including
+  cancellation, and no `sleep` child survived. A real Demucs separation and
+  its cancel (`real_stems` and `real_cancel`, ignored without a Python
+  environment) were not run. Windows keeps its own runner and was not
+  compiled here.
+- **Theme roles in TypeScript.** `src/lib/suite-theme.ts` gives all 15 roles
+  exactly in the 110 shared vectors and the 44 tinted era vectors (2,473 checks).
+  No style uses it yet.
+- **Option fine-tunes, Shift takes large steps**, as the suite decided on
+  2026-11-22. This applies to knob and slider drags, their arrows (a tenth of a
+  step and four steps) and the waveform arrows (0.5 s, 5 s and 20 s). Force Touch
+  pressure multiplies with Option as it did with Shift. With a pointer down,
+  Option no longer opens the mixer's Option keys. Hints and Controls say so. The
+  change is not tried by hand.
+
+**Verified.** `bun run check` (145 tests), `bun run core:check` and `--strict`
+at `6d1d85a`, `bun run build`, `cargo fmt --all -- --check`, `cargo test
+--workspace` (239 passed, 11 ignored; 13 tests moved to `nu9ve-music`, one
+added) and `cargo clippy --workspace --all-targets -- -D warnings`.
+The signed 15.64 MiB ARM64 bundle built with `bun run desktop:build`, and its
+executable answered `--curado-job-watchdog` without starting Tauri. It was
+installed and registered with `bun run desktop:install --no-build`, passed
+strict signature verification and matches the build (SHA-256 prefix
+`1e955df04bcbb4a7`). The app was left closed.
+
+**Next.** Listen to auto gain on known tracks. Run `real_cancel` with the stems
+Python (`CURADO_TEST_PYTHON`). Try Option and Shift on knobs, faders and
+waveform. The DDJ-SB physical checklist is still open, as is mapping the shared
+roles to CSS tokens and adopting `nu9ve-action-v1` for long actions.
+
 ## CI by hand only · 2026-11-27
 
 `.github/workflows/check.yml` now triggers only on `workflow_dispatch`, as the
