@@ -1,6 +1,7 @@
 import { tr } from '../lib/language';
 import { useEffect, useState } from 'react';
 import { call, control, useSnapshot } from '../lib/bridge';
+import { runAction } from '../lib/action-runs';
 import { keyLabel, transposeKey, NOTES } from '../lib/music';
 import type { Library, MusicAnalysis, Slot } from '../lib/types';
 
@@ -219,7 +220,13 @@ function AnalysisEditor({
   const run = async (command: string, args: Record<string, unknown>) => {
     setBusy(true);
     try {
-      onLibrary(await call<Library>(command, { id, ...args }));
+      onLibrary(
+        command === 'analyze_track'
+          ? await runAction('analyze', (progressId) =>
+              call<Library>(command, { id, ...args, progressId }),
+            )
+          : await call<Library>(command, { id, ...args }),
+      );
     } catch (e) {
       onError(e);
     } finally {

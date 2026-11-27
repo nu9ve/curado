@@ -75,6 +75,8 @@ pub struct ImportReport {
     /// Pointed an entry whose file had gone missing at this copy.
     pub relinked: usize,
     pub errors: Vec<String>,
+    /// Stopped by the person before the last file; what was imported stays.
+    pub cancelled: bool,
 }
 #[derive(Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]

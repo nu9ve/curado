@@ -15,6 +15,8 @@ pub const COMMANDS: &[&str] = &[
     "stems_status",
     "stems_start",
     "stems_cancel",
+    "action_progress",
+    "action_cancel",
     "stems_choose_python",
     "stems_choose_folder",
     "stems_set_limit",

@@ -1,4 +1,5 @@
 /** Theme math is pure: usable by tests, Canvas and the CSS token generator. */
+import { STATE_COLORS, STATE_INK_MIX, type RoleName } from './suite-theme';
 export type ThemeMode = 'dark' | 'light' | 'system';
 export type ThemeVariant = 'neutral' | 'tinted' | 'contrast';
 export type ThemeStyle = 'curado' | 'pixel' | 'gothic' | 'y2k' | 'minimal';
@@ -284,8 +285,11 @@ export function palette(settings: ThemeSettings, systemDark = false) {
   );
   const gradient = seed.gradient(accent, secondary, dark);
   const dangerBg = dark ? '#3a2420' : '#fff0eb';
-  const state = (light: string, darkColor: string, extra: string[] = []) =>
-    accessibleOn(dark ? darkColor : light, [...grounds, ...extra], 4.5);
+  // nu9ve-theme-v1 §2: every state starts from the suite's semantic color mixed toward the text,
+  // then holds 4.5:1 on every ground it can sit on.
+  const state = (color: string, extra: string[] = []) =>
+    accessibleOn(mix(color, text, STATE_INK_MIX), [...grounds, ...extra], 4.5);
+  const warningSoft = softFill(panel, STATE_COLORS.warning, 0.14, text);
   // Light sheets cannot show white highs: bands darken toward the text color.
   const wave = dark
     ? seed.wave
@@ -333,10 +337,13 @@ export function palette(settings: ThemeSettings, systemDark = false) {
       '--deck-b-ink': readableInk(secondary),
       '--deck-b-soft': softFill(panel, secondary, 0.14, text),
       '--deck-b-glow': alpha(secondary, dark ? 0.4 : 0.3),
-      '--danger': state('#a33c31', '#f0af9d', [dangerBg]),
+      '--danger': state(STATE_COLORS.danger, [dangerBg]),
       '--danger-bg': dangerBg,
       '--danger-line': dark ? '#cc7d6355' : '#a33c3155',
-      '--success': state('#3c6c36', '#a9caa0'),
+      '--success': state(STATE_COLORS.success),
+      '--warning': state(STATE_COLORS.warning, [warningSoft]),
+      '--warning-soft': warningSoft,
+      '--info': state(STATE_COLORS.info),
       '--visual-bg': mix(panel, chrome, 0.6),
       '--overlay': dark ? '#000000a6' : '#1a120f66',
       '--shadow': dark ? '#00000080' : '#36281e26',
@@ -351,3 +358,26 @@ export function palette(settings: ThemeSettings, systemDark = false) {
     } satisfies Record<string, string>,
   };
 }
+
+/**
+ * nu9ve-theme-v1 §2: the CSS token that carries each shared role in curado. `secondary` is deck B.
+ * Waveform bands, meters and deck colors stay domain roles of their own.
+ */
+export const SUITE_ROLE_TOKENS: Record<RoleName | 'secondary', string> = {
+  canvas: '--chrome',
+  surface: '--surface',
+  raised: '--surface-raised',
+  line: '--line',
+  ink: '--text',
+  muted: '--text-muted',
+  accent: '--accent',
+  onAccent: '--accent-ink',
+  accentText: '--accent-text',
+  accentSoft: '--accent-soft',
+  danger: '--danger',
+  warning: '--warning',
+  success: '--success',
+  info: '--info',
+  warningSoft: '--warning-soft',
+  secondary: '--deck-b',
+};

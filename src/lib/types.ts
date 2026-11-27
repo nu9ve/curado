@@ -376,6 +376,7 @@ export interface ImportReport {
   duplicates: number;
   relinked: number;
   errors: string[];
+  cancelled: boolean;
 }
 export type LibraryEdit =
   | { kind: 'createPlaylist'; name: string }

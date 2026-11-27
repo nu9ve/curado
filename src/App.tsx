@@ -86,6 +86,8 @@ import { KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
+import { ActionPanel } from './components/ActionProgress';
+import { runAction, useActionRuns } from './lib/action-runs';
 import { listen } from '@tauri-apps/api/event';
 import { setHapticsEnabled } from './lib/haptics';
 import { matchesPiece } from './lib/pieces';
@@ -117,6 +119,7 @@ export default function App() {
   const [mini, setMini] = useState(false);
   const [helpExpanded, setHelpExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
+  const actionRuns = useActionRuns();
   const [loading, setLoading] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [newPlaylist, setNewPlaylist] = useState(false);
@@ -455,7 +458,9 @@ export default function App() {
   }, [notify, onError, refreshHealth]);
   const startStems = useCallback(
     (id: number, model: string) => {
-      call('stems_start', { id, model }).catch(onError);
+      runAction('separate', (progressId) => call('stems_start', { id, model, progressId })).catch(
+        onError,
+      );
     },
     [onError],
   );
@@ -463,27 +468,12 @@ export default function App() {
     async (folder: boolean) => {
       setBusy(tr('Importando y analizando música…', 'Importing and analyzing music…'));
       try {
-        const report = await call<ImportReport>('import_media', { folder });
-        setLibrary(await call<LibraryData>('get_library'));
+        const report = await runAction('import', (progressId) =>
+          call<ImportReport>('import_media', { folder, progressId }),
+        );
+        // The panel shows how it ended, with its summary and warnings; only the library is left.
+        if (report.added || report.relinked) setLibrary(await call<LibraryData>('get_library'));
         void refreshHealth();
-        if (
-          report.added ||
-          report.skipped ||
-          report.duplicates ||
-          report.relinked ||
-          report.errors.length
-        )
-          notify(
-            tr(
-              `${report.added} pistas añadidas · ${report.skipped + report.duplicates} ya estaban`,
-              `${report.added} tracks added · ${report.skipped + report.duplicates} already there`,
-            ) +
-              (report.relinked
-                ? tr(` · ${report.relinked} reubicadas`, ` · ${report.relinked} relocated`)
-                : '') +
-              (report.errors.length ? ` · ${report.errors.join('\n')}` : ''),
-            !!report.errors.length,
-          );
       } catch (e) {
         onError(e);
       } finally {
@@ -1034,7 +1024,8 @@ export default function App() {
         onError={onError}
         onNext={next}
       />
-      {busy && (
+      <ActionPanel />
+      {busy && !actionRuns.length && (
         <div className="busy-indicator" role="status">
           <LoaderCircle size={15} className="spinning" />
           {busy}

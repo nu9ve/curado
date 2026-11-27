@@ -13,7 +13,9 @@ import {
   palette,
   nativeWindowTheme,
   validateTheme,
+  SUITE_ROLE_TOKENS,
 } from './theme';
+import { ROLE_NAMES } from './suite-theme';
 describe('theme contract', () => {
   test('coral is the exact initial color and old/corrupt preferences fall back safely', () => {
     expect(DEFAULT_THEME.base).toBe('#d66154');
@@ -60,6 +62,15 @@ describe('theme contract', () => {
       }
     }
   });
+  test('every shared role has its CSS token in every style', () => {
+    expect(Object.keys(SUITE_ROLE_TOKENS).sort()).toEqual([...ROLE_NAMES, 'secondary'].sort());
+    for (const style of STYLE_IDS)
+      for (const mode of ['light', 'dark'] as const) {
+        const { tokens } = palette({ ...DEFAULT_THEME, style, mode });
+        for (const [role, token] of Object.entries(SUITE_ROLE_TOKENS))
+          expect(tokens[token as keyof typeof tokens], `${style} ${mode} ${role}`).toBeDefined();
+      }
+  });
   test('every style × color × mode × variant keeps the base color and readable text', () => {
     const bases = new Set([
       ...COLOR_PRESETS.map((c) => c.value),
@@ -86,7 +97,11 @@ describe('theme contract', () => {
                 expect(contrast(t['--text-secondary'], surface)).toBeGreaterThanOrEqual(7);
                 expect(contrast(t['--danger'], surface)).toBeGreaterThanOrEqual(4.5);
                 expect(contrast(t['--success'], surface)).toBeGreaterThanOrEqual(4.5);
+                expect(contrast(t['--warning'], surface)).toBeGreaterThanOrEqual(4.5);
+                expect(contrast(t['--info'], surface)).toBeGreaterThanOrEqual(4.5);
               }
+              expect(contrast(t['--warning'], t['--warning-soft'])).toBeGreaterThanOrEqual(4.5);
+              expect(contrast(p.text, t['--warning-soft'])).toBeGreaterThanOrEqual(7);
               expect(contrast(t['--danger'], t['--danger-bg'])).toBeGreaterThanOrEqual(4.5);
               // Selected rows: text on either deck's tint stays at 7:1.
               expect(contrast(p.text, t['--accent-soft'])).toBeGreaterThanOrEqual(7);

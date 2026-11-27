@@ -25,6 +25,8 @@
     "allow-stems-status",
     "allow-stems-start",
     "allow-stems-cancel",
+    "allow-action-progress",
+    "allow-action-cancel",
     "allow-stems-choose-python",
     "allow-stems-choose-folder",
     "allow-stems-set-limit",

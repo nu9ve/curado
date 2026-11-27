@@ -1,3 +1,4 @@
+mod action;
 mod annotations;
 mod demo;
 mod devices;
@@ -61,6 +62,8 @@ pub struct AppState {
     pcm: memory::PcmBudget,
     devices: devices::Devices,
     stems: stems::Stems,
+    /// Long actions launched from the frontend, read with `action_progress` (nu9ve-action-v1).
+    actions: Arc<action::Actions>,
     /// Latest load per slot: an older one still decoding stops and lets the newer one run.
     load_requests: [AtomicU64; curado_audio::SLOTS],
 }
@@ -341,27 +344,60 @@ async fn save_track_music(
     .await
 }
 #[tauri::command]
-async fn analyze_track(id: u64, state: tauri::State<'_, Arc<AppState>>) -> Result<Library, String> {
+async fn analyze_track(
+    id: u64,
+    progress_id: Option<String>,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<Library, String> {
     let s = state.inner().clone();
     work(move || {
-        let _decode = s.decode_gate.lock().unwrap();
-        let path = s.db.lock().unwrap().path(id)?;
-        let room = s.pcm.available();
-        let clip = decode_with_limit(
-            &path,
-            id,
-            None,
-            room.min(curado_audio::decode::MAX_CLIP_BYTES),
-        )
-        .map_err(|error| memory::explain(error, room))?;
-        let db = s.db.lock().unwrap();
-        db.save(&format!("music:{id}"), &clip.music)?;
-        let library = db.library()?;
-        drop(db);
-        if let Some(output) = s.output.lock().unwrap().as_ref() {
-            output.handle.set_music(id, clip.music)?;
+        let meter = match &progress_id {
+            Some(progress) => Some(s.actions.begin(
+                progress,
+                "analyze",
+                "Analizando BPM, grilla y clave",
+                action::Unit::Items,
+                false,
+            )?),
+            None => None,
+        };
+        if let Some(meter) = &meter {
+            meter.total(Some(1));
+            meter.stage("analyzing");
         }
-        Ok(library)
+        let analyzed = (|| {
+            let _decode = s.decode_gate.lock().unwrap();
+            let path = s.db.lock().unwrap().path(id)?;
+            if let Some(meter) = &meter {
+                let name = path.file_name().map(|n| n.to_string_lossy().into_owned());
+                meter.current(name.as_deref(), Some("analyze"));
+            }
+            let room = s.pcm.available();
+            let clip = decode_with_limit(
+                &path,
+                id,
+                None,
+                room.min(curado_audio::decode::MAX_CLIP_BYTES),
+            )
+            .map_err(|error| memory::explain(error, room))?;
+            if let Some(meter) = &meter {
+                meter.stage("writing");
+            }
+            let db = s.db.lock().unwrap();
+            db.save(&format!("music:{id}"), &clip.music)?;
+            let library = db.library()?;
+            drop(db);
+            if let Some(output) = s.output.lock().unwrap().as_ref() {
+                output.handle.set_music(id, clip.music)?;
+            }
+            Ok::<_, String>(library)
+        })();
+        match (meter, &analyzed) {
+            (Some(meter), Ok(_)) => meter.complete("Análisis guardado", Vec::new()),
+            (Some(meter), Err(error)) => meter.fail("analysis_failed", error, None, false),
+            (None, _) => {}
+        }
+        analyzed
     })
     .await
 }
@@ -391,66 +427,115 @@ async fn edit_library(
     })
     .await
 }
-fn import_paths(s: &AppState, files: Vec<PathBuf>) -> ImportReport {
+fn import_paths(s: &AppState, files: Vec<PathBuf>, meter: Option<&action::Meter>) -> ImportReport {
     let mut report = ImportReport::default();
-    for file in files {
-        // Per file, so that a load in the middle of a large import waits for one track at most.
-        let _guard = s.decode_gate.lock().unwrap();
-        // The same content is one entry, wherever else it turns up.
-        let found = identity::identify(&file);
-        let real = file.canonicalize().unwrap_or_else(|_| file.clone());
-        if let Ok(found) = &found {
-            let db = s.db.lock().unwrap();
-            match db.same_content(found) {
-                Ok(Some((id, known, device_only))) if known != real => {
-                    if device_only || !known.exists() {
-                        // Its entry has somewhere better to point: cues and tags come along.
-                        if db.relink(id, &real, found).is_ok() {
-                            let _ = db.forget(&format!("device-only:{id}"));
-                            report.relinked += 1;
-                        }
-                    } else {
-                        report.duplicates += 1;
-                    }
-                    continue;
-                }
-                _ => {}
+    let total = files.len() as u64;
+    if let Some(meter) = meter {
+        meter.stage("analyzing");
+        meter.total(Some(total));
+        meter.files(0, total);
+    }
+    for (index, file) in files.into_iter().enumerate() {
+        let name = file
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        if let Some(meter) = meter {
+            if meter.cancelled() {
+                report.cancelled = true;
+                break;
             }
+            meter.current(Some(&name), Some("analyze"));
         }
-        let room = s.pcm.available();
-        let decoded = decode_with_limit(
-            &file,
-            0,
-            None,
-            room.min(curado_audio::decode::MAX_CLIP_BYTES),
-        )
-        .map_err(|error| memory::explain(error, room));
-        let inserted = decoded.and_then(|c| {
-            let db = s.db.lock().unwrap();
-            let added = db.insert(&file, &c)?;
-            if let Ok(found) = &found {
-                db.set_identity(db.id_of_file(&real)?, found)?;
-            }
-            Ok(added)
-        });
-        match inserted {
-            Ok(true) => report.added += 1,
-            Ok(false) => report.skipped += 1,
-            Err(e) => {
-                if report.errors.len() < 30 {
-                    report.errors.push(format!(
-                        "{}: {e}",
-                        file.file_name().unwrap_or_default().to_string_lossy()
-                    ));
-                }
-            }
+        let kind = import_one(s, &file, &mut report);
+        if let Some(meter) = meter {
+            let error = (kind == "failed").then(|| report.errors.last()).flatten();
+            meter.log(kind, &name, error.map(String::as_str));
+            meter.reach(index as u64 + 1);
+            meter.files(index as u64 + 1, total);
         }
     }
     report
 }
+/// Imports one file into `report` and says what became of it, for the action's log.
+fn import_one(s: &AppState, file: &std::path::Path, report: &mut ImportReport) -> &'static str {
+    // Per file, so that a load in the middle of a large import waits for one track at most.
+    let _guard = s.decode_gate.lock().unwrap();
+    // The same content is one entry, wherever else it turns up.
+    let found = identity::identify(file);
+    let real = file.canonicalize().unwrap_or_else(|_| file.to_path_buf());
+    if let Ok(found) = &found {
+        let db = s.db.lock().unwrap();
+        match db.same_content(found) {
+            Ok(Some((id, known, device_only))) if known != real => {
+                if device_only || !known.exists() {
+                    // Its entry has somewhere better to point: cues and tags come along.
+                    if db.relink(id, &real, found).is_ok() {
+                        let _ = db.forget(&format!("device-only:{id}"));
+                        report.relinked += 1;
+                        return "relinked";
+                    }
+                    return "skipped";
+                }
+                report.duplicates += 1;
+                return "duplicate";
+            }
+            _ => {}
+        }
+    }
+    let room = s.pcm.available();
+    let decoded = decode_with_limit(
+        file,
+        0,
+        None,
+        room.min(curado_audio::decode::MAX_CLIP_BYTES),
+    )
+    .map_err(|error| memory::explain(error, room));
+    let inserted = decoded.and_then(|c| {
+        let db = s.db.lock().unwrap();
+        let added = db.insert(file, &c)?;
+        if let Ok(found) = &found {
+            db.set_identity(db.id_of_file(&real)?, found)?;
+        }
+        Ok(added)
+    });
+    match inserted {
+        Ok(true) => {
+            report.added += 1;
+            "imported"
+        }
+        Ok(false) => {
+            report.skipped += 1;
+            "skipped"
+        }
+        Err(e) => {
+            if report.errors.len() < 30 {
+                report.errors.push(format!(
+                    "{}: {e}",
+                    file.file_name().unwrap_or_default().to_string_lossy()
+                ));
+            }
+            "failed"
+        }
+    }
+}
+/// The closing sentence of an import, in the words the notice uses.
+fn import_summary(report: &ImportReport) -> String {
+    let mut summary = format!(
+        "{} pistas añadidas · {} ya estaban",
+        report.added,
+        report.skipped + report.duplicates
+    );
+    if report.relinked > 0 {
+        summary.push_str(&format!(" · {} reubicadas", report.relinked));
+    }
+    summary
+}
 #[tauri::command]
 async fn import_media(
     folder: bool,
+    progress_id: Option<String>,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<ImportReport, String> {
     let s = state.inner().clone();
@@ -478,11 +563,51 @@ async fn import_media(
         let Some(roots) = roots else {
             return Ok(ImportReport::default());
         };
+        // Only once there is something to import: closing the picker starts no action.
+        let meter = match &progress_id {
+            Some(progress) => Some(s.actions.begin(
+                progress,
+                "import",
+                "Importando y analizando música",
+                action::Unit::Files,
+                true,
+            )?),
+            None => None,
+        };
+        if let Some(meter) = &meter {
+            meter.stage("listing");
+        }
         let mut files = Vec::new();
         for root in roots {
-            library::walk(root, &mut files)?;
+            if let Err(error) = library::walk(root, &mut files) {
+                if let Some(meter) = meter {
+                    meter.fail("listing_failed", &error, None, false);
+                }
+                return Err(error);
+            }
         }
-        Ok(import_paths(&s, files))
+        let report = import_paths(&s, files, meter.as_ref());
+        if let Some(meter) = meter {
+            let summary = import_summary(&report);
+            if report.cancelled {
+                meter.cancelled_with(Some(&summary));
+            } else {
+                let warnings = if report.errors.is_empty() {
+                    Vec::new()
+                } else {
+                    vec![action::Warning {
+                        code: "unreadable_files".into(),
+                        message: format!(
+                            "{} archivos no se pudieron importar: {}",
+                            report.errors.len(),
+                            report.errors.join(" · ")
+                        ),
+                    }]
+                };
+                meter.complete(&summary, warnings);
+            }
+        }
+        Ok(report)
     })
     .await
 }
@@ -591,17 +716,31 @@ async fn stems_status(state: tauri::State<'_, Arc<AppState>>) -> Result<stems::S
 async fn stems_start(
     id: u64,
     model: String,
+    progress_id: Option<String>,
     app: tauri::AppHandle,
     state: tauri::State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
     let s = state.inner().clone();
-    work(move || start_stems(s, app, id, model)).await
+    work(move || start_stems(s, app, id, model, progress_id)).await
 }
+/// The worker's stages as the action's phases: the shared stage, its place and what the view says.
+fn stems_phase(stage: &str) -> Option<(&'static str, u64, &'static str)> {
+    Some(match stage {
+        "preparing" => ("preparing", 1, "Preparando el audio"),
+        "loading" => ("curado.loading_model", 2, "Cargando el modelo"),
+        "separating" => ("curado.separating", 3, "Separando"),
+        "writing" => ("writing", 4, "Escribiendo los stems"),
+        "storing" => ("finishing", 5, "Guardando en la biblioteca"),
+        _ => return None,
+    })
+}
+const STEMS_PHASES: u64 = 5;
 fn start_stems(
     s: Arc<AppState>,
     app: tauri::AppHandle,
     id: u64,
     model: String,
+    progress_id: Option<String>,
 ) -> Result<(), String> {
     let expected = stems::model_stems(&model).ok_or("Modelo desconocido")?;
     let runtime = s
@@ -649,6 +788,30 @@ fn start_stems(
             ..Default::default()
         });
     }
+    // Separating has no measure of its own yet: an indeterminate bar with its five phases.
+    let meter = match &progress_id {
+        Some(progress) => {
+            let begun = s.actions.begin(
+                progress,
+                "separate",
+                &format!("Separando {title} en stems"),
+                action::Unit::Work,
+                true,
+            );
+            match begun {
+                Ok(meter) => Some(meter),
+                Err(error) => {
+                    *s.stems.job.lock().unwrap() = None;
+                    return Err(error);
+                }
+            }
+        }
+        None => None,
+    };
+    if let Some(meter) = &meter {
+        meter.phase(1, STEMS_PHASES, "Preparando el audio");
+        meter.current(Some(&title), Some("separate"));
+    }
     s.stems.cancelled_flag().store(false, Ordering::SeqCst);
     let announce = |app: &tauri::AppHandle, s: &AppState| {
         if let Some(job) = s.stems.job.lock().unwrap().clone() {
@@ -691,6 +854,10 @@ fn start_stems(
             if let Some(job) = s.stems.job.lock().unwrap().as_mut() {
                 job.stage = stage.into();
             }
+            if let (Some(meter), Some((shared, index, label))) = (&meter, stems_phase(stage)) {
+                meter.stage(shared);
+                meter.phase(index, STEMS_PHASES, label);
+            }
             announce(&app, &s);
         };
         let result = stems::separate(
@@ -726,6 +893,23 @@ fn start_stems(
             keep.extend(loaded);
             stems::make_room(&db, stems::limit_gb(&db) * 1_000_000_000, &keep)
         });
+        if let Some(meter) = meter {
+            match &outcome {
+                Ok(true) => meter.complete(
+                    &format!("Stems de {title} listos"),
+                    vec![action::Warning {
+                        code: "over_limit".into(),
+                        message: "Sobre el límite de stems: lo demás está marcado para quedarse"
+                            .into(),
+                    }],
+                ),
+                Ok(false) => meter.complete(&format!("Stems de {title} listos"), Vec::new()),
+                Err(error) if error == stems::CANCELLED => {
+                    meter.cancelled_with(Some("No se guardó ningún stem"))
+                }
+                Err(error) => meter.fail("separation_failed", error, None, false),
+            }
+        }
         if let Some(job) = s.stems.job.lock().unwrap().as_mut() {
             match outcome {
                 Ok(over) => {
@@ -749,6 +933,26 @@ fn fs_ready(store: &std::path::Path) -> Result<(), String> {
 #[tauri::command]
 fn stems_cancel(state: tauri::State<'_, Arc<AppState>>) {
     state.stems.cancel();
+}
+/// nu9ve-action-v1 §2: the record of a long action, or `unknown`. A read that never waits for the action.
+#[tauri::command]
+fn action_progress(
+    progress_id: String,
+    state: tauri::State<'_, Arc<AppState>>,
+) -> Result<serde_json::Value, String> {
+    state.actions.progress(&progress_id)
+}
+/// Asks a running action to stop, the way its own work stops (engine §6.2).
+#[tauri::command]
+fn action_cancel(progress_id: String, state: tauri::State<'_, Arc<AppState>>) -> bool {
+    match state.actions.cancel(&progress_id).as_deref() {
+        Some("separate") => {
+            state.stems.cancel();
+            true
+        }
+        Some(_) => true,
+        None => false,
+    }
 }
 #[tauri::command]
 async fn stems_choose_python(state: tauri::State<'_, Arc<AppState>>) -> Result<(), String> {
@@ -795,7 +999,7 @@ async fn create_demo(state: tauri::State<'_, Arc<AppState>>) -> Result<Library, 
     let s = state.inner().clone();
     work(move || {
         let files = demo::create(&s.data_dir.join("demo"))?;
-        let report = import_paths(&s, files);
+        let report = import_paths(&s, files, None);
         if !report.errors.is_empty() {
             return Err(report.errors.join("\n"));
         }
@@ -1383,6 +1587,7 @@ pub fn run() {
                 pcm: Default::default(),
                 devices: Default::default(),
                 stems: Default::default(),
+                actions: Arc::default(),
                 load_requests: Default::default(),
             });
             app.manage(state.clone());
@@ -1528,6 +1733,8 @@ pub fn run() {
                 stems_status,
                 stems_start,
                 stems_cancel,
+                action_progress,
+                action_cancel,
                 stems_choose_python,
                 stems_choose_folder,
                 stems_set_limit,

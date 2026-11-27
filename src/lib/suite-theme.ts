@@ -223,6 +223,16 @@ function surfacesFor(skin: SuiteSkin, dark: boolean, seed: Rgb, era: SuiteEra): 
   }
 }
 
+/** The semantic colors the state roles start from (§2), before they mix with `ink`. */
+export const STATE_COLORS = {
+  danger: '#E5372C',
+  warning: '#E8870E',
+  success: '#2E9E57',
+  info: '#2F78D6',
+} as const;
+/** The mix toward `ink` every state takes before contrast adjusts it. */
+export const STATE_INK_MIX = 0.12;
+
 export const ROLE_NAMES = [
   'canvas',
   'surface',
@@ -282,12 +292,12 @@ function rolesFor(skin: SuiteSkin, requestedDark: boolean, seed: Rgb, era: Suite
     const amount = Math.max(0, 0.28 - step * 0.04);
     if (contrastOf(ink, soft) < 7) soft = mixed(canvas, seed, amount);
   }
-  const orange = hex('#E8870E');
+  const orange = hex(STATE_COLORS.warning);
   let banner = mixed(surface, orange, 0.14);
   for (const amount of [0.12, 0.1, 0.08, 0.06, 0.04, 0.02, 0])
     if (contrastOf(ink, banner) < 7) banner = mixed(surface, orange, amount);
   const state = (value: string, ...extra: Rgb[]) =>
-    readable(mixed(hex(value), ink, 0.12), [...backgrounds, ...extra], 4.5);
+    readable(mixed(hex(value), ink, STATE_INK_MIX), [...backgrounds, ...extra], 4.5);
   const roles: Record<RoleName, Rgb> = {
     canvas,
     surface,
@@ -299,10 +309,10 @@ function rolesFor(skin: SuiteSkin, requestedDark: boolean, seed: Rgb, era: Suite
     onAccent: onColor(seed),
     accentText,
     accentSoft: soft,
-    danger: state('#E5372C'),
-    warning: state('#E8870E', banner),
-    success: state('#2E9E57'),
-    info: state('#2F78D6'),
+    danger: state(STATE_COLORS.danger),
+    warning: state(STATE_COLORS.warning, banner),
+    success: state(STATE_COLORS.success),
+    info: state(STATE_COLORS.info),
     warningSoft: banner,
   };
   return {

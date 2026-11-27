@@ -60,10 +60,13 @@
   --deck-b-ink: #000000;
   --deck-b-soft: #2f3233;
   --deck-b-glow: #88ccdb66;
-  --danger: #f0af9d;
+  --danger: #ed7b74;
   --danger-bg: #3a2420;
   --danger-line: #cc7d6355;
-  --success: #a9caa0;
+  --success: #53ae74;
+  --warning: #ea9429;
+  --warning-soft: #3d2817;
+  --info: #6e9fe1;
   --visual-bg: #1b1413;
   --overlay: #000000a6;
   --shadow: #00000080;
@@ -2697,6 +2700,203 @@ tr:focus-within .row-load {
   animation: none;
   font-family: var(--font-pixel);
   font-size: 11px;
+}
+/* Long actions (nu9ve-interaction-v1 §7): compact panel and screen view. */
+.action-panel {
+  position: fixed;
+  left: calc(var(--sidebar-w) + 18px);
+  bottom: calc(var(--footer-h) + 14px);
+  z-index: 31;
+  display: grid;
+  gap: 8px;
+  width: min(380px, calc(100vw - 36px));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.action-row {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: calc(var(--r) + 2px);
+  background: color-mix(in srgb, var(--chrome) 90%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow:
+    0 0 0 1px var(--chrome-line),
+    0 18px 40px -16px var(--shadow);
+  animation: rise 0.3s var(--ease);
+}
+.action-row.failed {
+  box-shadow:
+    0 0 0 1px var(--danger-line),
+    0 18px 40px -16px var(--shadow);
+}
+.action-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.action-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.action-percent,
+.action-numbers {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+.action-cancel,
+.action-icon {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.action-icon {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+}
+.action-done {
+  color: var(--success);
+}
+.action-alert {
+  color: var(--warning);
+}
+.action-row.failed .action-alert {
+  color: var(--danger);
+}
+.action-bar {
+  position: relative;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--range-track);
+}
+.action-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--info);
+  transition: width 0.4s var(--ease);
+}
+.action-bar.done > span {
+  background: var(--success);
+}
+.action-bar.warning > span {
+  background: var(--warning);
+}
+.action-bar.failed > span {
+  background: var(--danger);
+}
+.action-bar.indeterminate > span {
+  width: 30%;
+  animation: action-sweep 1.4s var(--ease) infinite;
+}
+@keyframes action-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(340%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-bar.indeterminate > span {
+    width: 100%;
+    opacity: 0.45;
+    animation: none;
+  }
+}
+.action-meta,
+.action-closing p,
+.action-stage,
+.action-current,
+.action-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+.action-closing {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+.action-closing p {
+  color: var(--text-secondary);
+}
+.action-closing .action-warning {
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  background: var(--warning-soft);
+  color: var(--text);
+}
+.action-closing .action-error {
+  color: var(--danger);
+}
+.action-screen {
+  width: min(560px, 100%);
+  gap: 12px;
+}
+.action-screen header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.action-screen h2 {
+  margin: 0;
+  font-size: 16px;
+}
+.action-screen .action-bar {
+  height: 8px;
+}
+.action-current {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+.action-log summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.action-log ol {
+  max-height: 220px;
+  overflow: auto;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-input);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  list-style: none;
+}
+.action-log li.failed {
+  color: var(--danger);
+}
+.action-log li span {
+  color: var(--text-muted);
+}
+.action-screen footer {
+  display: flex;
+  justify-content: flex-end;
 }
 .toast.error {
   box-shadow:
