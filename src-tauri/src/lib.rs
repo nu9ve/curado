@@ -735,6 +735,25 @@ fn stems_phase(stage: &str) -> Option<(&'static str, u64, &'static str)> {
     })
 }
 const STEMS_PHASES: u64 = 5;
+/// Weights of the separation's work, in thousandths: Demucs is nearly all of it.
+const STEMS_WORK: [(&str, u64); 5] = [
+    ("preparing", 40),
+    ("loading", 60),
+    ("separating", 800),
+    ("writing", 50),
+    ("storing", 50),
+];
+/// Where the whole separation stands, in thousandths, at `fraction` of `stage`.
+fn stems_work(stage: &str, fraction: f64) -> u64 {
+    let mut before = 0;
+    for (name, weight) in STEMS_WORK {
+        if name == stage {
+            return before + (weight as f64 * fraction.clamp(0., 1.)) as u64;
+        }
+        before += weight;
+    }
+    before
+}
 fn start_stems(
     s: Arc<AppState>,
     app: tauri::AppHandle,
@@ -788,7 +807,7 @@ fn start_stems(
             ..Default::default()
         });
     }
-    // Separating has no measure of its own yet: an indeterminate bar with its five phases.
+    // Weighted phases, with Demucs' own fraction inside «separating» when the worker sends it.
     let meter = match &progress_id {
         Some(progress) => {
             let begun = s.actions.begin(
@@ -809,6 +828,7 @@ fn start_stems(
         None => None,
     };
     if let Some(meter) = &meter {
+        meter.total(Some(STEMS_WORK.iter().map(|(_, weight)| weight).sum()));
         meter.phase(1, STEMS_PHASES, "Preparando el audio");
         meter.current(Some(&title), Some("separate"));
     }
@@ -850,13 +870,23 @@ fn start_stems(
         };
         let mut request = request;
         request.duration = duration;
-        let mut report = |stage: &str| {
+        let mut last_stage = String::new();
+        let mut report = |stage: &str, fraction: Option<f64>| {
+            if let (Some(meter), Some(fraction)) = (&meter, fraction) {
+                meter.reach(stems_work(stage, fraction));
+            }
+            // A fraction alone moves the bar; the library's own line only changes with the stage.
+            if stage == last_stage {
+                return;
+            }
+            last_stage = stage.into();
             if let Some(job) = s.stems.job.lock().unwrap().as_mut() {
                 job.stage = stage.into();
             }
             if let (Some(meter), Some((shared, index, label))) = (&meter, stems_phase(stage)) {
                 meter.stage(shared);
                 meter.phase(index, STEMS_PHASES, label);
+                meter.reach(stems_work(stage, 0.));
             }
             announce(&app, &s);
         };

@@ -86,7 +86,8 @@ import { KeyHud } from './components/KeyboardMap';
 import { BottomBar, MiniPlayer, NowPlaying } from './components/Player';
 import { Logo, Wordmark } from './components/Logo';
 import { WebExplorer } from './components/WebExplorer';
-import { ActionPanel } from './components/ActionProgress';
+import { ActionChip, ActionPanel } from './components/ActionProgress';
+import { connectSystemProgress } from './lib/action-system';
 import { runAction, useActionRuns } from './lib/action-runs';
 import { listen } from '@tauri-apps/api/event';
 import { setHapticsEnabled } from './lib/haptics';
@@ -120,6 +121,8 @@ export default function App() {
   const [helpExpanded, setHelpExpanded] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const actionRuns = useActionRuns();
+  // The Dock or taskbar mirrors long actions, and asks for attention once when one ends unseen.
+  useEffect(() => connectSystemProgress(), []);
   const [loading, setLoading] = useState<number[]>([]);
   const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(null);
   const [newPlaylist, setNewPlaylist] = useState(false);
@@ -944,6 +947,7 @@ export default function App() {
           </button>
         </div>
         <div className="header-right">
+          <ActionChip />
           <ConnectionStatus />
           <button
             className="icon-button"

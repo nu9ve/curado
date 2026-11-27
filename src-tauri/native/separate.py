@@ -15,6 +15,7 @@ import platform
 import struct
 import sys
 import threading
+import time
 import traceback
 
 PROTOCOL = sys.stdout
@@ -24,6 +25,64 @@ STEMS = ["drums", "bass", "other", "vocals", "guitar", "piano"]
 def event(stage, **values):
     PROTOCOL.write(json.dumps(dict(stage=stage, **values)) + "\n")
     PROTOCOL.flush()
+
+
+class Progress:
+    """Demucs' own progress bars as one fraction in `separating` events.
+
+    Both engines count their chunks with tqdm (progress=True). Every bar is an instance of the same
+    class, so wrapping its `update` reads them all, however the library imported it. A bag of models
+    (htdemucs_ft) runs one bar per model: `bars` says how many make up the whole.
+    """
+
+    def __init__(self, bars=1):
+        self.bars = max(1, bars)
+        self.finished = 0
+        self.sent = -1.0
+        self.last = 0.0
+
+    def report(self, bar):
+        total = getattr(bar, "total", None) or 0
+        if total <= 0:
+            return
+        part = min(1.0, getattr(bar, "n", 0) / total)
+        if part >= 1.0 and not getattr(bar, "_curado_done", False):
+            bar._curado_done = True
+            self.finished = min(self.bars, self.finished + 1)
+        current = 0.0 if getattr(bar, "_curado_done", False) else part
+        whole = min(1.0, (self.finished + current) / self.bars)
+        now = time.monotonic()
+        if whole - self.sent >= 0.005 and (now - self.last >= 0.25 or whole >= 1.0):
+            self.sent, self.last = whole, now
+            event("separating", fraction=round(whole, 4))
+
+    def install(self):
+        try:
+            from tqdm.std import tqdm
+        except ImportError:
+            return
+        progress, update, close = self, tqdm.update, tqdm.close
+
+        def quietly(bar):
+            # The bar is only a report: nothing in it may stop the separation.
+            try:
+                progress.report(bar)
+            except Exception:
+                pass
+
+        def counted_update(bar, n=1):
+            result = update(bar, n)
+            quietly(bar)
+            return result
+
+        def counted_close(bar):
+            # Iterating ends with close(), which sets the bar's last count without update().
+            result = close(bar)
+            quietly(bar)
+            return result
+
+        tqdm.update = counted_update
+        tqdm.close = counted_close
 
 
 def probe():
@@ -83,7 +142,8 @@ def demucs_mlx(args):
     from demucs_mlx import Separator
     from demucs_mlx.audio import load_audio
     separator = Separator(model=args.model, shifts=1, seed=0, batch_size=1, progress=True)
-    event("separating")
+    event("separating", fraction=0.0)
+    Progress(len(getattr(getattr(separator, "model", None), "models", None) or [None])).install()
     wav, _ = load_audio(args.input, sr=separator.samplerate, dtype="float32")
     wav = np.asarray(wav)
     reference = wav.mean(axis=0)
@@ -109,7 +169,8 @@ def demucs_torch(args):
     mean, std = reference.mean(), reference.std()
     if std < 1e-8:
         std = wav.std().clamp(min=1e-8)
-    event("separating")
+    event("separating", fraction=0.0)
+    Progress(len(getattr(model, "models", None) or [model])).install()
     with torch.no_grad():
         stems = apply_model(model, ((wav - mean) / std)[None], device=device,
                             shifts=1, split=True, overlap=0.25, progress=True, num_workers=0)[0].cpu()

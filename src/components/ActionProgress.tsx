@@ -1,10 +1,27 @@
-// The common view of a long action (nu9ve-interaction-v1 §7), in two of its sizes: a compact floating
-// panel with one row per action, the most recent on top, and the screen view a row opens. Both read the
+// The common view of a long action (nu9ve-interaction-v1 §7), in its three sizes: a compact floating
+// panel with one row per action, the most recent on top, the screen view a row opens, and the
+// indicator chip in the title bar. Both read the
 // same `ActionView`, so the bar, the percentage and the numbers are always the same.
-import { useEffect, useState } from 'react';
-import { Check, ChevronDown, Minimize2, RotateCcw, TriangleAlert, X } from 'lucide-react';
+import { useEffect } from 'react';
+import {
+  Check,
+  ChevronDown,
+  LoaderCircle,
+  Minimize2,
+  RotateCcw,
+  TriangleAlert,
+  X,
+} from 'lucide-react';
 import { tr, useLanguage } from '../lib/language';
-import { cancelAction, dismissAction, useActionRuns, type ActionRun } from '../lib/action-runs';
+import {
+  cancelAction,
+  dismissAction,
+  openAction,
+  useActionRuns,
+  useOpenedAction,
+  type ActionRun,
+} from '../lib/action-runs';
+import { systemProgress } from '../lib/action-system';
 import type { ActionRecord, ActionView } from '../lib/action';
 
 /** What the view says for a stage; an app stage it does not know reads «Working». */
@@ -302,17 +319,44 @@ function Screen({ run, onClose }: { run: ActionRun; onClose: () => void }) {
 export function ActionPanel() {
   useLanguage();
   const runs = useActionRuns();
-  const [open, setOpen] = useState<string | null>(null);
+  const open = useOpenedAction();
   const opened = runs.find((run) => run.id === open);
   if (!runs.length) return null;
   return (
     <>
       <ol className="action-panel" aria-label={tr('Acciones en curso', 'Running actions')}>
         {runs.map((run) => (
-          <Row key={run.id} run={run} onOpen={() => setOpen(run.id)} />
+          <Row key={run.id} run={run} onOpen={() => openAction(run.id)} />
         ))}
       </ol>
-      {opened && <Screen run={opened} onClose={() => setOpen(null)} />}
+      {opened && <Screen run={opened} onClose={() => openAction(null)} />}
     </>
+  );
+}
+
+/** The indicator: the percentage of what runs, in the title bar. A click opens the newest one large. */
+export function ActionChip() {
+  useLanguage();
+  const runs = useActionRuns();
+  const active = runs.filter((run) => running(run.view));
+  if (!active.length) return null;
+  const shown = systemProgress(active);
+  const text = 'progress' in shown ? `${shown.progress} %` : '…';
+  const label =
+    active.length === 1
+      ? (active[0].view.record?.label ?? actionText(active[0].action))
+      : tr(`${active.length} acciones en curso`, `${active.length} actions running`);
+  return (
+    <button
+      type="button"
+      className={`action-chip${shown.status === 'error' ? ' stalled' : ''}`}
+      title={label}
+      aria-label={`${label} · ${text}`}
+      onClick={() => openAction(active[0].id)}
+    >
+      <LoaderCircle size={13} className="spinning" aria-hidden="true" />
+      {text}
+      {active.length > 1 && <b>{active.length}</b>}
+    </button>
   );
 }

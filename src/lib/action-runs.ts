@@ -38,7 +38,36 @@ export function useActionRuns() {
   return useSyncExternalStore(subscribe, () => runs);
 }
 export function dismissAction(id: string) {
+  if (opened === id) setOpened(null);
   publish(runs.filter((run) => run.id !== id));
+}
+
+// Which run the screen size shows: a row of the panel or the title-bar indicator opens it.
+let opened: string | null = null;
+const openListeners = new Set<() => void>();
+function setOpened(id: string | null) {
+  opened = id;
+  openListeners.forEach((f) => f());
+}
+export const openAction = (id: string | null) => setOpened(id);
+export function useOpenedAction() {
+  return useSyncExternalStore(
+    (cb) => {
+      openListeners.add(cb);
+      return () => {
+        openListeners.delete(cb);
+      };
+    },
+    () => opened,
+  );
+}
+/** Called on every change of the runs, outside React: the Dock and the attention request. */
+export function watchActionRuns(listener: (runs: ActionRun[]) => void) {
+  const notify = () => listener(runs);
+  listeners.add(notify);
+  return () => {
+    listeners.delete(notify);
+  };
 }
 export async function cancelAction(id: string) {
   if (native) await call<boolean>('action_cancel', { progressId: id });

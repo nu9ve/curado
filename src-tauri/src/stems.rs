@@ -93,6 +93,8 @@ struct Probe {
 struct WorkerEvent {
     stage: String,
     message: Option<String>,
+    /// While separating, how much of the model's work is done, 0 to 1.
+    fraction: Option<f64>,
 }
 #[derive(Deserialize)]
 struct WorkerResult {
@@ -281,7 +283,7 @@ pub const WATCHDOG_ARG: &str = "--curado-job-watchdog";
 
 /// The worker's events, read while `nu9ve-jobs` supervises it.
 #[cfg(unix)]
-struct WorkerMonitor<'a, F: FnMut(&str)> {
+struct WorkerMonitor<'a, F: FnMut(&str, Option<f64>)> {
     lines: std::sync::mpsc::Receiver<String>,
     cancelled: &'a AtomicBool,
     stage: F,
@@ -289,7 +291,7 @@ struct WorkerMonitor<'a, F: FnMut(&str)> {
     complete: bool,
 }
 #[cfg(unix)]
-impl<F: FnMut(&str)> WorkerMonitor<'_, F> {
+impl<F: FnMut(&str, Option<f64>)> WorkerMonitor<'_, F> {
     fn read(&mut self, line: &str) {
         let Ok(event) = serde_json::from_str::<WorkerEvent>(line) else {
             return;
@@ -297,12 +299,12 @@ impl<F: FnMut(&str)> WorkerMonitor<'_, F> {
         match event.stage.as_str() {
             "error" => self.failure = event.message.or(Some("Falló la separación".into())),
             "complete" => self.complete = true,
-            other => (self.stage)(other),
+            other => (self.stage)(other, event.fraction.filter(|f| f.is_finite())),
         }
     }
 }
 #[cfg(unix)]
-impl<F: FnMut(&str)> nu9ve_jobs::Monitor for WorkerMonitor<'_, F> {
+impl<F: FnMut(&str, Option<f64>)> nu9ve_jobs::Monitor for WorkerMonitor<'_, F> {
     fn poll(&mut self, _: &mut nu9ve_jobs::Events) {
         while let Ok(line) = self.lines.try_recv() {
             self.read(&line);
@@ -331,7 +333,7 @@ fn run_worker(
     cache: &Path,
     _slot: &Mutex<Option<Child>>,
     cancelled: &AtomicBool,
-    stage: impl FnMut(&str),
+    stage: impl FnMut(&str, Option<f64>),
 ) -> Result<(), String> {
     let text = |path: &Path| {
         path.to_str()
@@ -423,7 +425,7 @@ fn run_worker(
     cache: &Path,
     slot: &Mutex<Option<Child>>,
     cancelled: &AtomicBool,
-    mut stage: impl FnMut(&str),
+    mut stage: impl FnMut(&str, Option<f64>),
 ) -> Result<(), String> {
     use std::io::BufRead;
     let mut child = python(&runtime.python)
@@ -453,7 +455,7 @@ fn run_worker(
         match event.stage.as_str() {
             "error" => failure = event.message.or(Some("Falló la separación".into())),
             "complete" => complete = true,
-            other => stage(other),
+            other => stage(other, event.fraction.filter(|f| f.is_finite())),
         }
     }
     let status = slot
@@ -612,7 +614,7 @@ pub fn store_results(
     store: &Path,
     request: &Request,
     decode: &dyn Fn(&Path) -> Result<Clip, String>,
-    engine_stage: &mut dyn FnMut(&str),
+    engine_stage: &mut dyn FnMut(&str, Option<f64>),
 ) -> Result<Vec<Stored>, String> {
     let result: WorkerResult = serde_json::from_slice(
         &fs::read(job.join("result.json")).map_err(|_| "El proceso no entregó resultado")?,
@@ -640,7 +642,7 @@ pub fn store_results(
     }
     // FLAC holds ±1. The same gain on all, so they still add up to the same mix.
     let gain = if peak > 1. { 1. / peak } else { 1. };
-    engine_stage("storing");
+    engine_stage("storing", None);
     let mut stored = Vec::new();
     let mut listed = Vec::new();
     for stem in &result.stems {
@@ -902,7 +904,7 @@ pub fn separate(
     request: &Request,
     prepare: &dyn Fn(&Path) -> Result<(), String>,
     decode: &dyn Fn(&Path) -> Result<Clip, String>,
-    report: &mut dyn FnMut(&str),
+    report: &mut dyn FnMut(&str, Option<f64>),
 ) -> Result<Vec<Stored>, String> {
     let job = job_folder(store, request.track);
     let _ = fs::remove_dir_all(&job);
@@ -1010,7 +1012,7 @@ mod tests {
         let (job, store) = (folder("job"), folder("store"));
         fake_result(&job, 2., 0.4, &FOUR);
         let request = request(2.);
-        let stored = store_results(&job, &store, &request, &decode, &mut |_| {}).unwrap();
+        let stored = store_results(&job, &store, &request, &decode, &mut |_, _| {}).unwrap();
         assert_eq!(stored.len(), 4);
         let target = store.join("print/htdemucs");
         for item in &stored {
@@ -1064,7 +1066,7 @@ mod tests {
             .unwrap()
             .push(serde_json::json!({"name":"vocals","file":"vocals.wav"}));
         fs::write(job.join("result.json"), result.to_string()).unwrap();
-        let stored = store_results(&job, &store, &request(1.), &decode, &mut |_| {}).unwrap();
+        let stored = store_results(&job, &store, &request(1.), &decode, &mut |_, _| {}).unwrap();
         let manifest: Manifest =
             serde_json::from_slice(&fs::read(store.join("print/htdemucs").join(MANIFEST)).unwrap())
                 .unwrap();
@@ -1118,7 +1120,7 @@ mod tests {
             // A separator in a name fails at writing the fake too; what counts is the store.
             let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| make(&job)));
             assert!(
-                store_results(&job, &store, &request(2.), &decode, &mut |_| {}).is_err(),
+                store_results(&job, &store, &request(2.), &decode, &mut |_, _| {}).is_err(),
                 "{name}"
             );
             assert_eq!(fs::read_dir(&store).unwrap().count(), 0, "{name}");
@@ -1134,7 +1136,7 @@ mod tests {
         // Something in the way of the last stem.
         let target = store.join("print/htdemucs");
         fs::create_dir_all(target.join("vocals.flac")).unwrap();
-        assert!(store_results(&job, &store, &request(2.), &decode, &mut |_| {}).is_err());
+        assert!(store_results(&job, &store, &request(2.), &decode, &mut |_, _| {}).is_err());
         let left: Vec<_> = fs::read_dir(&target)
             .unwrap()
             .flatten()
@@ -1149,7 +1151,7 @@ mod tests {
         let mut samples = sine(2., 0.4);
         samples[500][0] = f32::NAN;
         write_float_wav(&job.join("drums.wav"), &samples, 44100).unwrap();
-        assert!(store_results(&job, &store, &request(2.), &decode, &mut |_| {}).is_err());
+        assert!(store_results(&job, &store, &request(2.), &decode, &mut |_, _| {}).is_err());
         assert_eq!(fs::read_dir(&store).unwrap().count(), 0);
     }
     /// A stand-in for Python, to test the process around the separation. It is a `#!/bin/sh`
@@ -1168,6 +1170,36 @@ mod tests {
             engine: "demucs-mlx".into(),
             version: "1".into(),
         }
+    }
+    #[test]
+    #[cfg(unix)]
+    fn the_worker_fraction_reaches_the_report() {
+        let (store, cache) = (folder("t-fraction"), folder("c-fraction"));
+        let python = fake_python(
+            "py-fraction",
+            r#"echo '{"stage":"loading"}'; echo '{"stage":"separating","fraction":0.0}'; echo '{"stage":"separating","fraction":0.5}'; echo '{"stage":"separating","fraction":"x"}'; exit 1"#,
+        );
+        let stems = Stems::default();
+        let mut seen = Vec::new();
+        let _ = separate(
+            &stems,
+            &runtime(&python),
+            &cache,
+            &store,
+            &request(1.),
+            &|input| write_float_wav(input, &sine(1., 0.2), 44100),
+            &decode,
+            &mut |stage, fraction| seen.push((stage.to_string(), fraction)),
+        );
+        // An event with a fraction that is not a number is not read at all.
+        assert_eq!(
+            seen,
+            [
+                ("loading".to_string(), None),
+                ("separating".to_string(), Some(0.0)),
+                ("separating".to_string(), Some(0.5)),
+            ]
+        );
     }
     #[test]
     #[cfg(unix)]
@@ -1192,7 +1224,7 @@ mod tests {
                 &request(1.),
                 &|input| write_float_wav(input, &sine(1., 0.2), 44100),
                 &decode,
-                &mut |_| {},
+                &mut |_, _| {},
             )
             .err()
             .unwrap();
@@ -1228,7 +1260,7 @@ mod tests {
             &request(1.),
             &|input| write_float_wav(input, &sine(1., 0.2), 44100),
             &decode,
-            &mut |stage| seen.push(stage.to_string()),
+            &mut |stage, _| seen.push(stage.to_string()),
         )
         .err()
         .unwrap();
@@ -1260,7 +1292,7 @@ mod tests {
         }
         value["stems"].as_array_mut().unwrap().extend(extra);
         fs::write(job.join("result.json"), value.to_string()).unwrap();
-        let stored = store_results(&job, store, &request, &decode, &mut |_| {}).unwrap();
+        let stored = store_results(&job, store, &request, &decode, &mut |_, _| {}).unwrap();
         commit(db, &request, &stored).unwrap()
     }
     #[test]
@@ -1332,7 +1364,7 @@ mod tests {
         let db = database();
         let job = folder("tidy-job");
         fake_result(&job, 1., 0.3, &FOUR);
-        let stored = store_results(&job, &store, &request(1.), &decode, &mut |_| {}).unwrap();
+        let stored = store_results(&job, &store, &request(1.), &decode, &mut |_, _| {}).unwrap();
         // The library never heard of them, as when a crash came before the commit.
         fs::create_dir_all(job_folder(&store, 9)).unwrap();
         fs::write(job_folder(&store, 9).join("input.wav"), b"x").unwrap();
@@ -1384,7 +1416,7 @@ mod tests {
             &request(seconds),
             &|input| write_float_wav(input, &sine(seconds, 0.3), 44100),
             &decode,
-            &mut |stage| seen.push(stage.to_string()),
+            &mut |stage, _| seen.push(stage.to_string()),
         )
         .unwrap();
         println!("{seen:?} in {:?}", started.elapsed());
@@ -1433,7 +1465,7 @@ mod tests {
             &request(60.),
             &|input| write_float_wav(input, &sine(60., 0.3), 44100),
             &decode,
-            &mut |stage| seen.lock().unwrap().push(stage.to_string()),
+            &mut |stage, _| seen.lock().unwrap().push(stage.to_string()),
         )
         .err()
         .unwrap();

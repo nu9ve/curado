@@ -2701,7 +2701,33 @@ tr:focus-within .row-load {
   font-family: var(--font-pixel);
   font-size: 11px;
 }
-/* Long actions (nu9ve-interaction-v1 §7): compact panel and screen view. */
+/* Long actions (nu9ve-interaction-v1 §7): title-bar chip, compact panel and screen view. */
+.action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 13px;
+  background: var(--surface-raised);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.action-chip svg {
+  color: var(--info);
+}
+.action-chip.stalled svg {
+  color: var(--warning);
+}
+.action-chip b {
+  min-width: 16px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text);
+  font-weight: 600;
+}
 .action-panel {
   position: fixed;
   left: calc(var(--sidebar-w) + 18px);

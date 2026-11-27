@@ -37,12 +37,14 @@ test('macOS uses integrated native controls with scoped drag/theme permissions',
   expect(capabilities.permissions).toContain('core:window:allow-start-dragging');
   expect(capabilities.permissions).toContain('core:window:allow-set-theme');
   expect(capabilities.permissions).not.toContain('shell:default');
-  // Mini player: only these window setters, no generic webview/window creation.
+  // Mini player and long actions: only these window setters, no generic webview/window creation.
   const windowSetters = capabilities.permissions.filter((p) => p.startsWith('core:window:allow-'));
   expect(windowSetters.sort()).toEqual(
     [
       'core:window:allow-set-always-on-top',
       'core:window:allow-set-background-color',
+      'core:window:allow-set-progress-bar',
+      'core:window:allow-request-user-attention',
       'core:window:allow-set-min-size',
       'core:window:allow-set-size',
       'core:window:allow-set-theme',
