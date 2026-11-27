@@ -53,19 +53,19 @@ The following is a **plan**, not a completed test record. Respect current author
 
 12. Export to rekordbox with its library backed up: import one local and one USB track; cues, loops, colors and corrected grid at the same positions, no duplicate, other fields untouched, and accents and symbols in paths.
 
-19. Pieces in the app: a real separation of a full track with its time and memory, stems on the decks, moving a folder and a drive, the quick select during a mix, and the limit reached.
+13. Pieces in the app: a real separation of a full track with its time and memory, stems on the decks, moving a folder and a drive, the quick select during a mix, and the limit reached.
 
-18. **TODO** with a real camera: CPU against hands alone, pinch and lean used together without interfering, nearness as a usable axis, and Stutter and Recycler by ear.
+14. **TODO** with a real camera: CPU against hands alone, pinch and lean used together without interfering, nearness as a usable axis, and Stutter and Recycler by ear.
 
-17. Trigger FX by pressure and by ear, loop cues sent through `rekordbox.xml` to rekordbox, and the key colors and differences read during a real transition.
+15. Trigger FX by pressure and by ear, loop cues sent through `rekordbox.xml` to rekordbox, and the key colors and differences read during a real transition.
 
 16. Touch: taps per control on a Force Touch trackpad and their timing, whether `webkitForce` arrives and a deep press stays comfortable and does not open a lookup, and no effect on audio at the fastest drag.
 
-15. Camera: permission prompt, MANOS and CARA, the light going off on leaving Mix or switching apps and back on return, unplugging a camera, another app holding it, CPU use with and without VER, and whether the XY overlay lines up with a real hand.
+17. Camera: permission prompt, MANOS and CARA, the light going off on leaving Mix or switching apps and back on return, unplugging a camera, another app holding it, CPU use with and without VER, and whether the XY overlay lines up with a real hand.
 
-14. Keyboard in real use, every badge against its action, keys during a drag in the app's own WebKit, and how many keys a real keyboard takes at once. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
+18. Keyboard in real use, every badge against its action, keys during a drag in the app's own WebKit, and how many keys a real keyboard takes at once. Release FX by ear. A 4-channel interface: cue, MIXING, LEVEL and Touch Preview apart from the mains. XY on a touchscreen with two hands.
 
-13. Mixing screen in the real app: the console against the hardware, rail and window controls, every style and theme, position stream smoothness and cost. Platter feel: scratch, bend, scroll. Each color and beat effect on each channel and master, tails, EQ kills, roll, slip, reverse and brake on real music, with and without key lock, watching for dropouts. MIDI toggles and roll on a controller. A real variable-tempo track.
+19. Mixing screen in the real app: the console against the hardware, rail and window controls, every style and theme, position stream smoothness and cost. Platter feel: scratch, bend, scroll. Each color and beat effect on each channel and master, tails, EQ kills, roll, slip, reverse and brake on real music, with and without key lock, watching for dropouts. MIDI toggles and roll on a controller. A real variable-tempo track.
 
 ## Measurement
 

@@ -77,19 +77,19 @@ Beside each waveform, the deck's key on the Camelot wheel in color: close number
 
 Each hand plays its own deck, with the same finger for the same job. In **cabina** every control shows its key on a small badge; **teclas** in the toolbar hides them.
 
-| | Left, deck 1 | Right, deck 2 | Shift | Control |
-| --- | --- | --- | --- | --- |
-| Hot cues A–D | `1 2 3 4` | `7 8 9 0` | save | delete |
-| Hot cues E–H | `Q W E R` | `U I O P` | save | delete |
-| Play / pause | `F` | `J` | | |
-| Cue | `D` | `K` | | |
-| Sync | `G` | `H` | master deck | key lock |
-| Nudge | `A` `S` | `L` `;` | one beat | four beats |
-| Loop in / out | `Z` `X` | `/` `.` | ½ / 2× | |
-| Reloop | `C` | `,` | quantize | |
-| Slip | `V` | `M` | reverse | |
-| Beat FX on/off | `T` | `Y` | | |
-| Auto loop | `B` | `N` | shorter | longer |
+|                | Left, deck 1 | Right, deck 2 | Shift       | Control    |
+| -------------- | ------------ | ------------- | ----------- | ---------- |
+| Hot cues A–D   | `1 2 3 4`    | `7 8 9 0`     | save        | delete     |
+| Hot cues E–H   | `Q W E R`    | `U I O P`     | save        | delete     |
+| Play / pause   | `F`          | `J`           |             |            |
+| Cue            | `D`          | `K`           |             |            |
+| Sync           | `G`          | `H`           | master deck | key lock   |
+| Nudge          | `A` `S`      | `L` `;`       | one beat    | four beats |
+| Loop in / out  | `Z` `X`      | `/` `.`       | ½ / 2×      |            |
+| Reloop         | `C`          | `,`           | quantize    |            |
+| Slip           | `V`          | `M`           | reverse     |            |
+| Beat FX on/off | `T`          | `Y`           |             |            |
+| Auto loop      | `B`          | `N`           | shorter     | longer     |
 
 - **Space:** stops whatever is playing, or starts both decks. In the player it is the one deck.
 - **↑ ↓:** moves through the list on the panel as shown, with its search and sort, on a drive too; hold it to run. **Shift + ↑ ↓** jumps eight.
@@ -98,12 +98,12 @@ Each hand plays its own deck, with the same finger for the same job. In **cabina
 - **Option + a hot cue's number:** fires samples 1–8. **Option + B:** master Beat FX. **Escape:** mutes all.
 - **The mixer, with Option:** hold Option and the console shows its keys. Tap a control, then use arrows until you let go: **↑** top, **↓** silent, **← →** center, **Shift + ↑ ↓** in steps. Effects: **← →** choose, **↑ ↓** on or off (for divisions, longer or shorter). The fader's ↑ stops at unity; Shift goes beyond.
 
-| With Option | Deck 1 | Deck 2 |
-| --- | --- | --- |
-| HI / MID / LOW | `Q` `A` `Z` | `P` `;` `/` |
-| TRIM / COLOR / FADER | `W` `S` `X` | `O` `L` `.` |
+| With Option                       | Deck 1      | Deck 2      |
+| --------------------------------- | ----------- | ----------- |
+| HI / MID / LOW                    | `Q` `A` `Z` | `P` `;` `/` |
+| TRIM / COLOR / FADER              | `W` `S` `X` | `O` `L` `.` |
 | Color effect / Beat FX / division | `E` `D` `C` | `I` `K` `,` |
-| PARAMETER / LEVEL-DEPTH | `R` `F` | `U` `J` |
+| PARAMETER / LEVEL-DEPTH           | `R` `F`     | `U` `J`     |
 
 `Option + G` is master level and `Option + H` sampler level.
 
