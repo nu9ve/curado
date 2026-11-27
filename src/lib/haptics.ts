@@ -50,8 +50,9 @@ export function onPressure(listen: (level: number) => void) {
 export function pressureFromForce(force: number): number {
   return Math.max(0, Math.min(1, force - 1));
 }
-export const fineFactor = (level: number, shift: boolean) =>
-  (shift ? 4 : 1) * (1 + 3 * Math.max(0, Math.min(1, level)));
+/** How much finer a drag is: harder pressure up to 4×, and Option (the suite's fine key) 4× more. */
+export const fineFactor = (level: number, fineKey: boolean) =>
+  (fineKey ? 4 : 1) * (1 + 3 * Math.max(0, Math.min(1, level)));
 if (typeof window !== 'undefined') {
   window.addEventListener('webkitmouseforcechanged', (event) => {
     pressure = pressureFromForce((event as unknown as { webkitForce: number }).webkitForce);

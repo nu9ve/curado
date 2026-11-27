@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { reachedWithTab } from '../lib/keyboard';
 import { currentPressure, detent, fineFactor, haptic } from '../lib/haptics';
+import { LARGE_STEPS, stepScale } from '../lib/steps';
 
 export function Key({ children, code }: { children: ReactNode; code?: string }) {
   return <kbd data-key={code}>{children}</kbd>;
@@ -147,16 +148,18 @@ function keyStep(
 ): number | null {
   // Only when reached with Tab: otherwise these keys are the mix's, even right after a drag.
   if (!tabbed()) return null;
-  const step = (max - min) / (e.shiftKey ? 100 : 25);
+  // Option is fine and Shift large (stepScale); Page Up/Down stay four steps.
+  const base = (max - min) / 25;
+  const step = base * stepScale(e);
   const next =
     e.key === 'ArrowUp' || e.key === 'ArrowRight'
       ? value + step
       : e.key === 'ArrowDown' || e.key === 'ArrowLeft'
         ? value - step
         : e.key === 'PageUp'
-          ? value + step * 4
+          ? value + base * LARGE_STEPS
           : e.key === 'PageDown'
-            ? value - step * 4
+            ? value - base * LARGE_STEPS
             : e.key === 'Home'
               ? reset
               : e.key === 'End'
@@ -170,7 +173,7 @@ const SWEEP = 270;
 /** Notches a full turn or travel has, felt on a Force Touch trackpad. */
 const KNOB_STEPS = 24;
 const SLIDER_STEPS = 16;
-/** Rotary control: vertical drag (Shift = fine), wheel, arrows, double click to reset. */
+/** Rotary control: vertical drag (Option = fine), wheel, arrows, double click to reset. */
 export function Knob({
   label,
   value,
@@ -241,7 +244,7 @@ export function Knob({
         // Each step counts by how fine it is now, so pressing harder never jumps the value.
         const moved = drag.current.y - e.clientY;
         drag.current.y = e.clientY;
-        const scale = 150 * fineFactor(currentPressure(), e.shiftKey);
+        const scale = 150 * fineFactor(currentPressure(), e.altKey);
         drag.current.value = clampTo(drag.current.value + (moved / scale) * (max - min), min, max);
         set(drag.current.value);
       }}
@@ -330,11 +333,11 @@ export function Slider({
     hold(next);
     onChange(next);
   };
-  const fromPointer = (x: number, y: number, shift: boolean) => {
+  const fromPointer = (x: number, y: number, fineKey: boolean) => {
     const r = track.current?.getBoundingClientRect();
     if (!r) return;
     const along = vertical ? 1 - (y - r.top) / r.height : (x - r.left) / r.width;
-    const factor = fineFactor(currentPressure(), shift);
+    const factor = fineFactor(currentPressure(), fineKey);
     // Normally the cap goes to the pointer. Once fine, it moves by less than the pointer does,
     // and stays that way until let go, since going back to the pointer would jump.
     if (anchored || factor > 1.2 || fine.current) {
@@ -377,7 +380,7 @@ export function Slider({
           fine.current = null;
           fromPointer(e.clientX, e.clientY, false);
         }}
-        onPointerMove={(e) => active.current && fromPointer(e.clientX, e.clientY, e.shiftKey)}
+        onPointerMove={(e) => active.current && fromPointer(e.clientX, e.clientY, e.altKey)}
         onPointerUp={() => {
           active.current = false;
           letGo();

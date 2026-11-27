@@ -229,8 +229,9 @@ export default function App() {
     };
     const handle = (e: KeyboardEvent) => {
       if (!keyIsForTheMix(e.target as HTMLElement, e.code)) return;
-      if (e.key === 'Alt' && mode === 'mix') showMixerKeys(true, mixerAim);
-      if (handleMixer(e)) return;
+      // With a pointer down, Option is the fine drag (nu9ve-interaction-v1 §2), not the mixer's keys.
+      if (e.key === 'Alt' && mode === 'mix' && pressed === 0) showMixerKeys(true, mixerAim);
+      if (pressed === 0 && handleMixer(e)) return;
       // Match ignoring mode first so blocked keys still explain themselves in the HUD.
       const binding = matchKey(e, keys, 'mix', pressed > 0);
       if (!binding) return;

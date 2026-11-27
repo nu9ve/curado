@@ -17,6 +17,7 @@ import {
 } from '../lib/waveform';
 import type { WaveColors } from '../lib/waveform';
 import type { Slot } from '../lib/types';
+import { stepScale } from '../lib/steps';
 
 function useColors(tone: 'a' | 'b'): {
   colors: WaveColors;
@@ -130,7 +131,8 @@ export function WaveOverview({
         if (!onSeek || !d || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
         e.preventDefault();
         e.stopPropagation();
-        const delta = (e.shiftKey ? 1 : 5) * (e.key === 'ArrowRight' ? 1 : -1);
+        // Five seconds; Option one tenth of that, Shift four times.
+        const delta = 5 * stepScale(e) * (e.key === 'ArrowRight' ? 1 : -1);
         onSeek(Math.max(0, Math.min(d, slot.position + delta)));
       }}
     >
@@ -363,7 +365,8 @@ export function ZoomWave({
         if (!onSeek || !slot.duration || !['ArrowRight', 'ArrowLeft'].includes(e.key)) return;
         e.preventDefault();
         e.stopPropagation();
-        const delta = (e.shiftKey ? 1 : 5) * (e.key === 'ArrowRight' ? 1 : -1);
+        // Five seconds; Option one tenth of that, Shift four times.
+        const delta = 5 * stepScale(e) * (e.key === 'ArrowRight' ? 1 : -1);
         onSeek(Math.max(0, Math.min(slot.duration, slot.position + delta)));
       }}
       onPointerDown={(e) => {

@@ -87,15 +87,15 @@ const descriptions: Record<string, [string, string]> = {
   ],
   low: [
     'Ajusta los graves de este canal.',
-    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Shift afina y doble clic restaura.',
+    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Opción (Alt) afina, Shift da pasos grandes y doble clic restaura.',
   ],
   mid: [
     'Ajusta los medios de este canal.',
-    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Shift afina y doble clic restaura.',
+    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Opción (Alt) afina, Shift da pasos grandes y doble clic restaura.',
   ],
   high: [
     'Ajusta los agudos de este canal.',
-    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Shift afina y doble clic restaura.',
+    'Centro = ganancia unitaria. Arrastra verticalmente, usa rueda o flechas; Opción (Alt) afina, Shift da pasos grandes y doble clic restaura.',
   ],
   filter: [
     'Atenúa los agudos con un filtro paso bajo.',
@@ -302,15 +302,15 @@ const englishDescriptions: Record<string, [string, string]> = {
   ],
   low: [
     'Adjust channel bass.',
-    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+    'Center is unity. Drag, use the wheel or arrows; Option (Alt) fine-tunes, Shift takes large steps and double-click resets.',
   ],
   mid: [
     'Adjust channel mids.',
-    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+    'Center is unity. Drag, use the wheel or arrows; Option (Alt) fine-tunes, Shift takes large steps and double-click resets.',
   ],
   high: [
     'Adjust channel treble.',
-    'Center is unity. Drag, use the wheel or arrows; Shift fine-tunes and double-click resets.',
+    'Center is unity. Drag, use the wheel or arrows; Option (Alt) fine-tunes, Shift takes large steps and double-click resets.',
   ],
   filter: [
     'Reduce highs with a low-pass filter.',
