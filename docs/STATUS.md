@@ -1,5 +1,41 @@
 # curado status
 
+## Long actions outside the panel and a Demucs fraction · 2026-11-27
+
+- **Title-bar indicator.** `ActionChip` in the header shows the percentage of
+  what runs, or `…` without a measure, and how many actions run. A click opens
+  the newest one in the large view.
+- **Dock and taskbar.** `action-system.ts` mirrors the runs with
+  `setProgressBar`: the least advanced measured action leads, the bar is
+  indeterminate while nothing has a measure, it turns to the error state while
+  an action has no heartbeat, and it clears when everything has ended. The ACL
+  gains `core:window:allow-set-progress-bar` and
+  `core:window:allow-request-user-attention` for `main` only.
+- **Notice on finishing.** When an action ends with the window in the
+  background, the Dock bounces once (`requestUserAttention`, informational).
+  A system notification is **not** sent: `nu9ve-notifications-v1` asks for a
+  notification channel with its own permission, Settings → Notices, sound and
+  limits, which needs the notification plugin (a new dependency) and a
+  decision.
+- **Demucs fraction.** `separate.py` wraps `tqdm`'s `update` and `close`, which
+  both engines use for their chunks, and sends `separating` events with
+  `fraction` at most every 0.25 s. A bag of models (`htdemucs_ft`) counts one
+  bar per model. Rust passes the fraction into a weighted measure (preparing
+  4 %, loading 6 %, separating 80 %, writing 5 %, storing 5 %), so separation
+  now has a percentage and an ETA. Checked with simulated bars (one and four,
+  by iteration and by `update`): the fraction always rises and ends at 1. Not
+  run with a real Demucs.
+
+**Verified.** `bun run check` (157 tests), `bun run core:check`, `bun run
+build`, `prettier --check`, `cargo fmt --all -- --check`, `cargo clippy
+--workspace --all-targets -- -D warnings` and `cargo test --workspace` (248
+passed, 11 ignored; one new worker-fraction test). The signed 15.73 MiB bundle
+was built and installed (binary SHA-256 prefix `f3b24d8c0333d969`, strict
+signature check passed); the app was not opened.
+
+**Next.** In the app, separate a track with the window in the background and
+watch the Dock and the chip. Then decide on system notifications.
+
 ## Long actions, shared state colors and core `bb3a16e` · 2026-11-27
 
 - **`nu9ve-action-v1`.** Import, re-analysis and stem separation write
@@ -18,8 +54,8 @@
     `scripts/action-examples.py`) in a one-off test run that was not kept.
     `action.ts` passes all 7 request, 11 valid, 20 invalid and 6 sequence
     examples.
-  - Missing: the title-bar indicator, Dock progress, the completion notice and
-    sound, and the per-skin animation.
+  - Missing at the time: the title-bar indicator, Dock progress, the completion
+    notice and sound, and the per-skin animation (see the entry above).
 - **Theme roles to CSS tokens.** `SUITE_ROLE_TOKENS` maps all 15 shared roles
   and `secondary` to curado's tokens. A test checks that every style generates
   them. `--warning`, `--info` and `--warning-soft` are new. `--danger` and

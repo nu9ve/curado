@@ -1,5 +1,13 @@
 # Change history
 
+## 2026-11-27 · Long actions in the title bar and the Dock
+
+A chip in the title bar shows the percentage of running actions and opens the
+large view. The Dock icon (taskbar on Windows) shows the same progress, and
+bounces once when an action ends with the window in the background. Stem
+separation now has a real percentage and ETA from Demucs' own progress. See
+ADR-039 and [Status](STATUS.md).
+
 ## 2026-11-27 · Long actions with progress, shared state colors
 
 Import, re-analysis and stem separation write `nu9ve-action/1` records, read
