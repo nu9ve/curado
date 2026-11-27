@@ -1,5 +1,17 @@
 # Change history
 
+## 2026-11-27 · Long actions with progress, shared state colors
+
+Import, re-analysis and stem separation write `nu9ve-action/1` records, read
+with `action_progress`. A floating panel shows one bar per action, the stage,
+files, the file in hand, ETA, cancellation, and a closing with summary and
+warnings; a row opens the large view with the log. **Import can now be
+cancelled** between files. The shared `warning` and `info` roles join the
+palette, and **danger and success change color slightly**: they now derive
+from the suite's semantic colors. The Windows installer's danger color follows.
+Pinned nu9ve/core at `bb3a16e`, adding the action contract and its examples.
+Prettier now passes on `docs`. See ADR-039 and [Status](STATUS.md).
+
 ## 2026-11-27 · Suite catch-up
 
 Pinned nu9ve/core at `6d1d85a`. Loudness is measured with `nu9ve-loudness`.

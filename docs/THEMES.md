@@ -78,9 +78,16 @@ maps `canvas`, `surface`, `raised`, `ink`, `muted` and `secondary` to
 `--deck-b`. `src/lib/suite-theme.ts` is the TypeScript port of the shared
 recipe (`ThemeColor`, `ThemeRoles` and `ThemeSurfaces` from Swift and C#) for the
 five common skins and both eras. Since 2026-11-27 it gives every role of the 110
-shared vectors and the 44 tinted era vectors exactly, by hex. No style uses it
-yet. Next, map common roles to existing CSS tokens and retain waveform, deck
-and meter colors as domain roles. Offering Macintosh, Windows 9x or Terminal as
+shared vectors and the 44 tinted era vectors exactly, by hex. `SUITE_ROLE_TOKENS`
+in `theme.ts` maps every role to its CSS token: `canvas` `--chrome`, `surface`
+`--surface`, `raised` `--surface-raised`, `line` `--line`, `ink` `--text`,
+`muted` `--text-muted`, `accent` `--accent`, `onAccent` `--accent-ink`,
+`accentText` `--accent-text`, `accentSoft` `--accent-soft`, the four states
+`--danger`, `--warning`, `--success` and `--info`, `warningSoft`
+`--warning-soft` and `secondary` `--deck-b`. Since 2026-11-27 the states start
+from the suite's semantic colors mixed 12 % toward the text, then hold 4.5:1 on
+every ground (ADR-039). curado's styles keep their own surfaces: the skin
+recipe is not applied to them. Waveform, deck and meter colors stay domain roles. Offering Macintosh, Windows 9x or Terminal as
 styles is a separate decision: the era option and its `tinted` default only apply
 to those skins. The local pixel style is distinct from the common `classicMac` skin.
 

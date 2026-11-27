@@ -1,5 +1,54 @@
 # curado status
 
+## Long actions, shared state colors and core `bb3a16e` · 2026-11-27
+
+- **`nu9ve-action-v1`.** Import, re-analysis and stem separation write
+  `nu9ve-action/1` records in memory (`action.rs`), read with the
+  `action_progress` command. Both new commands are ACL-listed for `main` only.
+  - Import reports `listing`, then `analyzing` file by file, with the file in
+    hand and a log line for each. It can be cancelled between files, and what
+    was imported stays.
+  - Separation shows five phases with an indeterminate bar, because Demucs
+    gives no fraction yet.
+  - A compact panel shows one row per action; a row opens the large view with
+    the log. Success leaves after 6 s, while failures and warnings stay. The
+    spinner remains only for the moments before the first record.
+  - Records from Rust (running, complete with a warning, failed, cancelled and
+    unknown) passed the core's reference check (`record_problem` in
+    `scripts/action-examples.py`) in a one-off test run that was not kept.
+    `action.ts` passes all 7 request, 11 valid, 20 invalid and 6 sequence
+    examples.
+  - Missing: the title-bar indicator, Dock progress, the completion notice and
+    sound, and the per-skin animation.
+- **Theme roles to CSS tokens.** `SUITE_ROLE_TOKENS` maps all 15 shared roles
+  and `secondary` to curado's tokens. A test checks that every style generates
+  them. `--warning`, `--info` and `--warning-soft` are new. `--danger` and
+  `--success` now derive from the suite's semantic colors. The default dark
+  danger is `#ed7b74` (was `#f0af9d`) and success `#53ae74` (was `#a9caa0`),
+  and the Windows installer palette was regenerated. Contrast tests cover the
+  new states on every ground, in every style, mode and variant. Not seen in the
+  app.
+- **Prettier** passes on `src`, `scripts`, `docs`, both READMEs and `AGENTS.md`.
+  The three earlier findings were table alignment and the order of `QUALITY.md`'s
+  numbered list (now 13–19 in sequence).
+- **Pin** `bb3a16e` adds the action contract and its examples. The local core
+  checkout has an unpushed commit (`4a632cc`, Stalker rows in the theme
+  contract), so `--strict` reports that one difference.
+
+**Verified.** `bun run check` (153 tests), `bun run core:check`, `bun run
+build`, `prettier --check`, `cargo fmt --all -- --check`, `cargo clippy
+--workspace --all-targets -- -D warnings` and `cargo test --workspace` (247
+passed, 11 ignored; 8 new action tests). `bun run installer:check` ran its art
+check; the rest needs Windows. The signed 15.73 MiB bundle built with `bun
+run desktop:build` and was installed with `bun run desktop:install --no-build`
+(binary SHA-256 prefix `7840ffe532bb7a62`, strict signature check passed). The
+app was not opened.
+
+**Next.** Import a folder, cancel one, re-analyze a track and separate one in
+the app, and look at the panel and the new state colors in each style. Then
+come the title-bar indicator and Dock progress, and a Demucs fraction from
+`separate.py`.
+
 ## Suite catch-up: core `6d1d85a`, loudness, analysis, stems, theme roles, Option fine · 2026-11-27
 
 The pin moved from `1114e02` to `6d1d85a` (66 commits). Within the paths
@@ -670,15 +719,15 @@ The maintainer authorized reviewing the screen, and rejected the console as not 
 
 **Measured on the maintainer's USB, read only, 986 tracks against rekordbox:**
 
-| Measure | Before | After |
-| --- | --- | --- |
-| Tracks given a key | 25 % | 100 % |
-| Key exact, tracks not used for tuning | 31 % | 41 % |
-| Key a fifth away | 26 % | 15 % |
-| Exact at confidence ≥ 0.3 | | 54 % |
-| Same tempo as rekordbox | 58 % | 58 % |
-| Phase within 50 ms, same tempo | 67 % | 67 % |
-| Half a beat off, same tempo | 11 % | 11 % |
+| Measure                               | Before | After |
+| ------------------------------------- | ------ | ----- |
+| Tracks given a key                    | 25 %   | 100 % |
+| Key exact, tracks not used for tuning | 31 %   | 41 %  |
+| Key a fifth away                      | 26 %   | 15 %  |
+| Exact at confidence ≥ 0.3             |        | 54 %  |
+| Same tempo as rekordbox               | 58 %   | 58 %  |
+| Phase within 50 ms, same tempo        | 67 %   | 67 %  |
+| Half a beat off, same tempo           | 11 %   | 11 %  |
 
 Key and phase are agreement, not truth, and this USB's keys may come from other tools. **Tempo and phase did not improve:** five alternatives were tried and none held up on tracks not used for tuning, so nothing changed there except a **½ beat** button. Of the rest, about 28 % of tempos are off by a small ratio, mostly at low confidence. rekordbox has no variable grid on any of 989 tracks here, so its import path has only synthetic tests. curado's own detector fired on 27 % even when tightened, so it runs only on request and its accuracy is unknown.
 
@@ -698,25 +747,25 @@ The maintainer confirmed by ear that USB tracks play and control well, then aske
 
 **Audio quality (measured, not listened to).**
 
-| Measurement | Result |
-| --- | --- |
-| EQ, band killed, tone inside that band | under −35 dB, was shallow one-pole |
-| EQ flat through the crossovers | within ±0.1 dB, 30 Hz to 15 kHz |
-| EQ centered | sample-exact, attacks included |
-| LP/HP two octaves past cutoff | −42 to −54 dB, a 24 dB/octave slope |
-| Sinc at 0.97× on a 15 kHz tone | within ±0.2 dB, everything else under −70 dB |
-| 20 kHz tone at 1.5× (it would fold to 18 kHz) | under −60 dB |
-| Loudness of a full-scale 997 Hz tone at 44.1, 48 and 96 kHz | within 0.3 LU of the standard |
+| Measurement                                                 | Result                                       |
+| ----------------------------------------------------------- | -------------------------------------------- |
+| EQ, band killed, tone inside that band                      | under −35 dB, was shallow one-pole           |
+| EQ flat through the crossovers                              | within ±0.1 dB, 30 Hz to 15 kHz              |
+| EQ centered                                                 | sample-exact, attacks included               |
+| LP/HP two octaves past cutoff                               | −42 to −54 dB, a 24 dB/octave slope          |
+| Sinc at 0.97× on a 15 kHz tone                              | within ±0.2 dB, everything else under −70 dB |
+| 20 kHz tone at 1.5× (it would fold to 18 kHz)               | under −60 dB                                 |
+| Loudness of a full-scale 997 Hz tone at 44.1, 48 and 96 kHz | within 0.3 LU of the standard                |
 
 **Callback cost on this Mac** (`fx_budget`, normal-priority thread at 48 kHz, 44.1 kHz files, ten voices sounding, three runs and repeats):
 
-| Case | Median | p99 |
-| --- | --- | --- |
-| No effects, 256 frames | 5.4 % | 6.7 % |
-| Tempo moved (sinc), 256 frames | 10 % | 12 % |
-| Three reverbs, EQ, filters, 256 frames | 11 % | 13–27 % |
-| The same, 64 frames | 6.5 % | 28–39 % |
-| The same with key lock, 256 frames | 11 % | 13–25 % |
+| Case                                   | Median | p99     |
+| -------------------------------------- | ------ | ------- |
+| No effects, 256 frames                 | 5.4 %  | 6.7 %   |
+| Tempo moved (sinc), 256 frames         | 10 %   | 12 %    |
+| Three reverbs, EQ, filters, 256 frames | 11 %   | 13–27 % |
+| The same, 64 frames                    | 6.5 %  | 28–39 % |
+| The same with key lock, 256 frames     | 11 %   | 13–25 % |
 
 Single blocks reached 30–45 ms in some runs, in every case including no effects, at different moments, and not in other runs of the same case. That points to the OS preempting a normal-priority thread rather than to this work, but it was not proven on the real-time audio thread, so the maintainer should watch for dropouts.
 

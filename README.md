@@ -104,7 +104,7 @@ bun run desktop
 1. Open curado and choose **sesión de prueba** in the sidebar. It generates two short tracks and four samples locally; nothing is downloaded.
 2. Switch to **Mezcla**, press `F` and `J` to play each deck, and move the crossfader.
 3. Press `B` for a four-beat auto loop and `B` again to leave it. Point to any control to read its hint in the footer.
-4. Import your own music when you are ready. Import registers file references; removing library entries never deletes originals.
+4. Import your own music when you are ready. Import registers file references, shows its progress file by file and can be cancelled; removing library entries never deletes originals.
 
 For a Pioneer DDJ-SB and rekordbox USB on Mac, follow the [MIDI and audio setup and checks](docs/MIDI.md#macos-hardware-check).
 

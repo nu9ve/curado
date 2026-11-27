@@ -4,9 +4,9 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S1 · Long tracks and global memory budget (P0)
 
-**Implemented 2026-10-30 without streaming:** see ADR-019 and Status. A 60-minute track plays, seeks and loops with no callback allocation and a global memory limit; playback touches no disk.
+**Implemented 2026-10-30 without streaming:** see ADR-019 and Status. A 60-minute track plays, seeks and loops with no callback allocation and a global memory limit; playback touches no disk. Import progress and cancellation came on 2026-11-27 (ADR-039).
 
-- **Remaining:** import progress and cancellation, a corrupt-file corpus and decode time limits; waveform UI with hour-long tracks, unseen so far.
+- **Remaining:** a corrupt-file corpus and decode time limits; waveform UI with hour-long tracks, unseen so far.
 - **Reconsider streaming when:** tracks over about 90 minutes matter, or target machines cannot spare the memory. Its risks are distant seeks in unindexed codecs, cue latency and dropouts from slow drives.
 
 ## S11 · rekordbox interchange (P1)

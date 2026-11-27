@@ -1,5 +1,18 @@
 # Technical decisions
 
+## ADR-039 · Long actions as nu9ve-action/1 records, and the shared state roles — accepted (2026-11-27)
+
+`nu9ve-interaction-v1` §7 now requires that an action longer than a couple of seconds is shown with one bar for the whole action, read from a `nu9ve-action-v1` record. Import, re-analysis and stem separation did not meet it: import showed a spinner, stems a line of text.
+
+- **Where the record lives.** curado has no persistent engine process speaking `nu9ve-engine` frames: its engine runs inside the app. So `action_progress` is a Tauri command with the contract's parameter and reply, and records live in memory in `action.rs`. The action and the reader share a process, so no read sees half a record. A finished record is kept 10 minutes (§2). A dropped `Meter` closes its record as `failed` with `internal_error`, never `complete` (§3.5).
+- **Heartbeat.** One thread beats every running record every 4 s (§3.3 asks for at most 10 s). It stops when nothing runs. A step that is slow but alive keeps a fresh `updated_at`; in this process a dead action and a dead reader are the same event.
+- **Who names it.** The frontend gives each launch a `progress_id` (`<action>-<UTC stamp>-<n>`). `import_media` starts its action only after the file picker returns files, so closing the picker leaves no record.
+- **What each action reports.** Import: `listing`, then `analyzing` one file at a time in `files`, the file in hand, a log line per file (`imported`, `duplicate`, `relinked`, `skipped`, `failed`) and cancellation between files. What was imported before a cancel stays, and `cancelled` says so. Re-analysis: one item, not cancellable. Separation: `unit` `work` with an **indeterminate** total and five `phase`s (preparing, loading the model, separating, writing, storing), because the worker reports no fraction inside Demucs yet. Its cancel goes through `stems.cancel()`.
+- **The view.** `src/lib/action.ts` ports the reference's record check and client view and passes `data/action-examples-v1.json`. `ActionPanel` shows the compact size (one row per action, newest first) and opens the screen size from a row. Success leaves after 6 s; warnings, failures and cancellations stay until dismissed. A failure offers «Reintentar», which launches again under a new id.
+- **Not done.** The title-bar indicator, Dock progress, the completion notice and sound, and the per-skin animation; a stems fraction; the old `stems:progress` event stays as the library's own line while the panel reads the record.
+- **State roles.** The shared `warning`, `info` and `warningSoft` roles become `--warning`, `--info` and `--warning-soft`. `--danger` and `--success` now start from the suite's semantic colors mixed 12 % toward the text, as `nu9ve-theme-v1` §2 requires, instead of curado's own hexes. They still hold 4.5:1 on every ground. The default dark danger moves from `#f0af9d` to `#ed7b74` (the Windows installer palette follows) and success from `#a9caa0` to `#53ae74`. `SUITE_ROLE_TOKENS` in `theme.ts` is the role-to-token table, tested against every style.
+- **Reconsider** when curado grows a separate engine process (the record then goes through `nu9ve-fs`), or when the worker can report Demucs' progress.
+
 ## ADR-038 · Loudness, musical analysis and the stems process from nu9ve/core — accepted (2026-11-27)
 
 The suite extracted three pieces curado had of its own, and this session adopts them from the pin `6d1d85a`.

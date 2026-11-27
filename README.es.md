@@ -94,7 +94,7 @@ Después de cambiar código, `bun run desktop:install` recompila y actualiza tu 
 1. Abre curado y elige **sesión de prueba** en la barra lateral. Genera dos pistas cortas y cuatro samples locales; no descarga música.
 2. Cambia a **Mezcla**, presiona `F` y `J` para reproducir cada deck y mueve el crossfader.
 3. Presiona `B` para un auto loop de cuatro beats y `B` otra vez para salir. Señala cualquier control para ver su ayuda en el footer.
-4. Importa tu música cuando quieras. Importar registra referencias a los archivos; retirar una pista nunca borra su original.
+4. Importa tu música cuando quieras. Importar registra referencias a los archivos, muestra su avance archivo por archivo y se puede cancelar; retirar una pista nunca borra su original.
 
 Para usar un Pioneer DDJ-SB y un USB de rekordbox en Mac, sigue la [configuración y las pruebas de MIDI y audio](docs/MIDI.md#macos-hardware-check).
 
