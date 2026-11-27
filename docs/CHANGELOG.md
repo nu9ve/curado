@@ -1,5 +1,11 @@
 # Change history
 
+## 2026-11-27 · CI by hand only
+
+The three-OS `check.yml` workflow is added to the repository with a
+`workflow_dispatch` trigger only, following the suite's manual CI rule.
+Platforms and Sessions no longer say there is no workflow.
+
 ## 2026-11-22 · DDJ-SB view in Mix
 
 Added the DDJ-SB surface with four pads per deck, deck-specific SHIFT,

@@ -80,5 +80,5 @@ Topics large enough to deserve a separate objective, evidence and closure, in su
 
 ## S10 · Distribution and executed CI (P0)
 
-- **Context:** no CI workflow is tracked; the local draft must use manual dispatch before it is added. macOS and Windows 11 have been built and tested locally. The Mac bundle is ad hoc signed.
+- **Context:** `.github/workflows/check.yml` covers three OSes and runs only by manual dispatch, per the suite's rule; it has not been run. macOS and Windows 11 have been built and tested locally. The Mac bundle is ad hoc signed.
 - **Scope:** run all three OS jobs, signed in-bundle Metal helper, notarization, licenses/notices including font OFL, and repository license. See [Licensing](LICENSING.md); recommendation is not an applied license.

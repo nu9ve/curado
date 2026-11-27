@@ -53,7 +53,7 @@ Integrated visuals use shared UI. Metal button is macOS-only; a cross-platform n
 
 ## Cross-platform validation
 
-No CI workflow exists in the repository (checked 2026-11-06: no `.github` in the tree or its history), although earlier notes said one was configured. When one is added, remember that a workflow file does not prove execution; a CI build does not validate drivers, hotplug, hardware or tray. Record runs/hardware matrix in STATUS/QUALITY.
+`.github/workflows/check.yml` runs the gates and a no-bundle Tauri build on macOS, Windows and Ubuntu. It runs only by hand (`workflow_dispatch`, Actions › Run workflow), never on push or pull request: the suite decided on 2026-11-16 that the gates run locally before each commit and paid runner minutes are spent only on request. It has never been run. A workflow file does not prove execution, and a CI build does not validate drivers, hotplug, hardware or tray. Record runs and the hardware matrix in STATUS/QUALITY.
 
 General requirements: [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/). App does not install drivers/system services. Tauri's integrated child WebView currently requires its `unstable` feature; see ADR-012 before upgrades.
 

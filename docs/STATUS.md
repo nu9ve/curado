@@ -1,5 +1,17 @@
 # curado status
 
+## CI by hand only · 2026-11-27
+
+`.github/workflows/check.yml` now triggers only on `workflow_dispatch`, as the
+nu9ve suite requires. It was previously untracked and set to run on every push
+and pull request on macOS, Windows and Ubuntu. Local gates are unchanged and
+run before each commit. The workflow has never run on GitHub. Its
+`prettier --check` step covers `docs`, and the known Prettier findings in
+`CONTROLS.md`, `QUALITY.md` and `STATUS.md` would fail that step until they
+are fixed. The core pin (`1114e02`) is 66 commits behind `nu9ve/core`
+`6d1d85a`. Only `macos-app-v1`, `nu9ve-interaction-v1`, `nu9ve-theme-v1` and
+`sync-core.sh` changed within the pinned paths. The repin is the next change.
+
 ## DDJ-SB view in Mix · 2026-11-22
 
 Mix adds a DDJ-SB view with two jogs and their elapsed time, BPM and key,
